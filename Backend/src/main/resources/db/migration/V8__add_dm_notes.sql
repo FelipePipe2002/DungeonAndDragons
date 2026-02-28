@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS dm_notes (
+    id BIGINT PRIMARY KEY,
+    texto TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_dm_notes_singleton CHECK (id = 1)
+);

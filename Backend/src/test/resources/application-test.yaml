@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:dnd;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+security:
+  jwt:
+    secret: 012345678901234567890123456789012345678901234567890123456789
+
+server:
+  servlet:
+    context-path: /api

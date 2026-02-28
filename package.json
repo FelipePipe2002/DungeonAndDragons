@@ -1,0 +1,12 @@
+{
+  "name": "dungeon-and-dragons-root",
+  "private": true,
+  "scripts": {
+    "dev": "cd Frontend && npm run dev",
+    "build": "cd Frontend && npm run build",
+    "start": "cd Frontend && npm run start",
+    "lint": "cd Frontend && npm run lint",
+    "assets": "cd Frontend && npm run assets",
+    "build:assets": "cd Frontend && npm run build:assets"
+  }
+}

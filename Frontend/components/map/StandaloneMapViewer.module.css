@@ -1,0 +1,162 @@
+.root {
+  width: 100%;
+  height: calc(100dvh - var(--app-nav-height, 4.5rem));
+  min-height: calc(100vh - var(--app-nav-height, 4.5rem));
+  border: 1px solid oklch(0.76 0.04 68);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: oklch(0.90 0.02 76);
+}
+
+.viewportShell {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.createPopoverAnchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.landmarkPopoverAnchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.viewport {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: linear-gradient(155deg, oklch(0.86 0.03 70), oklch(0.80 0.04 66));
+}
+
+.viewportDragging {
+  cursor: grabbing;
+}
+
+.viewportDragOver {
+  box-shadow: inset 0 0 0 2px oklch(0.42 0.1 45 / 0.65);
+}
+
+.mapDropHint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid oklch(0.56 0.07 45 / 0.55);
+  border-radius: 0.45rem;
+  background: oklch(0.95 0.02 78 / 0.96);
+  color: oklch(0.24 0.03 55);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.55rem 0.75rem;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.moveHint {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  border: 1px solid oklch(0.56 0.07 45 / 0.55);
+  border-radius: 0.45rem;
+  background: oklch(0.95 0.02 78 / 0.96);
+  color: oklch(0.24 0.03 55);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.55rem 0.75rem;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mapLayer {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(60, 44, 22, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 44, 22, 0.12) 1px, transparent 1px),
+    radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.18), transparent 45%),
+    linear-gradient(140deg, oklch(0.88 0.03 74), oklch(0.76 0.05 64));
+  background-size: 72px 72px, 72px 72px, auto, cover;
+  background-position: 0 0, 0 0, center, center;
+}
+
+.marker {
+  position: absolute;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: oklch(0.22 0.03 55);
+  z-index: 10;
+  padding: 0;
+}
+
+.marker:hover {
+  background: transparent;
+}
+
+.markerActive {
+  filter: drop-shadow(0 0 0.28rem oklch(0.42 0.1 45 / 0.65));
+}
+
+.marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.markerLabel {
+  position: absolute;
+  transform: translate(-50%, 1.18rem);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: oklch(0.2 0.03 55);
+  background: oklch(0.94 0.02 78 / 0.88);
+  border: 1px solid oklch(0.56 0.05 62 / 0.3);
+  pointer-events: none;
+}
+
+@media (max-width: 980px) {
+  .root {
+    height: calc(100dvh - var(--app-nav-height, 4.5rem));
+  }
+
+  .viewport {
+    min-height: 0;
+  }
+}

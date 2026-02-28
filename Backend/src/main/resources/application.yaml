@@ -1,0 +1,77 @@
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${DB_NAME}?serverTimezone=America/Argentina/Buenos_Aires
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      max-lifetime: 1500000         # 25 minutos (menor que timeouts de red/proxy)
+      keepalive-time: 300000        # ping cada 5 minutos
+      connection-timeout: 30000     # 30s para obtener conexión del pool
+      validation-timeout: 5000      # 5s para validar
+      # leak-detection-threshold: 20000 # opcional para detectar fugas
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false 
+        jdbc:
+          time-zone: America/Argentina/Buenos_Aires
+
+    show-sql: false
+  jackson:
+    time-zone: America/Argentina/Buenos_Aires
+    deserialization:
+      accept-empty-string-as-null-object: true
+security:
+  jwt:
+    secret: ${JWT_SECRET_KEY:}
+
+server:
+  port: 8086
+  servlet:
+    context-path: /api
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss} %-5level [%X{requestId}] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    org.hibernate: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    com.zaxxer.hikari: DEBUG
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: ERROR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: dnd

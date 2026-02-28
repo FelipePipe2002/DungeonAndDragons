@@ -1,0 +1,77 @@
+.mention-textarea-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.mention-textarea-wrapper textarea {
+  width: 100%;
+  min-width: 0;
+  display: block;
+  box-sizing: border-box;
+}
+
+.mention-suggestions {
+  position: absolute;
+  z-index: 120;
+  min-width: 240px;
+  max-width: min(360px, 82vw);
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.45rem;
+  border: 1px solid #c7a772;
+  border-radius: 0.6rem;
+  background: #fffdf5;
+  max-height: 210px;
+  overflow: auto;
+  box-shadow: 0 10px 20px rgba(42, 34, 24, 0.25);
+}
+
+.mention-suggestions button {
+  border: 1px solid #d5bb8d;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.45rem;
+  background: #fffaf0;
+  color: #2f2312;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.mention-suggestions button.is-active {
+  background: #f4dfb6;
+  border-color: #8d6c3b;
+}
+
+.mention-suggestions button strong {
+  font-size: 0.85rem;
+}
+
+.mention-suggestions button span {
+  font-size: 0.74rem;
+  color: #6a5334;
+}
+
+.mention-inline-link {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  color: #2f2312;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.mention-inline-link-static {
+  cursor: default;
+}
+
+.mention-rich-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
