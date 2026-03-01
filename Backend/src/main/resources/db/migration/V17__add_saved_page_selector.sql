@@ -1,0 +1,1 @@
+ALTER TABLE saved_pages ADD COLUMN IF NOT EXISTS selector TEXT;

@@ -108,6 +108,11 @@ type LandmarkApiDto = {
   eventos?: LandmarkApiEventDto[] | null
   mapAssetId?: number | null
   mapAssetKind?: string | null
+  mapRotationDegrees?: number | null
+  mapGridEnabled?: boolean | null
+  mapGridCellSize?: number | null
+  mapGridOffsetX?: number | null
+  mapGridOffsetY?: number | null
   mapa?: LandmarkApiMapDto | null
   edificios?: BuildingApiDto[] | null
   personajes?: CharacterApiDto[] | null
@@ -142,6 +147,11 @@ type LandmarkUpsertPayload = {
   descripcionCorta: string | null
   historia: string | null
   eventos: LandmarkEventUpsertPayload[]
+  mapRotationDegrees: number
+  mapGridEnabled: boolean
+  mapGridCellSize: number
+  mapGridOffsetX: number
+  mapGridOffsetY: number
   mapAssetId: number | null
   mapa: LandmarkMapUpsertPayload | null
 }
@@ -196,6 +206,27 @@ function dedupeNumbers(values: number[]) {
 
 function dedupeStrings(values: string[]) {
   return Array.from(new Set(values))
+}
+
+function normalizeMapRotationDegrees(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  const normalized = Math.round(value)
+  const snappedQuarterTurns = Math.round(normalized / 90)
+  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
+}
+
+function normalizeMapGridCellSize(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 48
+  return Math.round(clamp(value, 8, 512) * 100) / 100
+}
+
+function normalizeMapGridOffset(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return Math.round(value * 100) / 100
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
 }
 
 function isMediaAssetKind(value: unknown): value is MediaAssetKind {
@@ -358,6 +389,23 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
     eventos: Array.isArray(dto.eventos) ? dto.eventos.map(toLandmarkEvent) : [],
     mapAssetId,
     mapAssetKind: isMediaAssetKind(dto.mapAssetKind) ? dto.mapAssetKind : undefined,
+    mapRotationDegrees:
+      typeof dto.mapRotationDegrees === "number" && Number.isFinite(dto.mapRotationDegrees)
+        ? normalizeMapRotationDegrees(dto.mapRotationDegrees)
+        : 0,
+    mapGridEnabled: typeof dto.mapGridEnabled === "boolean" ? dto.mapGridEnabled : false,
+    mapGridCellSize:
+      typeof dto.mapGridCellSize === "number" && Number.isFinite(dto.mapGridCellSize)
+        ? normalizeMapGridCellSize(dto.mapGridCellSize)
+        : 48,
+    mapGridOffsetX:
+      typeof dto.mapGridOffsetX === "number" && Number.isFinite(dto.mapGridOffsetX)
+        ? normalizeMapGridOffset(dto.mapGridOffsetX)
+        : 0,
+    mapGridOffsetY:
+      typeof dto.mapGridOffsetY === "number" && Number.isFinite(dto.mapGridOffsetY)
+        ? normalizeMapGridOffset(dto.mapGridOffsetY)
+        : 0,
     mapa: toLandmarkMapReference(dto.mapa),
     edificios: Array.isArray(dto.edificios) ? dto.edificios.map(toBuilding) : [],
     personajes: Array.isArray(dto.personajes) ? dto.personajes.map(toCharacter) : [],
@@ -422,6 +470,11 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
       fecha: toOptionalText(event.fecha) ?? null,
       posicion: event.posicion ?? null,
     })),
+    mapRotationDegrees: normalizeMapRotationDegrees(input.mapRotationDegrees),
+    mapGridEnabled: Boolean(input.mapGridEnabled),
+    mapGridCellSize: normalizeMapGridCellSize(input.mapGridCellSize),
+    mapGridOffsetX: normalizeMapGridOffset(input.mapGridOffsetX),
+    mapGridOffsetY: normalizeMapGridOffset(input.mapGridOffsetY),
     mapAssetId,
     mapa: mapAssetId ? null : toLandmarkMapPayload(input.mapa),
   }

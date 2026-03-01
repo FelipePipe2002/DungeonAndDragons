@@ -45,6 +45,7 @@ public class CharacterService {
     private final MediaAssetRepository mediaAssetRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
+    private final CharacterSheetJsonCodec characterSheetJsonCodec;
 
     public CharacterService(
         CharacterRepository characterRepository,
@@ -56,7 +57,8 @@ public class CharacterService {
         OrganizationMembershipRepository organizationMembershipRepository,
         MediaAssetRepository mediaAssetRepository,
         TaggingService taggingService,
-        DomainMapper domainMapper
+        DomainMapper domainMapper,
+        CharacterSheetJsonCodec characterSheetJsonCodec
     ) {
         this.characterRepository = characterRepository;
         this.characterEventRepository = characterEventRepository;
@@ -68,6 +70,7 @@ public class CharacterService {
         this.mediaAssetRepository = mediaAssetRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
+        this.characterSheetJsonCodec = characterSheetJsonCodec;
     }
 
     public List<CharacterDto> findAll() {
@@ -120,6 +123,8 @@ public class CharacterService {
         entity.setClase(normalizedOrEmpty(request.clase()));
         entity.setRaza(normalizedOrEmpty(request.raza()));
         entity.setDescripcion(normalizedOrEmpty(request.descripcion()));
+        entity.setPlayer(request.isPlayer());
+        entity.setCharacterSheet(characterSheetJsonCodec.write(request.characterSheet()));
         Long imagenAssetId = request.imagenAssetId();
         if (imagenAssetId != null && imagenAssetId > 0) {
             entity.setImagenAsset(resolveImageAsset(imagenAssetId));

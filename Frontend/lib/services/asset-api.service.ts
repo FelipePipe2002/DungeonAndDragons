@@ -13,7 +13,7 @@ type MediaAssetMetadataDto = {
 }
 
 function isMediaAssetKind(value: unknown): value is MediaAssetKind {
-  return value === "image" || value === "json" || value === "binary"
+  return value === "image" || value === "json" || value === "book" || value === "binary"
 }
 
 function toMediaAssetMetadata(dto: MediaAssetMetadataDto): MediaAssetMetadata {

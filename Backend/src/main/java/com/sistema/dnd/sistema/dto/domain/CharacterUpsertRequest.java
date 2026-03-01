@@ -10,6 +10,8 @@ public record CharacterUpsertRequest(
     String clase,
     String raza,
     String descripcion,
+    boolean isPlayer,
+    CharacterSheetData characterSheet,
     List<String> tags,
     String imagen,
     Long imagenAssetId,

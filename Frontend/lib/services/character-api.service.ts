@@ -1,4 +1,5 @@
-import type { Character, CharacterEvent } from "@/lib/types"
+import { normalizeCharacterSheet } from "@/lib/character-sheet"
+import type { Character, CharacterEvent, CharacterSheet } from "@/lib/types"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { backendRequest } from "@/lib/services/backend-api.service"
 import {
@@ -40,6 +41,8 @@ type CharacterApiDto = {
   clase: string
   raza: string
   descripcion: string
+  isPlayer?: boolean | null
+  characterSheet?: CharacterSheet | null
   tags?: string[] | null
   imagen?: string | null
   imagenAssetId?: number | null
@@ -54,6 +57,8 @@ type CharacterUpsertPayload = {
   clase: string
   raza: string
   descripcion: string
+  isPlayer: boolean
+  characterSheet: CharacterSheet | null
   tags: string[]
   imagen: string | null
   imagenAssetId: number | null
@@ -110,6 +115,12 @@ function toCharacter(dto: CharacterApiDto): Character {
     clase: dto.clase ?? "",
     raza: dto.raza ?? "",
     descripcion: dto.descripcion ?? "",
+    isPlayer: dto.isPlayer === true,
+    characterSheet: normalizeCharacterSheet(dto.characterSheet ?? null, {
+      nombre: dto.nombre ?? "",
+      raza: dto.raza ?? "",
+      clase: dto.clase ?? "",
+    }),
     tags: toStringArray(dto.tags),
     imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
     imagenAssetId,
@@ -131,6 +142,12 @@ function toCharacterUpsertPayload(input: Omit<Character, "id">): CharacterUpsert
     clase: input.clase.trim(),
     raza: input.raza.trim(),
     descripcion: input.descripcion.trim(),
+    isPlayer: input.isPlayer === true,
+    characterSheet: normalizeCharacterSheet(input.characterSheet, {
+      nombre: input.nombre,
+      raza: input.raza,
+      clase: input.clase,
+    }),
     tags: Array.from(new Set(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))),
     imagen: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
     imagenAssetId,

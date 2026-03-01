@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
+import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
 import { CreateCharacterEventDialog } from "@/components/dialog/detailed/CreateCharacterEventDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { normalizeCharacterSheet } from "@/lib/character-sheet"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import {
   createCharacter,
@@ -38,6 +40,7 @@ interface CharacterDetailDialogProps {
   onCharacterUpdated?: (character: Character) => void
   onCharacterDeleted?: (characterId: number) => void
   initialLandmarkId?: number
+  initialIsPlayer?: boolean
 }
 
 type CharacterFormState = {
@@ -45,6 +48,8 @@ type CharacterFormState = {
   clase: string
   raza: string
   descripcion: string
+  isPlayer: boolean
+  characterSheet: Character["characterSheet"]
   imagen: string
   imagenAssetId: number | null
   tags: string
@@ -58,6 +63,8 @@ const EMPTY_CHARACTER_FORM_STATE: CharacterFormState = {
   clase: "",
   raza: "",
   descripcion: "",
+  isPlayer: false,
+  characterSheet: null,
   imagen: "",
   imagenAssetId: null,
   tags: "",
@@ -99,6 +106,8 @@ function toCharacterFormState(character: Character): CharacterFormState {
     clase: character.clase,
     raza: character.raza,
     descripcion: character.descripcion,
+    isPlayer: character.isPlayer,
+    characterSheet: character.characterSheet,
     imagen: character.imagen ?? "",
     imagenAssetId: character.imagenAssetId ?? null,
     tags: character.tags.join(", "),
@@ -195,9 +204,13 @@ function formatEventOrderLabel(event: CharacterEvent) {
   return parsed !== null ? `Orden ${parsed}` : "Sin orden"
 }
 
-function getEmptyCharacterFormState(defaultLandmarkId: number): CharacterFormState {
+function getEmptyCharacterFormState(
+  defaultLandmarkId: number,
+  initialIsPlayer = false,
+): CharacterFormState {
   return {
     ...EMPTY_CHARACTER_FORM_STATE,
+    isPlayer: initialIsPlayer,
     landmarkId: defaultLandmarkId,
   }
 }
@@ -209,6 +222,7 @@ export function CharacterDetailDialog({
   onCharacterUpdated,
   onCharacterDeleted,
   initialLandmarkId,
+  initialIsPlayer = false,
 }: CharacterDetailDialogProps) {
   const targetCharacterId = typeof characterId === "number" ? characterId : undefined
   const [storedLandmarks, setStoredLandmarks] = useState<CharacterLandmarkReference[]>([])
@@ -237,11 +251,14 @@ export function CharacterDetailDialog({
   )
   const [eventSearch, setEventSearch] = useState("")
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
+  const [isCharacterSheetDialogOpen, setIsCharacterSheetDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
-  const [formState, setFormState] = useState<CharacterFormState>(getEmptyCharacterFormState(0))
+  const [formState, setFormState] = useState<CharacterFormState>(
+    getEmptyCharacterFormState(0, initialIsPlayer),
+  )
 
   const isCreateMode = currentCharacterData === null
 
@@ -253,6 +270,8 @@ export function CharacterDetailDialog({
         clase: "",
         raza: "",
         descripcion: "",
+        isPlayer: false,
+        characterSheet: null,
         tags: [],
         landmarkId: defaultLandmark.id,
         buildingIds: [],
@@ -317,6 +336,8 @@ export function CharacterDetailDialog({
 
   const previewTags = isEditing ? toTagList(formState.tags) : character.tags
   const previewImage = isEditing ? toOptionalText(formState.imagen) : character.imagen
+  const previewIsPlayer = isEditing ? formState.isPlayer : character.isPlayer
+  const previewHasCharacterSheet = character.characterSheet !== null
   const previewName = isEditing
     ? formState.nombre.trim() || (isCreateMode ? "Nuevo personaje" : character.nombre)
     : character.nombre || "Nuevo personaje"
@@ -332,6 +353,7 @@ export function CharacterDetailDialog({
       setSaveError(null)
       setEventSaveError(null)
       setEventSearch("")
+      setIsCharacterSheetDialogOpen(false)
       setIsCreateEventDialogOpen(false)
       setEditingEventIndex(null)
 
@@ -347,7 +369,7 @@ export function CharacterDetailDialog({
 
         if (typeof targetCharacterId !== "number") {
           setCurrentCharacterData(null)
-          setFormState(getEmptyCharacterFormState(resolvedDefaultLandmark.id))
+          setFormState(getEmptyCharacterFormState(resolvedDefaultLandmark.id, initialIsPlayer))
           setIsEditing(true)
           return
         }
@@ -372,7 +394,7 @@ export function CharacterDetailDialog({
 
         setLoadError(getBackendErrorMessage(error, "No se pudo cargar el personaje."))
         setCurrentCharacterData(null)
-        setFormState(getEmptyCharacterFormState(0))
+        setFormState(getEmptyCharacterFormState(0, initialIsPlayer))
         setIsEditing(false)
       } finally {
         if (!cancelled) {
@@ -385,7 +407,7 @@ export function CharacterDetailDialog({
     return () => {
       cancelled = true
     }
-  }, [initialLandmarkId, open, targetCharacterId])
+  }, [initialIsPlayer, initialLandmarkId, open, targetCharacterId])
 
   const filteredEvents = useMemo(() => {
     const sortedEvents: IndexedCharacterEvent[] = character.eventos
@@ -454,6 +476,57 @@ export function CharacterDetailDialog({
     }))
   }
 
+  const handleOpenCharacterSheetDialog = () => {
+    if (!currentCharacterData) {
+      setSaveError("Guarda el personaje antes de crear o editar la hoja.")
+      return
+    }
+
+    setSaveError(null)
+    setIsCharacterSheetDialogOpen(true)
+  }
+
+  const handleSaveCharacterSheet = async (nextSheet: Character["characterSheet"]) => {
+    if (!currentCharacterData) {
+      setSaveError("Guarda el personaje antes de crear o editar la hoja.")
+      return false
+    }
+
+    const normalizedSheet =
+      nextSheet == null
+        ? null
+        : normalizeCharacterSheet(nextSheet, {
+            nombre: currentCharacterData.character.nombre,
+            raza: currentCharacterData.character.raza,
+            clase: currentCharacterData.character.clase,
+          })
+
+    const { id: _characterId, ...characterInput } = {
+      ...currentCharacterData.character,
+      characterSheet: normalizedSheet,
+    }
+
+    try {
+      const savedCharacter = await updateCharacter(currentCharacterData.character.id, characterInput)
+      const resolvedLandmarkName = resolveCharacterLandmarkName(
+        savedCharacter.landmarkId,
+        landmarkNameById,
+        defaultLandmark.name,
+      )
+
+      setCurrentCharacterData({
+        character: savedCharacter,
+        landmarkName: resolvedLandmarkName,
+      })
+      setSaveError(null)
+      onCharacterUpdated?.(savedCharacter)
+      return true
+    } catch (error) {
+      setSaveError(getBackendErrorMessage(error, "No se pudo guardar la hoja de personaje."))
+      return false
+    }
+  }
+
   const handleSaveEdit = async () => {
     const normalizedName = formState.nombre.trim()
     if (!normalizedName) {
@@ -462,12 +535,19 @@ export function CharacterDetailDialog({
     }
 
     const nextLandmarkId = formState.landmarkId > 0 ? formState.landmarkId : 0
+    const normalizedCharacterSheet = normalizeCharacterSheet(formState.characterSheet, {
+      nombre: normalizedName,
+      raza: formState.raza,
+      clase: formState.clase,
+    })
 
     const characterInput: Omit<Character, "id"> = {
       nombre: normalizedName,
       clase: formState.clase.trim(),
       raza: formState.raza.trim(),
       descripcion: formState.descripcion.trim(),
+      isPlayer: formState.isPlayer,
+      characterSheet: currentCharacterData?.character.characterSheet ?? normalizedCharacterSheet,
       imagen: formState.imagenAssetId ? undefined : toOptionalText(formState.imagen),
       imagenAssetId: formState.imagenAssetId ?? undefined,
       tags: toTagList(formState.tags),
@@ -493,6 +573,7 @@ export function CharacterDetailDialog({
         landmarkName: resolvedLandmarkName,
       })
       setFormState(toCharacterFormState(savedCharacter))
+      setIsCharacterSheetDialogOpen(false)
       setIsEditing(false)
       setSaveError(null)
       onCharacterUpdated?.(savedCharacter)
@@ -580,6 +661,7 @@ export function CharacterDetailDialog({
       setCurrentCharacterData(null)
       setFormState(getEmptyCharacterFormState(defaultLandmark.id))
       setEventSearch("")
+      setIsCharacterSheetDialogOpen(false)
       setIsCreateEventDialogOpen(false)
       setEditingEventIndex(null)
       setIsEditing(false)
@@ -598,6 +680,7 @@ export function CharacterDetailDialog({
 
     if (!nextOpen) {
       setEventSearch("")
+      setIsCharacterSheetDialogOpen(false)
       setIsCreateEventDialogOpen(false)
       setEditingEventIndex(null)
       setIsEditing(false)
@@ -618,6 +701,10 @@ export function CharacterDetailDialog({
                 <Trash2 className="mr-1 size-3" />
                 Eliminar
               </Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleOpenCharacterSheetDialog}>
+                <BookOpen className="mr-1 size-3" />
+                Hoja
+              </Button>
               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
                 <Pencil className="mr-1 size-3" />
                 Editar
@@ -625,6 +712,16 @@ export function CharacterDetailDialog({
             </>
           ) : (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                onClick={handleOpenCharacterSheetDialog}
+                disabled={!currentCharacterData}
+              >
+                <BookOpen className="mr-1 size-3" />
+                {previewHasCharacterSheet ? "Editar hoja" : "Crear hoja"}
+              </Button>
               <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
                 <Save className="mr-1 size-3" />
                 Guardar
@@ -720,8 +817,36 @@ export function CharacterDetailDialog({
                           <span className="font-semibold text-foreground">{character.clase}</span>
                           <span className="text-primary/30">/</span>
                           <span className="text-muted-foreground">{character.raza}</span>
+                          {character.isPlayer ? (
+                            <Badge variant="outline" className="border-primary/30 text-[10px] text-primary">
+                              Jugador
+                            </Badge>
+                          ) : null}
+                          {character.characterSheet ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Hoja cargada
+                            </Badge>
+                          ) : null}
                         </div>
                       )}
+
+                      {isEditing ? (
+                        <label className="flex items-center gap-2 text-xs text-foreground">
+                          <Checkbox
+                            checked={formState.isPlayer}
+                            onCheckedChange={(value) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                isPlayer: value === true,
+                              }))
+                            }
+                          />
+                          Es jugador
+                          <span className="text-muted-foreground">
+                            {previewHasCharacterSheet ? "Hoja cargada" : "Sin hoja"}
+                          </span>
+                        </label>
+                      ) : null}
 
                       {!isEditing ? (
                         <div>
@@ -747,6 +872,18 @@ export function CharacterDetailDialog({
                 {isLoadingData && <p className="text-xs text-muted-foreground">Cargando personaje...</p>}
                 {loadError && <p className="text-xs text-destructive">{loadError}</p>}
                 {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={previewIsPlayer ? "default" : "outline"}
+                    className="text-[10px]"
+                  >
+                    {previewIsPlayer ? "Jugador" : "NPC"}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {previewHasCharacterSheet ? "Hoja cargada" : "Sin hoja"}
+                  </Badge>
+                </div>
 
                 <div>
                   <SectionDivider label="Descripcion" />
@@ -1031,6 +1168,16 @@ export function CharacterDetailDialog({
         initialEvent={editingEvent}
         mode={editingEvent ? "edit" : "create"}
         onSaveEvent={handleSaveEvent}
+      />
+
+      <CharacterSheetDialog
+        open={isCharacterSheetDialogOpen}
+        onOpenChange={setIsCharacterSheetDialogOpen}
+        value={currentCharacterData?.character.characterSheet ?? null}
+        onSave={handleSaveCharacterSheet}
+        characterName={currentCharacterData?.character.nombre ?? formState.nombre.trim()}
+        characterRace={currentCharacterData?.character.raza ?? formState.raza.trim()}
+        characterClass={currentCharacterData?.character.clase ?? formState.clase.trim()}
       />
     </>
   )

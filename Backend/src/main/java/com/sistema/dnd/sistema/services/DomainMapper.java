@@ -3,6 +3,7 @@ package com.sistema.dnd.sistema.services;
 import com.sistema.dnd.sistema.dto.domain.BuildingDto;
 import com.sistema.dnd.sistema.dto.domain.CharacterDto;
 import com.sistema.dnd.sistema.dto.domain.CharacterEventDto;
+import com.sistema.dnd.sistema.dto.domain.CharacterSheetData;
 import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkEventDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapDto;
@@ -45,6 +46,7 @@ public class DomainMapper {
     private final OrganizationCategoryRepository organizationCategoryRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
     private final TaggingService taggingService;
+    private final CharacterSheetJsonCodec characterSheetJsonCodec;
 
     public DomainMapper(
         LandmarkEventRepository landmarkEventRepository,
@@ -56,7 +58,8 @@ public class DomainMapper {
         OrganizationRepository organizationRepository,
         OrganizationCategoryRepository organizationCategoryRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
-        TaggingService taggingService
+        TaggingService taggingService,
+        CharacterSheetJsonCodec characterSheetJsonCodec
     ) {
         this.landmarkEventRepository = landmarkEventRepository;
         this.landmarkMapRefRepository = landmarkMapRefRepository;
@@ -68,6 +71,7 @@ public class DomainMapper {
         this.organizationCategoryRepository = organizationCategoryRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
         this.taggingService = taggingService;
+        this.characterSheetJsonCodec = characterSheetJsonCodec;
     }
 
     public LandmarkDto toLandmarkDto(
@@ -137,6 +141,11 @@ public class DomainMapper {
             eventos,
             landmark.getMapAsset() != null ? landmark.getMapAsset().getId() : null,
             landmark.getMapAsset() != null ? landmark.getMapAsset().getKind().name() : null,
+            landmark.getMapRotationDegrees(),
+            landmark.getMapGridEnabled(),
+            landmark.getMapGridCellSize(),
+            landmark.getMapGridOffsetX(),
+            landmark.getMapGridOffsetY(),
             mapa,
             edificios,
             personajes,
@@ -162,6 +171,7 @@ public class DomainMapper {
 
     public CharacterDto toCharacterDto(CharacterEntity character) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.character, character.getId());
+        CharacterSheetData characterSheet = characterSheetJsonCodec.read(character.getCharacterSheet());
 
         List<CharacterEventDto> eventos = characterEventRepository.findByCharacterIdOrderByIdDesc(character.getId())
             .stream()
@@ -188,6 +198,8 @@ public class DomainMapper {
             character.getClase(),
             character.getRaza(),
             character.getDescripcion(),
+            character.isPlayer(),
+            characterSheet,
             tags,
             character.getImagen(),
             character.getImagenAsset() != null ? character.getImagenAsset().getId() : null,

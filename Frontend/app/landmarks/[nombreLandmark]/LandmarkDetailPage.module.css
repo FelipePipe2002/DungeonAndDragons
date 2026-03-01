@@ -22,6 +22,182 @@
   border-right: 1px solid oklch(0.76 0.04 68);
 }
 
+.mapRotateButton {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.25rem;
+  border: 1px solid oklch(0.67 0.07 50 / 0.5);
+  border-radius: 999px;
+  background: oklch(0.96 0.02 79 / 0.92);
+  color: oklch(0.27 0.04 53);
+  padding: 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.mapRotateButton:hover:not(:disabled) {
+  background: oklch(0.93 0.03 76 / 0.94);
+}
+
+.mapRotateButton:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.mapRotateIcon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.mapGridToggleButton {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 30;
+  height: 2.25rem;
+  border: 1px solid oklch(0.67 0.07 50 / 0.5);
+  border-radius: 999px;
+  background: oklch(0.96 0.02 79 / 0.92);
+  color: oklch(0.27 0.04 53);
+  padding: 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.mapGridToggleButton:hover {
+  background: oklch(0.93 0.03 76 / 0.94);
+}
+
+.mapGridPanel {
+  position: absolute;
+  top: 3.65rem;
+  left: 0.9rem;
+  z-index: 30;
+  width: min(22rem, calc(100% - 1.8rem));
+  border: 1px solid oklch(0.67 0.07 50 / 0.4);
+  border-radius: 0.75rem;
+  background: oklch(0.96 0.02 79 / 0.95);
+  padding: 0.85rem;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 0.65rem 2rem oklch(0.35 0.03 40 / 0.12);
+}
+
+.mapGridPanelTitle {
+  color: oklch(0.24 0.04 54);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.mapGridHint {
+  margin-top: 0.28rem;
+  color: oklch(0.4 0.03 56);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.mapGridActions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mapGridActionButton,
+.mapGridPrimaryButton {
+  height: 2rem;
+  border-radius: 0.45rem;
+  padding: 0 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mapGridActionButton {
+  border: 1px solid oklch(0.7 0.05 58 / 0.55);
+  background: oklch(0.92 0.02 76);
+  color: oklch(0.3 0.04 54);
+}
+
+.mapGridActionButton:hover {
+  background: oklch(0.89 0.03 73);
+}
+
+.mapGridPrimaryButton {
+  border: 1px solid oklch(0.56 0.11 58 / 0.5);
+  background: oklch(0.78 0.08 71);
+  color: oklch(0.23 0.04 45);
+}
+
+.mapGridPrimaryButton:hover:not(:disabled) {
+  background: oklch(0.74 0.09 69);
+}
+
+.mapGridPrimaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mapGridErrorText {
+  margin-top: 0.55rem;
+  color: oklch(0.44 0.15 30);
+  font-size: 0.7rem;
+}
+
+.mapGridField {
+  margin-top: 0.75rem;
+}
+
+.mapGridLabel {
+  display: block;
+  color: oklch(0.28 0.04 54);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.mapGridRangeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.75rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mapGridOffsetsRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.mapGridRangeInput {
+  width: 100%;
+  accent-color: oklch(0.58 0.11 58);
+}
+
+.mapGridNumberInput {
+  width: 100%;
+  height: 2rem;
+  border-radius: 0.45rem;
+  border: 1px solid oklch(0.72 0.04 62);
+  background: oklch(0.98 0.01 78);
+  color: oklch(0.25 0.03 55);
+  padding: 0 0.55rem;
+  font-size: 0.72rem;
+}
+
+.mapGridNumberInput:focus {
+  outline: 2px solid oklch(0.63 0.1 58 / 0.35);
+  outline-offset: 1px;
+}
+
 .mapViewport {
   position: relative;
   height: 100%;
@@ -43,12 +219,45 @@
   will-change: transform;
 }
 
-.mapImage {
+.mapImageFrame {
   position: absolute;
   inset: 0;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mapImageBounds {
+  position: relative;
+  flex: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.mapImageLayer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 50% 50%;
+}
+
+.mapImageAsset {
+  display: block;
+  user-select: none;
+}
+
+.mapImageOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(34, 23, 9, 0.12);
+  pointer-events: none;
+}
+
+.mapGridOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .noMapPrompt {
@@ -197,5 +406,16 @@
 
   .infoPanel {
     max-height: 42dvh;
+  }
+
+  .mapGridPanel {
+    width: min(24rem, calc(100% - 1.8rem));
+  }
+}
+
+@media (max-width: 640px) {
+  .mapGridOffsetsRow {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }

@@ -41,6 +41,9 @@ public class MediaAssetEntity extends AuditableEntity {
     @Column(name = "storage_mode", nullable = false, length = 20)
     private MediaAssetStorageMode storageMode = MediaAssetStorageMode.db;
 
+    @Column(name = "storage_path", length = 1024)
+    private String storagePath;
+
     @Column(name = "text_content", columnDefinition = "TEXT")
     private String textContent;
 

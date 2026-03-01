@@ -38,6 +38,12 @@ public class CharacterEntity extends AuditableEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descripcion = "";
 
+    @Column(name = "is_player", nullable = false)
+    private boolean player = false;
+
+    @Column(name = "character_sheet", columnDefinition = "TEXT")
+    private String characterSheet;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "imagen_asset_id")
     private MediaAssetEntity imagenAsset;

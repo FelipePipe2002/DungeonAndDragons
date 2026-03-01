@@ -61,4 +61,19 @@ public class LandmarkEntity extends AuditableEntity {
     @JoinColumn(name = "map_asset_id")
     private MediaAssetEntity mapAsset;
 
+    @Column(name = "map_rotation_degrees", nullable = false)
+    private Integer mapRotationDegrees = 0;
+
+    @Column(name = "map_grid_enabled", nullable = false)
+    private Boolean mapGridEnabled = false;
+
+    @Column(name = "map_grid_cell_size", nullable = false)
+    private Double mapGridCellSize = 48.0;
+
+    @Column(name = "map_grid_offset_x", nullable = false)
+    private Double mapGridOffsetX = 0.0;
+
+    @Column(name = "map_grid_offset_y", nullable = false)
+    private Double mapGridOffsetY = 0.0;
+
 }

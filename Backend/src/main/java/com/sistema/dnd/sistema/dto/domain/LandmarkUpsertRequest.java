@@ -35,6 +35,13 @@ public record LandmarkUpsertRequest(
     String descripcionCorta,
     String historia,
     List<@Valid LandmarkEventRequest> eventos,
+    @PositiveOrZero(message = "mapRotationDegrees debe ser >= 0")
+    Integer mapRotationDegrees,
+    Boolean mapGridEnabled,
+    @PositiveOrZero(message = "mapGridCellSize debe ser >= 0")
+    Double mapGridCellSize,
+    Double mapGridOffsetX,
+    Double mapGridOffsetY,
     @Valid LandmarkMapRequest mapa,
     Long mapAssetId
 ) {

@@ -1,0 +1,11 @@
+dedupe_by_name.py
+
+# Common ignores
+node_modules/
+.next/
+.env*.local
+.DS_Store
+deploy-static/*
+dnd-app.tar.gz
+deploy-static.bat
+.CleanedDataset/*

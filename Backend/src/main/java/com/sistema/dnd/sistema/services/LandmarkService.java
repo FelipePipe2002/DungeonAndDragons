@@ -115,6 +115,11 @@ public class LandmarkService {
         entity.setPoblacion(request.poblacion());
         entity.setDescripcionCorta(optionalTrimmed(request.descripcionCorta()));
         entity.setHistoria(optionalTrimmed(request.historia()));
+        entity.setMapRotationDegrees(normalizeMapRotationDegrees(request.mapRotationDegrees()));
+        entity.setMapGridEnabled(Boolean.TRUE.equals(request.mapGridEnabled()));
+        entity.setMapGridCellSize(normalizeMapGridCellSize(request.mapGridCellSize()));
+        entity.setMapGridOffsetX(normalizeMapGridOffset(request.mapGridOffsetX()));
+        entity.setMapGridOffsetY(normalizeMapGridOffset(request.mapGridOffsetY()));
     }
 
     private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request) {
@@ -233,6 +238,27 @@ public class LandmarkService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "mapAssetId debe apuntar a un asset de imagen o json");
         }
         return asset;
+    }
+
+    private Integer normalizeMapRotationDegrees(Integer value) {
+        int rotation = value == null ? 0 : value;
+        if (rotation % 90 != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "mapRotationDegrees debe ser multiplo de 90");
+        }
+        return Math.floorMod(rotation, 360);
+    }
+
+    private Double normalizeMapGridCellSize(Double value) {
+        double cellSize = value == null ? 48.0 : value;
+        if (cellSize < 8 || cellSize > 512) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "mapGridCellSize debe estar entre 8 y 512");
+        }
+        return Math.round(cellSize * 100.0) / 100.0;
+    }
+
+    private Double normalizeMapGridOffset(Double value) {
+        double offset = value == null ? 0.0 : value;
+        return Math.round(offset * 100.0) / 100.0;
     }
 
     private record IncludeOptions(boolean includeBuildings, boolean includeCharacters, boolean includeOrganizations) {

@@ -1,0 +1,5 @@
+ALTER TABLE characters
+    ADD COLUMN IF NOT EXISTS is_player BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE characters
+    ADD COLUMN IF NOT EXISTS character_sheet TEXT;

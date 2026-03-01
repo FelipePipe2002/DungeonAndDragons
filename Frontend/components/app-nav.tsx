@@ -3,21 +3,27 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Users, Building2, Shield, Map, Scroll, BookOpen, BookMarked } from "lucide-react"
+import { Users, Building2, Shield, Map, Scroll, BookOpen, BookMarked, Monitor, Link2 } from "lucide-react"
+import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const navItems = [
   { href: "/mapa", label: "Mapa", icon: Scroll },
+  { href: "/presentacion", label: "Presentacion", icon: Monitor, opensInPresentationWindow: true },
+  { href: "/Jugadores", label: "Jugadores", icon: Users },
   { href: "/personajes", label: "Personajes", icon: Users },
   { href: "/edificios", label: "Edificios", icon: Building2 },
   { href: "/organizaciones", label: "Organizaciones", icon: Shield },
   { href: "/landmarks", label: "Landmarks", icon: Map },
   { href: "/books", label: "Libros", icon: BookMarked },
+  { href: "/paginas", label: "Paginas", icon: Link2 },
   { href: "/notas", label: "Notas", icon: BookOpen },
 ]
 
 export function AppNav() {
   const pathname = usePathname()
-  if (pathname === "/login") {
+  const isPresentationScreenPage = pathname === "/presentacion"
+
+  if (pathname === "/login" || isPresentationScreenPage) {
     return null
   }
 
@@ -37,6 +43,23 @@ export function AppNav() {
           <div className="flex items-center">
             {navItems.map((item) => {
               const isActive = pathname === item.href
+              if (item.opensInPresentationWindow) {
+                return (
+                  <button
+                    key={item.href}
+                    type="button"
+                    onClick={() => openPresentationScreen({ reset: true })}
+                    className={cn(
+                      "relative flex h-full items-center gap-2 px-4 text-sm font-medium transition-colors",
+                      "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <item.icon className="size-4" />
+                    <span className="hidden md:inline">{item.label}</span>
+                  </button>
+                )
+              }
+
               return (
                 <Link
                   key={item.href}

@@ -65,7 +65,11 @@ public class ProjectSecurityConfig {
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http, SecretKey jwtSigningKey) throws Exception {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(corsCustomizer -> corsCustomizer.configurationSource(corsConfigurationSource()));
+                .cors(corsCustomizer -> corsCustomizer.configurationSource(corsConfigurationSource()))
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.disable())
+                        .contentSecurityPolicy(contentSecurityPolicy -> contentSecurityPolicy
+                                .policyDirectives("frame-ancestors 'self' http://localhost:3000 http://127.0.0.1:3000")));
 
         http.httpBasic(basicConfigurer -> basicConfigurer.authenticationEntryPoint(authenticationEntryPoint()))
                 .addFilterAfter(new JwtTokenGeneratorFilter(usuarioRepository, jwtSigningKey), BasicAuthenticationFilter.class)

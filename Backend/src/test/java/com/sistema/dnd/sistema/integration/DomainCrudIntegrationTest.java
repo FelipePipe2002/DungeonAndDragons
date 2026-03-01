@@ -45,6 +45,11 @@ class DomainCrudIntegrationTest {
             .andExpect(jsonPath("$.nombre").value("Puerto Dorado"))
             .andExpect(jsonPath("$.mapa.kind").value("embedded"))
             .andExpect(jsonPath("$.mapa.dataUrl").value("data:image/png;base64,AAAA"))
+            .andExpect(jsonPath("$.mapRotationDegrees").value(0))
+            .andExpect(jsonPath("$.mapGridEnabled").value(false))
+            .andExpect(jsonPath("$.mapGridCellSize").value(48.0))
+            .andExpect(jsonPath("$.mapGridOffsetX").value(0.0))
+            .andExpect(jsonPath("$.mapGridOffsetY").value(0.0))
             .andReturn();
 
         Long landmarkId = extractId(createResult);
@@ -53,19 +58,34 @@ class DomainCrudIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(landmarkId.intValue()))
             .andExpect(jsonPath("$.mapa.kind").value("embedded"))
+            .andExpect(jsonPath("$.mapRotationDegrees").value(0))
+            .andExpect(jsonPath("$.mapGridEnabled").value(false))
+            .andExpect(jsonPath("$.mapGridCellSize").value(48.0))
+            .andExpect(jsonPath("$.mapGridOffsetX").value(0.0))
+            .andExpect(jsonPath("$.mapGridOffsetY").value(0.0))
             .andExpect(jsonPath("$.edificios").isArray())
             .andExpect(jsonPath("$.personajes").isArray())
             .andExpect(jsonPath("$.organizaciones").isArray());
 
         Map<String, Object> updateRequest = baseLandmarkPayload("Puerto Dorado Renovado");
         updateRequest.put("mapa", Map.of("kind", "embedded", "dataUrl", "data:image/png;base64,BBBB"));
+        updateRequest.put("mapRotationDegrees", 90);
+        updateRequest.put("mapGridEnabled", true);
+        updateRequest.put("mapGridCellSize", 72.5);
+        updateRequest.put("mapGridOffsetX", 14.25);
+        updateRequest.put("mapGridOffsetY", -9.5);
 
         mockMvc.perform(put("/v1/landmarks/{id}", landmarkId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.nombre").value("Puerto Dorado Renovado"))
-            .andExpect(jsonPath("$.mapa.dataUrl").value("data:image/png;base64,BBBB"));
+            .andExpect(jsonPath("$.mapa.dataUrl").value("data:image/png;base64,BBBB"))
+            .andExpect(jsonPath("$.mapRotationDegrees").value(90))
+            .andExpect(jsonPath("$.mapGridEnabled").value(true))
+            .andExpect(jsonPath("$.mapGridCellSize").value(72.5))
+            .andExpect(jsonPath("$.mapGridOffsetX").value(14.25))
+            .andExpect(jsonPath("$.mapGridOffsetY").value(-9.5));
 
         mockMvc.perform(delete("/v1/landmarks/{id}", landmarkId))
             .andExpect(status().isNoContent());
@@ -178,6 +198,72 @@ class DomainCrudIntegrationTest {
     }
 
     @Test
+    void characterCrudPersistsPlayerFlagAndSheet() throws Exception {
+        Long landmarkId = createLandmark("Refugio de Plata");
+
+        Map<String, Object> createSheet = baseCharacterSheetPayload("Lyra", "Elf", "Wizard");
+        Map<String, Object> createPayload = new LinkedHashMap<>();
+        createPayload.put("nombre", "Lyra");
+        createPayload.put("clase", "Wizard");
+        createPayload.put("raza", "Elf");
+        createPayload.put("descripcion", "Cronista arcana");
+        createPayload.put("isPlayer", true);
+        createPayload.put("characterSheet", createSheet);
+        createPayload.put("tags", List.of("mago", "grupo"));
+        createPayload.put("imagen", null);
+        createPayload.put("landmarkId", landmarkId);
+        createPayload.put("buildingIds", List.of());
+        createPayload.put("organizationIds", List.of());
+        createPayload.put("eventos", List.of());
+
+        MvcResult createResult = mockMvc.perform(post("/v1/characters")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(createPayload)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.nombre").value("Lyra"))
+            .andExpect(jsonPath("$.isPlayer").value(true))
+            .andExpect(jsonPath("$.characterSheet.name").value("Lyra"))
+            .andExpect(jsonPath("$.characterSheet.race").value("Elf"))
+            .andExpect(jsonPath("$.characterSheet.classes[0].name").value("Wizard"))
+            .andExpect(jsonPath("$.characterSheet.ability_scores.str.score").value(10))
+            .andExpect(jsonPath("$.characterSheet.ability_scores.dex.saving").value(true))
+            .andExpect(jsonPath("$.characterSheet.skills['Arcana']").value(true))
+            .andExpect(jsonPath("$.characterSheet.inventory[0]").value("Spellbook"))
+            .andReturn();
+
+        Long characterId = extractId(createResult);
+
+        mockMvc.perform(get("/v1/characters/{id}", characterId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(characterId.intValue()))
+            .andExpect(jsonPath("$.isPlayer").value(true))
+            .andExpect(jsonPath("$.characterSheet.name").value("Lyra"))
+            .andExpect(jsonPath("$.characterSheet.skills['Perception']").value(true));
+
+        Map<String, Object> updatedSheet = baseCharacterSheetPayload("Lyra", "Elf", "Wizard");
+        updatedSheet.put("background", "Guild Artisan");
+        updatedSheet.put("competence_bonus", 3);
+        updatedSheet.put("inventory", List.of("Spellbook", "Arcane Focus", "Journal"));
+        updatedSheet.put("hit_points", Map.of("max", 14, "current", 12));
+
+        Map<String, Object> updatePayload = new LinkedHashMap<>(createPayload);
+        updatePayload.put("descripcion", "Cronista arcana veterana");
+        updatePayload.put("isPlayer", false);
+        updatePayload.put("characterSheet", updatedSheet);
+
+        mockMvc.perform(put("/v1/characters/{id}", characterId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatePayload)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.descripcion").value("Cronista arcana veterana"))
+            .andExpect(jsonPath("$.isPlayer").value(false))
+            .andExpect(jsonPath("$.characterSheet.background").value("Guild Artisan"))
+            .andExpect(jsonPath("$.characterSheet.competence_bonus").value(3))
+            .andExpect(jsonPath("$.characterSheet.hit_points.current").value(12))
+            .andExpect(jsonPath("$.characterSheet.inventory[2]").value("Journal"));
+    }
+
+    @Test
     void fieldValidationErrorsReturnConsistentBadRequestPayload() throws Exception {
         Map<String, Object> invalidRequest = baseLandmarkPayload("Landmark invalido");
         invalidRequest.put("escalaIcono", 0.2);
@@ -251,6 +337,78 @@ class DomainCrudIntegrationTest {
             )
         ));
         payload.put("mapa", Map.of("kind", "embedded", "dataUrl", "data:image/png;base64,AAAA"));
+        return payload;
+    }
+
+    private Map<String, Object> baseCharacterSheetPayload(String name, String race, String primaryClass) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        Map<String, Object> armor = new LinkedHashMap<>();
+        armor.put("name", "Mage Armor");
+        armor.put("ac_bonus", 3);
+        armor.put("dex_bonus", true);
+        armor.put("capped_dex_bonus", null);
+        armor.put("stealth_disadvantage", false);
+
+        payload.put("name", name);
+        payload.put("race", race);
+        payload.put("alignment", "neutral good");
+        payload.put("background", "Sage");
+        payload.put("competence_bonus", 2);
+        payload.put("classes", List.of(Map.of(
+            "name", primaryClass,
+            "subtype", "Evocation",
+            "level", 3,
+            "hit_die", "d6"
+        )));
+        payload.put("speed", 30);
+        payload.put("hit_points", Map.of("max", 14, "current", 9));
+        payload.put("ability_scores", Map.of(
+            "str", Map.of("score", 10, "saving", false),
+            "dex", Map.of("score", 14, "saving", true),
+            "con", Map.of("score", 12, "saving", false),
+            "int", Map.of("score", 16, "saving", true),
+            "wis", Map.of("score", 13, "saving", false),
+            "cha", Map.of("score", 11, "saving", false)
+        ));
+        payload.put("skills", Map.ofEntries(
+            Map.entry("Athletics", false),
+            Map.entry("Acrobatics", false),
+            Map.entry("Sleight of Hand", false),
+            Map.entry("Stealth", false),
+            Map.entry("Arcana", true),
+            Map.entry("History", true),
+            Map.entry("Investigation", true),
+            Map.entry("Nature", true),
+            Map.entry("Religion", true),
+            Map.entry("Animal Handling", false),
+            Map.entry("Insight", false),
+            Map.entry("Medicine", false),
+            Map.entry("Perception", true),
+            Map.entry("Survival", false),
+            Map.entry("Deception", false),
+            Map.entry("Intimidation", false),
+            Map.entry("Performance", false),
+            Map.entry("Persuasion", false)
+        ));
+        payload.put("armor_class", Map.of("value", 13, "description", "Mage Armor"));
+        payload.put("languages", List.of("Common", "Elvish"));
+        payload.put("details", Map.of(
+            "personality", "Curiosa",
+            "ideal", "Conocimiento",
+            "bond", "Su mentora",
+            "flaw", "Obsesiva"
+        ));
+        payload.put("competences", List.of("Daggers", "Quarterstaffs"));
+        payload.put("weapons", List.of(Map.of(
+            "name", "Fire Bolt",
+            "damage", "1d10",
+            "damage_type", "fire",
+            "properties", List.of("Ranged"),
+            "mastery", false,
+            "mastery_description", ""
+        )));
+        payload.put("armor", armor);
+        payload.put("inventory", List.of("Spellbook", "Arcane Focus"));
         return payload;
     }
 }

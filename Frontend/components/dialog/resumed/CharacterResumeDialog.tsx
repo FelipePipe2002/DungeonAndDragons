@@ -88,9 +88,16 @@ export function CharacterResumeDialog({
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-lg font-bold text-primary leading-tight">
-            {character.nombre}
-          </h3>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="font-serif text-lg font-bold text-primary leading-tight">
+              {character.nombre}
+            </h3>
+            {character.isPlayer ? (
+              <Badge variant="outline" className="border-primary/30 px-1.5 py-0 text-[10px] text-primary">
+                Jugador
+              </Badge>
+            ) : null}
+          </div>
           {traitLine && <p className="text-xs text-muted-foreground">{traitLine}</p>}
         </div>
       </div>

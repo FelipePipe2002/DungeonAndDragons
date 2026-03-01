@@ -22,7 +22,7 @@ import {
   mapImageStorageKey,
   readJsonFromLocalStorage,
   writeJsonToLocalStorage,
-} from "@/lib/services/local-storage.service"
+} from "@/lib/storage/local-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"

@@ -16,9 +16,11 @@ import {
   BookOpenText,
   Building2,
   CalendarDays,
+  Expand,
   Link2,
   Pencil,
   Plus,
+  RotateCw,
   Save,
   Shield,
   Users,
@@ -41,8 +43,9 @@ import { MentionField, type MentionRef } from "@/components/mentionField/Mention
 import { SearchInput } from "@/components/search/SearchInput"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { landmarkNameToSlug } from "@/lib/landmark-slug"
-import { matchesSearchQuery } from "@/lib/search-utils"
+import { landmarkNameToSlug } from "@/lib/landmarks/slug"
+import { openPresentationScreen } from "@/lib/presentation/screen"
+import { matchesSearchQuery } from "@/lib/search/utils"
 import { buildAssetUrl, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
@@ -67,9 +70,16 @@ const LANDMARK_TYPE_LABELS: Record<LandmarkType, string> = {
   mazmorra: "Mazmorra",
 }
 
+const BATTLE_GRID_SUPPORTED_TYPES = new Set<LandmarkType>(["puente", "bandera", "campamento", "mazmorra"])
+
 type Point = {
   x: number
   y: number
+}
+
+type Size = {
+  width: number
+  height: number
 }
 
 type DragState = {
@@ -81,6 +91,13 @@ type DragState = {
 type EditableLandmarkData = {
   descripcionCorta: string
   historia: string
+}
+
+type MapGridDraft = {
+  enabled: boolean
+  cellSize: string
+  offsetX: string
+  offsetY: string
 }
 
 type ReferenceIndexes = {
@@ -247,6 +264,48 @@ function toOptionalText(value: string): string | undefined {
   return normalized.length > 0 ? normalized : undefined
 }
 
+function normalizeMapRotationDegrees(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  const normalized = Math.round(value)
+  const snappedQuarterTurns = Math.round(normalized / 90)
+  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
+}
+
+function normalizeMapGridCellSize(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 48
+  return Math.round(clamp(value, 8, 512) * 100) / 100
+}
+
+function normalizeMapGridOffset(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return Math.round(value * 100) / 100
+}
+
+function formatMapGridNumber(value: number | null | undefined) {
+  const normalized = typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) / 100 : 0
+  const asText = Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(2).replace(/\.?0+$/, "")
+  return asText.replace(".", ",")
+}
+
+function parseMapGridNumber(value: string) {
+  const normalized = value.trim().replace(",", ".")
+  if (!normalized || normalized === "-" || normalized === "+" || normalized === "." || normalized === "-.") {
+    return null
+  }
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function toMapGridDraft(landmark: Landmark | null): MapGridDraft {
+  return {
+    enabled: Boolean(landmark?.mapGridEnabled),
+    cellSize: formatMapGridNumber(normalizeMapGridCellSize(landmark?.mapGridCellSize)),
+    offsetX: formatMapGridNumber(normalizeMapGridOffset(landmark?.mapGridOffsetX)),
+    offsetY: formatMapGridNumber(normalizeMapGridOffset(landmark?.mapGridOffsetY)),
+  }
+}
+
 function findLandmarkBySlug(landmarks: Landmark[], slug: string) {
   return landmarks.find((item) => landmarkNameToSlug(item.nombre) === slug) ?? null
 }
@@ -379,6 +438,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   )
   const [uploadedMapUrl, setUploadedMapUrl] = useState<string | null>(null)
   const [buildingsMapError, setBuildingsMapError] = useState<string | null>(null)
+  const [mapGridError, setMapGridError] = useState<string | null>(null)
+  const [isRotatingMap, setIsRotatingMap] = useState(false)
+  const [isGridPanelOpen, setIsGridPanelOpen] = useState(false)
+  const [isSavingMapGrid, setIsSavingMapGrid] = useState(false)
+  const [mapGridDraft, setMapGridDraft] = useState<MapGridDraft>(() => toMapGridDraft(null))
+  const [mapViewportSize, setMapViewportSize] = useState<Size | null>(null)
+  const [mapImageNaturalSize, setMapImageNaturalSize] = useState<Size | null>(null)
   const [preloadedMapValue, setPreloadedMapValue] = useState("")
   const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
@@ -514,6 +580,78 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const effectiveMapUrl = uploadedMapUrl ?? mapUrlByReference
   const shouldUseBuildingsMap =
     landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl)
+  const canUseBattleGrid = landmark
+    ? Boolean(effectiveMapUrl) && !shouldUseBuildingsMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
+    : false
+  const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees)
+  const parsedMapGridCellSize = parseMapGridNumber(mapGridDraft.cellSize)
+  const parsedMapGridOffsetX = parseMapGridNumber(mapGridDraft.offsetX)
+  const parsedMapGridOffsetY = parseMapGridNumber(mapGridDraft.offsetY)
+  const isMapGridDraftValid =
+    parsedMapGridCellSize !== null && parsedMapGridOffsetX !== null && parsedMapGridOffsetY !== null
+  const normalizedDraftMapGridCellSize = normalizeMapGridCellSize(
+    parsedMapGridCellSize ?? landmark?.mapGridCellSize,
+  )
+  const normalizedDraftMapGridOffsetX = normalizeMapGridOffset(parsedMapGridOffsetX ?? landmark?.mapGridOffsetX)
+  const normalizedDraftMapGridOffsetY = normalizeMapGridOffset(parsedMapGridOffsetY ?? landmark?.mapGridOffsetY)
+  const hasMapGridChanges =
+    mapGridDraft.enabled !== Boolean(landmark?.mapGridEnabled) ||
+    normalizedDraftMapGridCellSize !== normalizeMapGridCellSize(landmark?.mapGridCellSize) ||
+    normalizedDraftMapGridOffsetX !== normalizeMapGridOffset(landmark?.mapGridOffsetX) ||
+    normalizedDraftMapGridOffsetY !== normalizeMapGridOffset(landmark?.mapGridOffsetY)
+  const rotatedMapRenderSize = useMemo(() => {
+    if (!mapViewportSize || !mapImageNaturalSize) return null
+
+    const viewportWidth = mapViewportSize.width
+    const viewportHeight = mapViewportSize.height
+    const naturalWidth = mapImageNaturalSize.width
+    const naturalHeight = mapImageNaturalSize.height
+
+    if (viewportWidth <= 0 || viewportHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0) {
+      return null
+    }
+
+    const isQuarterTurn = mapRotationDegrees % 180 !== 0
+    const rotatedWidth = isQuarterTurn ? naturalHeight : naturalWidth
+    const rotatedHeight = isQuarterTurn ? naturalWidth : naturalHeight
+    const scaleToFit = Math.min(viewportWidth / rotatedWidth, viewportHeight / rotatedHeight)
+
+    if (!Number.isFinite(scaleToFit) || scaleToFit <= 0) {
+      return null
+    }
+
+    return {
+      imageWidth: naturalWidth * scaleToFit,
+      imageHeight: naturalHeight * scaleToFit,
+      boundsWidth: rotatedWidth * scaleToFit,
+      boundsHeight: rotatedHeight * scaleToFit,
+    }
+  }, [mapImageNaturalSize, mapRotationDegrees, mapViewportSize])
+  const mapGridRenderScale =
+    rotatedMapRenderSize && mapImageNaturalSize && mapImageNaturalSize.width > 0
+      ? rotatedMapRenderSize.imageWidth / mapImageNaturalSize.width
+      : 1
+  const mapGridOverlayStyle = useMemo(() => {
+    if (!canUseBattleGrid || !mapGridDraft.enabled) return undefined
+
+    const cellSize = normalizedDraftMapGridCellSize * mapGridRenderScale
+    const offsetX = normalizedDraftMapGridOffsetX * mapGridRenderScale
+    const offsetY = normalizedDraftMapGridOffsetY * mapGridRenderScale
+
+    return {
+      backgroundImage:
+        "linear-gradient(to right, rgba(248, 234, 199, 0.58) 1px, transparent 1px), linear-gradient(to bottom, rgba(248, 234, 199, 0.58) 1px, transparent 1px)",
+      backgroundSize: `${cellSize}px ${cellSize}px`,
+      backgroundPosition: `${offsetX}px ${offsetY}px, ${offsetX}px ${offsetY}px`,
+    }
+  }, [
+    canUseBattleGrid,
+    mapGridDraft.enabled,
+    normalizedDraftMapGridCellSize,
+    normalizedDraftMapGridOffsetX,
+    normalizedDraftMapGridOffsetY,
+    mapGridRenderScale,
+  ])
 
   useEffect(() => {
     setUploadedMapUrl(null)
@@ -548,6 +686,69 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
   useEffect(() => {
     setBuildingsMapError(null)
+  }, [effectiveMapUrl, shouldUseBuildingsMap])
+
+  useEffect(() => {
+    setMapGridError(null)
+  }, [landmark?.id])
+
+  useEffect(() => {
+    setIsRotatingMap(false)
+  }, [landmark?.id])
+
+  useEffect(() => {
+    setMapGridDraft(toMapGridDraft(landmark))
+  }, [
+    landmark?.id,
+    landmark?.mapGridCellSize,
+    landmark?.mapGridEnabled,
+    landmark?.mapGridOffsetX,
+    landmark?.mapGridOffsetY,
+  ])
+
+  useEffect(() => {
+    if (!canUseBattleGrid) {
+      setIsGridPanelOpen(false)
+    }
+  }, [canUseBattleGrid])
+
+  useEffect(() => {
+    if (shouldUseBuildingsMap) {
+      setMapViewportSize(null)
+      return
+    }
+
+    const viewport = viewportRef.current
+    if (!viewport) {
+      setMapViewportSize(null)
+      return
+    }
+
+    const syncViewportSize = () => {
+      setMapViewportSize({
+        width: viewport.clientWidth,
+        height: viewport.clientHeight,
+      })
+    }
+
+    syncViewportSize()
+
+    if (typeof ResizeObserver === "undefined") {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      syncViewportSize()
+    })
+    resizeObserver.observe(viewport)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [effectiveMapUrl, shouldUseBuildingsMap])
+
+  useEffect(() => {
+    setMapImageNaturalSize(null)
   }, [effectiveMapUrl, shouldUseBuildingsMap])
 
   useEffect(() => {
@@ -791,6 +992,69 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       setBuildingsMapError(getBackendErrorMessage(error, "No se pudo limpiar el mapa del landmark."))
     }
   }, [landmark, persistLandmark])
+
+  const handleRotateMap = useCallback(async () => {
+    if (!landmark || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) return
+
+    setIsRotatingMap(true)
+    setBuildingsMapError(null)
+
+    try {
+      await persistLandmark({
+        ...landmark,
+        mapRotationDegrees: normalizeMapRotationDegrees(mapRotationDegrees + 90),
+      })
+      setEditError(null)
+    } catch (error) {
+      setBuildingsMapError(getBackendErrorMessage(error, "No se pudo rotar el mapa del landmark."))
+    } finally {
+      setIsRotatingMap(false)
+    }
+  }, [effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, persistLandmark, shouldUseBuildingsMap])
+
+  const handleSaveMapGrid = useCallback(async () => {
+    if (!landmark || !canUseBattleGrid || isSavingMapGrid) return
+
+    setIsSavingMapGrid(true)
+    setMapGridError(null)
+
+    try {
+      await persistLandmark({
+        ...landmark,
+        mapGridEnabled: mapGridDraft.enabled,
+        mapGridCellSize: normalizedDraftMapGridCellSize,
+        mapGridOffsetX: normalizedDraftMapGridOffsetX,
+        mapGridOffsetY: normalizedDraftMapGridOffsetY,
+      })
+      setEditError(null)
+    } catch (error) {
+      setMapGridError(getBackendErrorMessage(error, "No se pudo guardar la grilla del mapa."))
+    } finally {
+      setIsSavingMapGrid(false)
+    }
+  }, [
+    canUseBattleGrid,
+    isSavingMapGrid,
+    landmark,
+    mapGridDraft.enabled,
+    normalizedDraftMapGridCellSize,
+    normalizedDraftMapGridOffsetX,
+    normalizedDraftMapGridOffsetY,
+    persistLandmark,
+  ])
+
+  const handleShowMapOnPresentationScreen = useCallback(() => {
+    if (!landmark || !effectiveMapUrl) return
+
+    openPresentationScreen({
+      landmarkSlug: landmarkNameToSlug(landmark.nombre),
+    })
+  }, [effectiveMapUrl, landmark])
+
+  const handleResetMapGrid = useCallback(() => {
+    setMapGridDraft(toMapGridDraft(landmark))
+    setMapGridError(null)
+  }, [landmark])
 
   const handleStartEdit = () => {
     setEditedData(toEditableLandmarkData(landmark))
@@ -1256,6 +1520,143 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       />
 
       <div className={styles.mapPane}>
+        {canUseBattleGrid && (
+          <>
+            <button
+              type="button"
+              className={styles.mapGridToggleButton}
+              onClick={() => setIsGridPanelOpen((current) => !current)}
+            >
+              {isGridPanelOpen ? "Ocultar grilla" : "Configurar grilla"}
+            </button>
+            {isGridPanelOpen && (
+              <div className={styles.mapGridPanel}>
+                <div className={styles.mapGridPanelTitle}>Grilla de combate</div>
+                <div className={styles.mapGridHint}>
+                  La grilla se dibuja sobre la imagen y respeta el zoom, pan y rotacion del mapa.
+                </div>
+                <div className={styles.mapGridActions}>
+                  <button
+                    type="button"
+                    className={styles.mapGridActionButton}
+                    onClick={() =>
+                      setMapGridDraft((current) => ({
+                        ...current,
+                        enabled: !current.enabled,
+                      }))
+                    }
+                  >
+                    {mapGridDraft.enabled ? "Desactivar" : "Activar"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.mapGridActionButton}
+                    onClick={handleResetMapGrid}
+                  >
+                    Revertir
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.mapGridPrimaryButton}
+                    onClick={handleSaveMapGrid}
+                    disabled={!hasMapGridChanges || !isMapGridDraftValid || isSavingMapGrid}
+                  >
+                    {isSavingMapGrid ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+                {mapGridError && <div className={styles.mapGridErrorText}>{mapGridError}</div>}
+                {!isMapGridDraftValid && (
+                  <div className={styles.mapGridHint}>Usa numeros. Se acepta coma o punto decimal.</div>
+                )}
+                <div className={styles.mapGridField}>
+                  <label className={styles.mapGridLabel} htmlFor="map-grid-cell-size">
+                    Tamano de cuadrado
+                  </label>
+                  <div className={styles.mapGridRangeRow}>
+                    <input
+                      id="map-grid-cell-size"
+                      type="range"
+                      min={8}
+                      max={256}
+                      step={0.1}
+                      value={normalizedDraftMapGridCellSize}
+                      className={styles.mapGridRangeInput}
+                      onChange={(event) => {
+                        setMapGridDraft((current) => ({
+                          ...current,
+                          cellSize: formatMapGridNumber(Number(event.target.value)),
+                        }))
+                      }}
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={mapGridDraft.cellSize}
+                      className={styles.mapGridNumberInput}
+                      onChange={(event) => {
+                        setMapGridDraft((current) => ({
+                          ...current,
+                          cellSize: event.target.value,
+                        }))
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className={styles.mapGridOffsetsRow}>
+                  <div className={styles.mapGridField}>
+                    <label className={styles.mapGridLabel} htmlFor="map-grid-offset-x">
+                      Offset X
+                    </label>
+                    <input
+                      id="map-grid-offset-x"
+                      type="text"
+                      inputMode="decimal"
+                      value={mapGridDraft.offsetX}
+                      className={styles.mapGridNumberInput}
+                      onChange={(event) => {
+                        setMapGridDraft((current) => ({
+                          ...current,
+                          offsetX: event.target.value,
+                        }))
+                      }}
+                    />
+                  </div>
+                  <div className={styles.mapGridField}>
+                    <label className={styles.mapGridLabel} htmlFor="map-grid-offset-y">
+                      Offset Y
+                    </label>
+                    <input
+                      id="map-grid-offset-y"
+                      type="text"
+                      inputMode="decimal"
+                      value={mapGridDraft.offsetY}
+                      className={styles.mapGridNumberInput}
+                      onChange={(event) => {
+                        setMapGridDraft((current) => ({
+                          ...current,
+                          offsetY: event.target.value,
+                        }))
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {landmark && effectiveMapUrl && !shouldUseBuildingsMap && (
+          <button
+            type="button"
+            className={styles.mapRotateButton}
+            onClick={handleRotateMap}
+            disabled={isRotatingMap}
+          >
+            <RotateCw className={styles.mapRotateIcon} />
+            {isRotatingMap ? "Rotando..." : `Rotar 90° (${mapRotationDegrees}°)`}
+          </button>
+        )}
+
         {shouldUseBuildingsMap && effectiveMapUrl ? (
           <div className={styles.mapViewport}>
             <BuildingsMap
@@ -1309,12 +1710,64 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                   transform: `matrix(${scale}, 0, 0, ${scale}, ${offset.x}, ${offset.y})`,
                 }}
               >
-                <div
-                  className={styles.mapImage}
-                  style={{
-                    backgroundImage: `linear-gradient(rgba(34, 23, 9, 0.12), rgba(34, 23, 9, 0.12)), url(${effectiveMapUrl})`,
-                  }}
-                />
+                <div className={styles.mapImageFrame}>
+                  <div
+                    className={styles.mapImageBounds}
+                    style={{
+                      width: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsWidth}px` : undefined,
+                      height: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsHeight}px` : undefined,
+                    }}
+                  >
+                    <div
+                      className={styles.mapImageLayer}
+                      style={
+                        rotatedMapRenderSize
+                          ? {
+                              width: `${rotatedMapRenderSize.imageWidth}px`,
+                              height: `${rotatedMapRenderSize.imageHeight}px`,
+                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                            }
+                          : {
+                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                            }
+                      }
+                    >
+                      <img
+                        src={effectiveMapUrl}
+                        alt={`Mapa de ${landmark.nombre}`}
+                        className={styles.mapImageAsset}
+                        draggable={false}
+                        style={
+                          rotatedMapRenderSize
+                            ? {
+                                width: "100%",
+                                height: "100%",
+                              }
+                            : undefined
+                        }
+                        onLoad={(event) => {
+                          const { naturalWidth, naturalHeight } = event.currentTarget
+                          if (naturalWidth <= 0 || naturalHeight <= 0) {
+                            setMapImageNaturalSize(null)
+                            return
+                          }
+
+                          setMapImageNaturalSize({
+                            width: naturalWidth,
+                            height: naturalHeight,
+                          })
+                        }}
+                        onError={() => {
+                          setMapImageNaturalSize(null)
+                        }}
+                      />
+                      <div className={styles.mapImageOverlay} />
+                      {mapGridOverlayStyle && (
+                        <div className={styles.mapGridOverlay} style={mapGridOverlayStyle} />
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1365,8 +1818,21 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                 <span className="text-lg">{fallbackIconForType(landmark.tipo)}</span>
               )}
             </div>
-            <div className="min-w-0">
-              <h1 className="truncate font-serif text-xl text-primary">{landmark.nombre}</h1>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="min-w-0 flex-1 truncate font-serif text-xl text-primary">{landmark.nombre}</h1>
+                {effectiveMapUrl && (
+                  <button
+                    type="button"
+                    onClick={handleShowMapOnPresentationScreen}
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm border border-primary/25 text-primary transition-colors hover:bg-primary/10"
+                    title="Mostrar en pantalla"
+                    aria-label="Mostrar en pantalla"
+                  >
+                    <Expand className="size-4" />
+                  </button>
+                )}
+              </div>
               <div className="mt-1 flex items-center gap-2">
                 <Badge variant="outline" className="border-primary/30 text-[10px] text-primary">
                   {LANDMARK_TYPE_LABELS[landmark.tipo] ?? landmark.tipo}
