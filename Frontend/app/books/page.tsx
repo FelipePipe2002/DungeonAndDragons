@@ -241,7 +241,7 @@ export default function BooksPage() {
                 </div>
               </div>
 
-              <div className="h-[90vh] min-h-[560px] overflow-hidden rounded-sm border border-border bg-card md:h-[86vh] md:min-h-[900px]">
+              <div className="h-[90vh] rounded-sm border border-border bg-card">
                 <iframe
                   key={selectedBook.id}
                   src={selectedBook.downloadUrl}

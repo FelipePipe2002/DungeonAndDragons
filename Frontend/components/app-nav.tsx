@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Users, Building2, Shield, Map, Scroll, BookOpen, BookMarked, Monitor, Link2 } from "lucide-react"
+import { Users, Building2, Shield, Map, Scroll, BookOpen, BookMarked, Monitor, Link2, Swords } from "lucide-react"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const navItems = [
   { href: "/mapa", label: "Mapa", icon: Scroll },
+  { href: "/Batalla", label: "Batalla", icon: Swords },
   { href: "/presentacion", label: "Presentacion", icon: Monitor, opensInPresentationWindow: true },
   { href: "/Jugadores", label: "Jugadores", icon: Users },
   { href: "/personajes", label: "Personajes", icon: Users },

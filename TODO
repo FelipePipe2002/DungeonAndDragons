@@ -1,14 +1,19 @@
 FIX:
+    Hay que corregir que el click sea sobre el circulo
+    Asociar las batallas al landmark, si elijo otro no deberia cargar las fichas de otra batalla
+    Hacer historial de batallas y turnos, asi se puede ver como era el estado anterior al turno
+    Cargar imagenes de los jugadores en las fichas,
+    Agregar que pueda terminar la batalla, y en el landmark quede un registro de batallas y yo pueda entrar en una asi no queda siempre las fichas cargadas
+
 
 Falta agregar:
     Poder crear caminos
 
 Ideas:
-    Agregar pagina en la que esten los jugadores con las hojas de personaje e historia
+    Manager de combate (que esten los monstruos, orden de combate, que si le doy click a un mosntruo me abra la pagina del libro del mosntruo) y Registro de peleas para poder ver contra que pelearon y como fue
     Estaria bueno que pueda cargar un mapa de algunos edificios
     Poder conectar mazmorras con herramientas para hacer mazmorras
     Agregar filtros en /personajes, /edificios, /organizaciones, /landmarks
-    Manager de combate (que esten los monstruos, orden de combate, que si le doy click a un mosntruo me abra la pagina del libro del mosntruo) y Registro de peleas para poder ver contra que pelearon y como fue
     Poder hacer hojas de personajes de NPCs
     Agregar eventos DM, que el dm pueda cargar eventos que pasan, ej "El jugador Mateo le pego a el jefe del gremio", "compraron un libro", etc, asi rapido, y que los eventos se adjunten a una sesion, por ej es la sesion 5 de jugada y adjunto eventos ahi, 
     Integrar IA

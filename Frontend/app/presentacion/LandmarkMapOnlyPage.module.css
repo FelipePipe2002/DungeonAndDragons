@@ -5,6 +5,11 @@
   background: linear-gradient(155deg, oklch(0.86 0.03 70), oklch(0.8 0.04 66));
 }
 
+.rootFitParent {
+  height: 100%;
+  min-height: 0;
+}
+
 .state {
   display: flex;
   align-items: center;
@@ -144,6 +149,12 @@
 }
 
 .mapGridOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapOverlayLayer {
   position: absolute;
   inset: 0;
   pointer-events: none;

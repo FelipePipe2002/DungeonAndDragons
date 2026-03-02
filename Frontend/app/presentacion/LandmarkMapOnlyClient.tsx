@@ -6,6 +6,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
@@ -43,6 +45,8 @@ interface LandmarkMapOnlyClientProps {
   nombreLandmark: string
   showControls?: boolean
   showPresentationLabel?: boolean
+  overlay?: ReactNode
+  fitParentHeight?: boolean
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -148,6 +152,8 @@ export function LandmarkMapOnlyClient({
   nombreLandmark,
   showControls = true,
   showPresentationLabel = false,
+  overlay,
+  fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
   const slug = useMemo(() => decodeSlug(nombreLandmark), [nombreLandmark])
 
@@ -258,6 +264,22 @@ export function LandmarkMapOnlyClient({
     rotatedMapRenderSize && mapImageNaturalSize && mapImageNaturalSize.width > 0
       ? rotatedMapRenderSize.imageWidth / mapImageNaturalSize.width
       : 1
+
+  const mapImageLayerStyle = useMemo<CSSProperties>(
+    () =>
+      rotatedMapRenderSize
+        ? {
+            width: `${rotatedMapRenderSize.imageWidth}px`,
+            height: `${rotatedMapRenderSize.imageHeight}px`,
+            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+            ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+          }
+        : {
+            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+            ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+          },
+    [mapRotationDegrees, rotatedMapRenderSize],
+  )
 
   const mapGridOverlayStyle = useMemo(() => {
     if (!canUseBattleGrid || !landmark?.mapGridEnabled) return undefined
@@ -434,6 +456,10 @@ export function LandmarkMapOnlyClient({
     if (!viewport || !effectiveMapUrl || shouldUseBuildingsMap) return
 
     const onWheel = (event: WheelEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-battle-wheel-stop='true']")) {
+        return
+      }
+
       event.preventDefault()
 
       const rect = viewport.getBoundingClientRect()
@@ -552,7 +578,7 @@ export function LandmarkMapOnlyClient({
 
   if (shouldUseBuildingsMap) {
     return (
-      <section className={styles.root}>
+      <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
         <div className={styles.mapViewport}>
           {presentationLabel}
           <BuildingsMap dataUrl={effectiveMapUrl} onLoadError={setBuildingsMapError} />
@@ -563,7 +589,7 @@ export function LandmarkMapOnlyClient({
   }
 
   return (
-    <section className={styles.root}>
+    <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
       <div
         ref={viewportRef}
         className={isDragging ? `${styles.mapViewport} ${styles.mapViewportDragging}` : styles.mapViewport}
@@ -612,17 +638,7 @@ export function LandmarkMapOnlyClient({
             >
               <div
                 className={styles.mapImageLayer}
-                style={
-                  rotatedMapRenderSize
-                    ? {
-                        width: `${rotatedMapRenderSize.imageWidth}px`,
-                        height: `${rotatedMapRenderSize.imageHeight}px`,
-                        transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                      }
-                    : {
-                        transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                      }
-                }
+                style={mapImageLayerStyle}
               >
                 {renderedImageMapUrl && rotatedMapRenderSize && (
                   <>
@@ -639,6 +655,7 @@ export function LandmarkMapOnlyClient({
                     />
                     <div className={styles.mapImageOverlay} />
                     {mapGridOverlayStyle && <div className={styles.mapGridOverlay} style={mapGridOverlayStyle} />}
+                    {overlay ? <div className={styles.mapOverlayLayer}>{overlay}</div> : null}
                   </>
                 )}
               </div>
