@@ -1093,8 +1093,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       editingEventIndex === null
         ? [event, ...landmark.eventos]
         : landmark.eventos.map((currentEvent, index) =>
-            index === editingEventIndex ? event : currentEvent,
-          )
+          index === editingEventIndex ? event : currentEvent,
+        )
 
     const nextLandmark: Landmark = {
       ...landmark,
@@ -1723,13 +1723,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       style={
                         rotatedMapRenderSize
                           ? {
-                              width: `${rotatedMapRenderSize.imageWidth}px`,
-                              height: `${rotatedMapRenderSize.imageHeight}px`,
-                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                            }
+                            width: `${rotatedMapRenderSize.imageWidth}px`,
+                            height: `${rotatedMapRenderSize.imageHeight}px`,
+                            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                          }
                           : {
-                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                            }
+                            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                          }
                       }
                     >
                       <img
@@ -1740,9 +1740,9 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                         style={
                           rotatedMapRenderSize
                             ? {
-                                width: "100%",
-                                height: "100%",
-                              }
+                              width: "100%",
+                              height: "100%",
+                            }
                             : undefined
                         }
                         onLoad={(event) => {
@@ -2001,6 +2001,16 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                     icon={<Shield className="size-4" />}
                   />
                 </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={styles.mapErrorDangerButton}
+                    onClick={handleClearBrokenMap}
+                  >
+                    Borrar mapa actual
+                  </button>
+                </div>
               </div>
             </ScrollArea>
           </TabsContent>
@@ -2158,8 +2168,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                             isFocusedThis
                               ? "w-full border-primary bg-primary/12 p-3 shadow-none"
                               : isLinkingThis
-                              ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
-                              : "w-full border-border/70 bg-card/70 p-3 shadow-none"
+                                ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
+                                : "w-full border-border/70 bg-card/70 p-3 shadow-none"
                           }
                           onClick={() => {
                             if (shouldUseBuildingsMap && activeMapLinkBuildingId !== null) {

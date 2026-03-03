@@ -3,21 +3,27 @@ package com.sistema.dnd.sistema.services;
 import com.sistema.dnd.sistema.dto.domain.BattleObstacleData;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
 import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
+import com.sistema.dnd.sistema.dto.domain.BattleSummaryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleTokenData;
+import com.sistema.dnd.sistema.dto.domain.CreateBattleRequest;
+import com.sistema.dnd.sistema.dto.domain.UpdateBattleStateRequest;
 import com.sistema.dnd.sistema.entity.BattleStateEntity;
+import com.sistema.dnd.sistema.entity.BattleStatus;
 import com.sistema.dnd.sistema.repository.BattleStateRepository;
 import jakarta.transaction.Transactional;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class BattleStateService {
-
-    private static final String ACTIVE_BATTLE_SLUG = "active";
 
     private final BattleStateRepository battleStateRepository;
     private final BattleStateJsonCodec battleStateJsonCodec;
@@ -34,47 +40,193 @@ public class BattleStateService {
     }
 
     public BattleStateDto findCurrent() {
-        return battleStateRepository.findBySlug(ACTIVE_BATTLE_SLUG)
+        throw new ResponseStatusException(HttpStatus.GONE, "Usa /v1/battles");
+    }
+
+    public BattleStateDto updateCurrent(BattleStateUpsertRequest request) {
+        throw new ResponseStatusException(HttpStatus.GONE, "Usa /v1/battles/{id}");
+    }
+
+    public BattleStateDto findById(Long id) {
+        return toDto(requireBattle(id));
+    }
+
+    public BattleStateDto findActiveByLandmark(String landmarkSlug) {
+        String normalizedLandmarkSlug = requireLandmarkSlug(landmarkSlug);
+
+        return battleStateRepository
+            .findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(normalizedLandmarkSlug, BattleStatus.ACTIVE)
             .map(this::toDto)
-            .orElseGet(this::emptyState);
+            .orElse(null);
+    }
+
+    public List<BattleSummaryDto> findHistoryByLandmark(String landmarkSlug) {
+        String normalizedLandmarkSlug = requireLandmarkSlug(landmarkSlug);
+
+        return battleStateRepository.findByLandmarkSlugOrderByUpdatedAtDesc(normalizedLandmarkSlug).stream()
+            .sorted(historyComparator())
+            .map(this::toSummaryDto)
+            .collect(Collectors.toList());
     }
 
     @Transactional
-    public BattleStateDto updateCurrent(BattleStateUpsertRequest request) {
-        BattleStateEntity entity = battleStateRepository.findBySlug(ACTIVE_BATTLE_SLUG)
-            .orElseGet(() -> {
-                BattleStateEntity created = new BattleStateEntity();
-                created.setSlug(ACTIVE_BATTLE_SLUG);
-                return created;
+    public BattleStateDto create(CreateBattleRequest request) {
+        String landmarkSlug = requireLandmarkSlug(request == null ? null : request.landmarkSlug());
+
+        battleStateRepository.findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(landmarkSlug, BattleStatus.ACTIVE)
+            .ifPresent(existing -> {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una batalla activa para este landmark");
             });
 
-        List<BattleTokenData> normalizedTokens = normalizeTokens(request == null ? null : request.tokens());
-        List<BattleObstacleData> normalizedObstacles = normalizeObstacles(request == null ? null : request.obstacles());
-        entity.setLandmarkSlug(normalizedOrNull(request == null ? null : request.landmarkSlug()));
-        entity.setNextTokenNumber(resolveNextTokenNumber(request == null ? null : request.nextTokenNumber(), normalizedTokens));
-        entity.setTokensJson(battleStateJsonCodec.write(normalizedTokens));
-        entity.setNextObstacleId(resolveNextObstacleId(request == null ? null : request.nextObstacleId(), normalizedObstacles));
-        entity.setObstaclesJson(battleObstacleJsonCodec.write(normalizedObstacles));
+        BattleStateEntity entity = new BattleStateEntity();
+        entity.setSlug(buildBattleSlug());
+        entity.setLandmarkSlug(landmarkSlug);
+        entity.setStatus(BattleStatus.ACTIVE);
+        entity.setEndedAt(null);
+        entity.setNextTokenNumber(1);
+        entity.setCurrentTurnTokenNumber(null);
+        entity.setTokensJson("[]");
+        entity.setNextObstacleId(1);
+        entity.setObstaclesJson("[]");
 
         return toDto(battleStateRepository.save(entity));
     }
 
-    private BattleStateDto emptyState() {
-        return new BattleStateDto(null, ACTIVE_BATTLE_SLUG, null, 1, List.of(), 1, List.of());
+    @Transactional
+    public BattleStateDto update(Long id, UpdateBattleStateRequest request) {
+        BattleStateEntity entity = requireBattle(id);
+        ensureEditable(entity);
+
+        List<BattleTokenData> normalizedTokens = normalizeTokens(request == null ? null : request.tokens());
+        List<BattleObstacleData> normalizedObstacles = normalizeObstacles(request == null ? null : request.obstacles());
+        Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
+            request == null ? null : request.currentTurnTokenNumber(),
+            normalizedTokens
+        );
+
+        entity.setNextTokenNumber(resolveNextTokenNumber(request == null ? null : request.nextTokenNumber(), normalizedTokens));
+        entity.setCurrentTurnTokenNumber(normalizedCurrentTurnTokenNumber);
+        entity.setTokensJson(battleStateJsonCodec.write(normalizedTokens));
+        entity.setNextObstacleId(resolveNextObstacleId(request == null ? null : request.nextObstacleId(), normalizedObstacles));
+        entity.setObstaclesJson(battleObstacleJsonCodec.write(normalizedObstacles));
+        entity.setEndedAt(null);
+
+        return toDto(battleStateRepository.save(entity));
+    }
+
+    @Transactional
+    public BattleStateDto finish(Long id) {
+        BattleStateEntity entity = requireBattle(id);
+
+        if (effectiveStatus(entity) == BattleStatus.FINISHED) {
+            return toDto(entity);
+        }
+
+        entity.setStatus(BattleStatus.FINISHED);
+        entity.setEndedAt(OffsetDateTime.now());
+        return toDto(battleStateRepository.save(entity));
+    }
+
+    @Transactional
+    public BattleStateDto reopen(Long id) {
+        BattleStateEntity entity = requireBattle(id);
+        String landmarkSlug = requireLandmarkSlug(entity.getLandmarkSlug());
+
+        battleStateRepository.findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(landmarkSlug, BattleStatus.ACTIVE)
+            .ifPresent(activeBattle -> {
+                if (!Objects.equals(activeBattle.getId(), entity.getId())) {
+                    activeBattle.setStatus(BattleStatus.FINISHED);
+                    activeBattle.setEndedAt(OffsetDateTime.now());
+                    battleStateRepository.save(activeBattle);
+                }
+            });
+
+        entity.setStatus(BattleStatus.ACTIVE);
+        entity.setEndedAt(null);
+        entity.setCurrentTurnTokenNumber(
+            normalizeCurrentTurnTokenNumber(
+                entity.getCurrentTurnTokenNumber(),
+                normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()))
+            )
+        );
+
+        return toDto(battleStateRepository.save(entity));
+    }
+
+    private BattleStateEntity requireBattle(Long id) {
+        if (id == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id invalido");
+        }
+
+        return battleStateRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batalla no encontrada"));
+    }
+
+    private void ensureEditable(BattleStateEntity entity) {
+        if (effectiveStatus(entity) != BattleStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La batalla esta terminada");
+        }
+    }
+
+    private Comparator<BattleStateEntity> historyComparator() {
+        return (left, right) -> {
+            boolean leftIsActive = effectiveStatus(left) == BattleStatus.ACTIVE;
+            boolean rightIsActive = effectiveStatus(right) == BattleStatus.ACTIVE;
+            if (leftIsActive != rightIsActive) {
+                return leftIsActive ? -1 : 1;
+            }
+
+            OffsetDateTime leftUpdatedAt = left.getUpdatedAt();
+            OffsetDateTime rightUpdatedAt = right.getUpdatedAt();
+            if (leftUpdatedAt == null && rightUpdatedAt == null) {
+                return 0;
+            }
+            if (leftUpdatedAt == null) {
+                return 1;
+            }
+            if (rightUpdatedAt == null) {
+                return -1;
+            }
+
+            return rightUpdatedAt.compareTo(leftUpdatedAt);
+        };
+    }
+
+    private BattleSummaryDto toSummaryDto(BattleStateEntity entity) {
+        List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
+        List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
+
+        return new BattleSummaryDto(
+            entity.getId(),
+            entity.getSlug(),
+            normalizedOrNull(entity.getLandmarkSlug()),
+            toStatusValue(effectiveStatus(entity)),
+            entity.getCreatedAt(),
+            entity.getUpdatedAt(),
+            entity.getEndedAt(),
+            tokens.size(),
+            obstacles.size()
+        );
     }
 
     private BattleStateDto toDto(BattleStateEntity entity) {
         List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
         List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
+        Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(entity.getCurrentTurnTokenNumber(), tokens);
 
         return new BattleStateDto(
             entity.getId(),
             entity.getSlug(),
-            normalizedOrNull(entity.getLandmarkSlug()),
+            requireLandmarkSlug(entity.getLandmarkSlug()),
+            toStatusValue(effectiveStatus(entity)),
             resolveNextTokenNumber(entity.getNextTokenNumber(), tokens),
+            normalizedCurrentTurnTokenNumber,
             tokens,
             resolveNextObstacleId(entity.getNextObstacleId(), obstacles),
-            obstacles
+            obstacles,
+            entity.getCreatedAt(),
+            entity.getUpdatedAt(),
+            entity.getEndedAt()
         );
     }
 
@@ -102,26 +254,76 @@ public class BattleStateService {
             .collect(Collectors.toList());
     }
 
+    private Integer normalizeCurrentTurnTokenNumber(Integer requestedCurrentTurnTokenNumber, List<BattleTokenData> tokens) {
+        List<BattleTokenData> orderedTokens = getOrderedInitiativeTokens(tokens);
+        if (orderedTokens.isEmpty()) {
+            return null;
+        }
+
+        if (
+            requestedCurrentTurnTokenNumber != null &&
+            orderedTokens.stream().anyMatch(token -> Objects.equals(token.number(), requestedCurrentTurnTokenNumber))
+        ) {
+            return requestedCurrentTurnTokenNumber;
+        }
+
+        return orderedTokens.get(0).number();
+    }
+
+    private List<BattleTokenData> getOrderedInitiativeTokens(List<BattleTokenData> tokens) {
+        if (tokens == null) {
+            return List.of();
+        }
+
+        return tokens.stream()
+            .filter(this::isEligibleForInitiative)
+            .sorted(
+                Comparator.comparing(BattleTokenData::initiative, Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(BattleTokenData::number, Comparator.nullsLast(Comparator.naturalOrder()))
+            )
+            .collect(Collectors.toList());
+    }
+
+    private boolean isEligibleForInitiative(BattleTokenData token) {
+        if (token == null) {
+            return false;
+        }
+
+        if (Boolean.TRUE.equals(token.hidden())) {
+            return false;
+        }
+
+        if ("enemy".equals(token.type())) {
+            return token.life() != null && token.life() > 0;
+        }
+
+        return true;
+    }
+
     private BattleTokenData normalizeToken(BattleTokenData token) {
         int number = positiveInt(token.number(), 1);
         String type = normalizeTokenType(token.type());
         String nombre = normalizedOrNull(token.nombre());
+        Integer characterId = positiveOptionalInt(token.characterId());
         if (nombre == null) {
             nombre = "%s %d".formatted(type.equals("player") ? "Jugador" : "Enemigo", number);
         }
 
-        Integer life = type.equals("enemy") ? optionalInt(token.life()) : null;
+        Integer life = optionalInt(token.life());
+        boolean hidden = token.hidden() != null && token.hidden();
 
         return new BattleTokenData(
             number,
             trimToLength(nombre, 120),
+            characterId,
             type,
             clampPercent(token.x(), 50),
             clampPercent(token.y(), 50),
             optionalInt(token.initiative()),
             life,
             clampTokenSize(token.size(), 1),
-            trimToLength(normalizedOrNull(token.status()), 200)
+            trimToLength(normalizedOrNull(token.status()), 200),
+            hidden
         );
     }
 
@@ -186,6 +388,14 @@ public class BattleStateService {
         return lowered.equals("circle") ? "circle" : "rectangle";
     }
 
+    private String requireLandmarkSlug(String value) {
+        String normalized = normalizedOrNull(value);
+        if (normalized == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "landmarkSlug es obligatorio");
+        }
+        return normalized;
+    }
+
     private String normalizedOrNull(String value) {
         if (value == null) {
             return null;
@@ -231,7 +441,7 @@ public class BattleStateService {
             return fallback;
         }
 
-        return Math.max(1, Math.min(100, value));
+        return Math.max(0, Math.min(100, value));
     }
 
     private String normalizeHexColor(String value, String fallback) {
@@ -253,5 +463,24 @@ public class BattleStateService {
             return fallback;
         }
         return value;
+    }
+
+    private Integer positiveOptionalInt(Integer value) {
+        if (value == null || value < 1) {
+            return null;
+        }
+        return value;
+    }
+
+    private BattleStatus effectiveStatus(BattleStateEntity entity) {
+        return entity.getStatus() == null ? BattleStatus.FINISHED : entity.getStatus();
+    }
+
+    private String toStatusValue(BattleStatus status) {
+        return status == BattleStatus.ACTIVE ? "active" : "finished";
+    }
+
+    private String buildBattleSlug() {
+        return "battle-" + UUID.randomUUID();
     }
 }

@@ -1,9 +1,19 @@
+import { normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
 import { backendRequest } from "@/lib/services/backend-api.service"
-import type { BattleObstacle, BattleObstacleShape, BattleState, BattleToken, BattleTokenType } from "@/lib/types"
+import type {
+  BattleObstacle,
+  BattleObstacleShape,
+  BattleState,
+  BattleStatus,
+  BattleSummary,
+  BattleToken,
+  BattleTokenType,
+} from "@/lib/types"
 
 type BattleTokenDto = {
   number?: number | null
   nombre?: string | null
+  characterId?: number | null
   type?: string | null
   x?: number | null
   y?: number | null
@@ -11,6 +21,7 @@ type BattleTokenDto = {
   life?: number | null
   size?: number | null
   status?: string | null
+  hidden?: boolean | null
 }
 
 type BattleObstacleDto = {
@@ -27,18 +38,36 @@ type BattleStateDto = {
   id?: number | null
   slug?: string | null
   landmarkSlug?: string | null
+  status?: string | null
   nextTokenNumber?: number | null
+  currentTurnTokenNumber?: number | null
   tokens?: BattleTokenDto[] | null
   nextObstacleId?: number | null
   obstacles?: BattleObstacleDto[] | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  endedAt?: string | null
 }
 
-type BattleStatePayload = {
-  landmarkSlug: string | null
+type BattleSummaryDto = {
+  id?: number | null
+  slug?: string | null
+  landmarkSlug?: string | null
+  status?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  endedAt?: string | null
+  tokenCount?: number | null
+  obstacleCount?: number | null
+}
+
+type UpdateBattlePayload = {
   nextTokenNumber: number
+  currentTurnTokenNumber: number | null
   tokens: Array<{
     number: number
     nombre: string
+    characterId: number | null
     type: BattleTokenType
     x: number
     y: number
@@ -46,6 +75,7 @@ type BattleStatePayload = {
     life: number | null
     size: number | null
     status: string | null
+    hidden: boolean | null
   }>
   nextObstacleId: number
   obstacles: Array<{
@@ -76,13 +106,21 @@ function clampObstacleDimension(value: number | null | undefined, fallback: numb
     return fallback
   }
 
-  return Math.round(clamp(value, 1, 100) * 100) / 100
+  return Math.round(clamp(value, 0, 100) * 100) / 100
 }
 
 function toOptionalText(value: string | null | undefined) {
   if (typeof value !== "string") return undefined
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function normalizeDateText(value: string | null | undefined) {
+  return toOptionalText(value)
+}
+
+function normalizeStatus(value: unknown): BattleStatus {
+  return value === "finished" ? "finished" : "active"
 }
 
 function isBattleTokenType(value: unknown): value is BattleTokenType {
@@ -110,14 +148,19 @@ function normalizeToken(dto: BattleTokenDto): BattleToken {
   return {
     number,
     nombre: toOptionalText(dto.nombre) ?? `${type === "player" ? "Jugador" : "Enemigo"} ${number}`,
+    characterId:
+      typeof dto.characterId === "number" && Number.isFinite(dto.characterId) && dto.characterId > 0
+        ? Math.trunc(dto.characterId)
+        : undefined,
     type,
     x: typeof dto.x === "number" && Number.isFinite(dto.x) ? clamp(dto.x, 0, 100) : 50,
     y: typeof dto.y === "number" && Number.isFinite(dto.y) ? clamp(dto.y, 0, 100) : 50,
     initiative:
       typeof dto.initiative === "number" && Number.isFinite(dto.initiative) ? Math.trunc(dto.initiative) : undefined,
-    life: type === "enemy" && typeof dto.life === "number" && Number.isFinite(dto.life) ? Math.trunc(dto.life) : undefined,
+    life: typeof dto.life === "number" && Number.isFinite(dto.life) ? Math.trunc(dto.life) : undefined,
     size: clampTokenSize(dto.size),
     status: toOptionalText(dto.status) ?? "",
+    hidden: Boolean(dto.hidden),
   }
 }
 
@@ -141,6 +184,8 @@ function normalizeObstacle(dto: BattleObstacleDto): BattleObstacle {
 function normalizeState(dto: BattleStateDto): BattleState {
   const tokens = Array.isArray(dto.tokens) ? dto.tokens.map(normalizeToken) : []
   const obstacles = Array.isArray(dto.obstacles) ? dto.obstacles.map(normalizeObstacle) : []
+  const sortedTokens = tokens.sort((a, b) => a.number - b.number)
+  const sortedObstacles = obstacles.sort((a, b) => a.id - b.id)
   const nextTokenNumber =
     typeof dto.nextTokenNumber === "number" && Number.isFinite(dto.nextTokenNumber) && dto.nextTokenNumber > 0
       ? Math.trunc(dto.nextTokenNumber)
@@ -160,37 +205,64 @@ function normalizeState(dto: BattleStateDto): BattleState {
 
   return {
     id: typeof dto.id === "number" && Number.isFinite(dto.id) ? dto.id : undefined,
-    slug: toOptionalText(dto.slug) ?? "active",
-    landmarkSlug: toOptionalText(dto.landmarkSlug),
+    slug: toOptionalText(dto.slug) ?? "battle",
+    landmarkSlug: toOptionalText(dto.landmarkSlug) ?? "",
+    status: normalizeStatus(dto.status),
     nextTokenNumber: minNextTokenNumber,
     nextObstacleId: minNextObstacleId,
-    tokens: tokens.sort((a, b) => a.number - b.number),
-    obstacles: obstacles.sort((a, b) => a.id - b.id),
+    currentTurnTokenNumber: normalizeCurrentTurnTokenNumber(sortedTokens, dto.currentTurnTokenNumber ?? null),
+    tokens: sortedTokens,
+    obstacles: sortedObstacles,
+    createdAt: normalizeDateText(dto.createdAt),
+    updatedAt: normalizeDateText(dto.updatedAt),
+    endedAt: normalizeDateText(dto.endedAt),
   }
 }
 
-function toPayload(input: BattleState): BattleStatePayload {
+function normalizeSummary(dto: BattleSummaryDto): BattleSummary {
   return {
-    landmarkSlug: toOptionalText(input.landmarkSlug) ?? null,
+    id: typeof dto.id === "number" && Number.isFinite(dto.id) ? Math.trunc(dto.id) : 0,
+    slug: toOptionalText(dto.slug) ?? "battle",
+    landmarkSlug: toOptionalText(dto.landmarkSlug) ?? "",
+    status: normalizeStatus(dto.status),
+    createdAt: normalizeDateText(dto.createdAt),
+    updatedAt: normalizeDateText(dto.updatedAt),
+    endedAt: normalizeDateText(dto.endedAt),
+    tokenCount:
+      typeof dto.tokenCount === "number" && Number.isFinite(dto.tokenCount) && dto.tokenCount >= 0
+        ? Math.trunc(dto.tokenCount)
+        : 0,
+    obstacleCount:
+      typeof dto.obstacleCount === "number" && Number.isFinite(dto.obstacleCount) && dto.obstacleCount >= 0
+        ? Math.trunc(dto.obstacleCount)
+        : 0,
+  }
+}
+
+function toPayload(input: BattleState): UpdateBattlePayload {
+  return {
     nextTokenNumber: Math.max(
       1,
       Math.trunc(input.nextTokenNumber),
       input.tokens.reduce((max, token) => Math.max(max, token.number + 1), 1),
     ),
+    currentTurnTokenNumber: normalizeCurrentTurnTokenNumber(input.tokens, input.currentTurnTokenNumber ?? null),
     tokens: input.tokens.map((token) => ({
       number: Math.max(1, Math.trunc(token.number)),
       nombre: token.nombre.trim(),
+      characterId:
+        typeof token.characterId === "number" && Number.isFinite(token.characterId) && token.characterId > 0
+          ? Math.trunc(token.characterId)
+          : null,
       type: token.type,
       x: clamp(token.x, 0, 100),
       y: clamp(token.y, 0, 100),
       initiative:
         typeof token.initiative === "number" && Number.isFinite(token.initiative) ? Math.trunc(token.initiative) : null,
-      life:
-        token.type === "enemy" && typeof token.life === "number" && Number.isFinite(token.life)
-          ? Math.trunc(token.life)
-          : null,
+      life: typeof token.life === "number" && Number.isFinite(token.life) ? Math.trunc(token.life) : null,
       size: clampTokenSize(token.size),
       status: toOptionalText(token.status) ?? null,
+      hidden: token.hidden ?? null,
     })),
     nextObstacleId: Math.max(
       1,
@@ -199,8 +271,7 @@ function toPayload(input: BattleState): BattleStatePayload {
     ),
     obstacles: input.obstacles.map((obstacle) => {
       const width = clampObstacleDimension(obstacle.width, obstacle.shape === "circle" ? 8 : 14)
-      const height =
-        obstacle.shape === "circle" ? width : clampObstacleDimension(obstacle.height, 8)
+      const height = obstacle.shape === "circle" ? width : clampObstacleDimension(obstacle.height, 8)
 
       return {
         id: Math.max(1, Math.trunc(obstacle.id)),
@@ -215,15 +286,53 @@ function toPayload(input: BattleState): BattleStatePayload {
   }
 }
 
-export async function fetchCurrentBattleState(): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>("/v1/battle/current")
+export async function fetchActiveBattleForLandmark(landmarkSlug: string): Promise<BattleState | null> {
+  const response = await backendRequest<BattleStateDto | undefined>(
+    `/v1/battles/active?landmarkSlug=${encodeURIComponent(landmarkSlug)}`,
+  )
+
+  return response ? normalizeState(response) : null
+}
+
+export async function fetchBattleHistory(landmarkSlug: string): Promise<BattleSummary[]> {
+  const response = await backendRequest<BattleSummaryDto[]>(
+    `/v1/battles?landmarkSlug=${encodeURIComponent(landmarkSlug)}`,
+  )
+
+  return Array.isArray(response) ? response.map(normalizeSummary) : []
+}
+
+export async function fetchBattleById(id: number): Promise<BattleState> {
+  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}`)
   return normalizeState(response)
 }
 
-export async function updateCurrentBattleState(input: BattleState): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>("/v1/battle/current", {
+export async function createBattle(landmarkSlug: string): Promise<BattleState> {
+  const response = await backendRequest<BattleStateDto>("/v1/battles", {
+    method: "POST",
+    body: { landmarkSlug },
+  })
+  return normalizeState(response)
+}
+
+export async function updateBattle(id: number, input: BattleState): Promise<BattleState> {
+  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}`, {
     method: "PUT",
     body: toPayload(input),
+  })
+  return normalizeState(response)
+}
+
+export async function finishBattle(id: number): Promise<BattleState> {
+  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}/finish`, {
+    method: "POST",
+  })
+  return normalizeState(response)
+}
+
+export async function reopenBattle(id: number): Promise<BattleState> {
+  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}/reopen`, {
+    method: "POST",
   })
   return normalizeState(response)
 }

@@ -58,6 +58,8 @@ logging:
     com.zaxxer.hikari: DEBUG
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: ERROR
 
+    org.springframework.web.servlet.handler.HandlerMappingIntrospector: ERROR
+
 management:
   endpoints:
     web:

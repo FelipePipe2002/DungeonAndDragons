@@ -11,6 +11,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
+import { Maximize2, RotateCw } from "lucide-react"
+
 import BuildingsMap from "@/components/buildings/BuildingsMap"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
@@ -45,6 +47,8 @@ interface LandmarkMapOnlyClientProps {
   nombreLandmark: string
   showControls?: boolean
   showPresentationLabel?: boolean
+  leftControls?: ReactNode
+  topOverlay?: ReactNode
   overlay?: ReactNode
   fitParentHeight?: boolean
 }
@@ -152,6 +156,8 @@ export function LandmarkMapOnlyClient({
   nombreLandmark,
   showControls = true,
   showPresentationLabel = false,
+  leftControls,
+  topOverlay,
   overlay,
   fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
@@ -264,6 +270,18 @@ export function LandmarkMapOnlyClient({
     rotatedMapRenderSize && mapImageNaturalSize && mapImageNaturalSize.width > 0
       ? rotatedMapRenderSize.imageWidth / mapImageNaturalSize.width
       : 1
+  const mapGridCellSize =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridCellSize(landmark.mapGridCellSize) * mapGridRenderScale
+      : 0
+  const mapGridOffsetX =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridOffset(landmark.mapGridOffsetX) * mapGridRenderScale
+      : 0
+  const mapGridOffsetY =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridOffset(landmark.mapGridOffsetY) * mapGridRenderScale
+      : 0
 
   const mapImageLayerStyle = useMemo<CSSProperties>(
     () =>
@@ -273,35 +291,39 @@ export function LandmarkMapOnlyClient({
             height: `${rotatedMapRenderSize.imageHeight}px`,
             transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
             ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+            ["--map-image-scale" as "--map-image-scale"]: String(mapGridRenderScale),
+            ["--battle-grid-cell-size" as "--battle-grid-cell-size"]: `${mapGridCellSize}px`,
+            ["--battle-grid-offset-x" as "--battle-grid-offset-x"]: `${mapGridOffsetX}px`,
+            ["--battle-grid-offset-y" as "--battle-grid-offset-y"]: `${mapGridOffsetY}px`,
           }
         : {
             transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
             ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+            ["--map-image-scale" as "--map-image-scale"]: String(mapGridRenderScale),
+            ["--battle-grid-cell-size" as "--battle-grid-cell-size"]: `${mapGridCellSize}px`,
+            ["--battle-grid-offset-x" as "--battle-grid-offset-x"]: `${mapGridOffsetX}px`,
+            ["--battle-grid-offset-y" as "--battle-grid-offset-y"]: `${mapGridOffsetY}px`,
           },
-    [mapRotationDegrees, rotatedMapRenderSize],
+    [
+      mapGridCellSize,
+      mapGridOffsetX,
+      mapGridOffsetY,
+      mapGridRenderScale,
+      mapRotationDegrees,
+      rotatedMapRenderSize,
+    ],
   )
 
   const mapGridOverlayStyle = useMemo(() => {
-    if (!canUseBattleGrid || !landmark?.mapGridEnabled) return undefined
-
-    const cellSize = normalizeMapGridCellSize(landmark.mapGridCellSize) * mapGridRenderScale
-    const offsetX = normalizeMapGridOffset(landmark.mapGridOffsetX) * mapGridRenderScale
-    const offsetY = normalizeMapGridOffset(landmark.mapGridOffsetY) * mapGridRenderScale
+    if (mapGridCellSize <= 0) return undefined
 
     return {
       backgroundImage:
         "linear-gradient(to right, rgba(248, 234, 199, 0.58) 1px, transparent 1px), linear-gradient(to bottom, rgba(248, 234, 199, 0.58) 1px, transparent 1px)",
-      backgroundSize: `${cellSize}px ${cellSize}px`,
-      backgroundPosition: `${offsetX}px ${offsetY}px, ${offsetX}px ${offsetY}px`,
+      backgroundSize: `${mapGridCellSize}px ${mapGridCellSize}px`,
+      backgroundPosition: `${mapGridOffsetX}px ${mapGridOffsetY}px, ${mapGridOffsetX}px ${mapGridOffsetY}px`,
     }
-  }, [
-    canUseBattleGrid,
-    landmark?.mapGridCellSize,
-    landmark?.mapGridEnabled,
-    landmark?.mapGridOffsetX,
-    landmark?.mapGridOffsetY,
-    mapGridRenderScale,
-  ])
+  }, [mapGridCellSize, mapGridOffsetX, mapGridOffsetY])
 
   useEffect(() => {
     const nextOffset = { x: 0, y: 0 }
@@ -608,19 +630,35 @@ export function LandmarkMapOnlyClient({
               type="button"
               className={styles.mapControlButton}
               onClick={handleResetView}
+              aria-label="Ajustar vista"
+              title="Ajustar vista"
             >
-              Ajustar
+              <Maximize2 className={styles.mapControlIcon} />
             </button>
             <button
               type="button"
               className={styles.mapControlButton}
               onClick={handleRotateMap}
               disabled={isRotatingMap}
+              aria-label="Rotar 90 grados"
+              title="Rotar 90 grados"
             >
-              {isRotatingMap ? "Rotando..." : `Rotar 90° (${mapRotationDegrees}°)`}
+              <RotateCw className={styles.mapControlIcon} />
             </button>
           </div>
         )}
+        {leftControls ? (
+          <div className={styles.mapLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+            {leftControls}
+          </div>
+        ) : null}
+        {topOverlay ? (
+          <div className={styles.mapTopOverlay}>
+            <div className={styles.mapTopOverlayContent} onPointerDown={(event) => event.stopPropagation()}>
+              {topOverlay}
+            </div>
+          </div>
+        ) : null}
         {presentationLabel}
         <div
           className={styles.mapCanvas}
