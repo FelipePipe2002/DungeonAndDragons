@@ -5,6 +5,11 @@
   background: linear-gradient(155deg, oklch(0.86 0.03 70), oklch(0.8 0.04 66));
 }
 
+.rootFitParent {
+  height: 100%;
+  min-height: 0;
+}
+
 .state {
   display: flex;
   align-items: center;
@@ -48,13 +53,99 @@
 }
 
 .mapControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mapBottomRightControls {
   position: absolute;
-  top: 1rem;
+  bottom: 1rem;
   right: 1rem;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: calc(100% - 2rem);
+}
+
+.mapLeftControls {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
   z-index: 12;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  max-width: calc(100% - 2rem);
+}
+
+.mapMiddleLeftControls {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  transform: translateY(-50%);
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1.5rem);
+}
+
+.mapTopLeftControls {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 2rem);
+}
+
+.mapTopRightControls {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 2rem);
+}
+
+.mapTopOverlay {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  z-index: 12;
+  width: calc(100% - 1rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+  text-align: center;
+}
+
+.mapBottomOverlay {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 50%;
+  z-index: 12;
+  width: calc(100% - 1rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+  text-align: center;
+}
+
+.mapTopOverlayContent {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  pointer-events: auto;
 }
 
 .mapControlButton {
@@ -63,9 +154,12 @@
   background: oklch(0.96 0.02 78 / 0.92);
   color: oklch(0.28 0.03 54);
   border-radius: 999px;
-  padding: 0.55rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 700;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 0.65rem 1.25rem oklch(0.24 0.03 40 / 0.14);
@@ -84,6 +178,11 @@
 .mapControlButton:disabled {
   cursor: wait;
   opacity: 0.75;
+}
+
+.mapControlIcon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .presentationLabel {
@@ -105,7 +204,6 @@
   position: absolute;
   inset: 0;
   transform-origin: 50% 50%;
-  will-change: transform;
 }
 
 .mapImageFrame {
@@ -134,6 +232,9 @@
 .mapImageAsset {
   display: block;
   user-select: none;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .mapImageOverlay {
@@ -149,14 +250,58 @@
   pointer-events: none;
 }
 
+.mapOverlayLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 @media (max-width: 720px) {
   .mapControls {
-    top: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .mapBottomRightControls {
+    bottom: 0.75rem;
     right: 0.75rem;
     gap: 0.4rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     max-width: calc(100% - 1.5rem);
+  }
+
+  .mapLeftControls {
+    bottom: 0.75rem;
+    left: 0.75rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 1.5rem);
+  }
+
+  .mapMiddleLeftControls {
+    left: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .mapTopLeftControls {
+    top: 0.5rem;
+    left: 0.5rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .mapTopRightControls {
+    top: 0.5rem;
+    right: 0.5rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .mapTopOverlay {
+    top: 0.25rem;
+    width: calc(100% - 0.75rem);
+  }
+
+  .mapBottomOverlay {
+    bottom: 0.25rem;
+    width: calc(100% - 0.75rem);
   }
 
   .mapControlButton {

@@ -89,7 +89,6 @@
   left: 0;
   top: 0;
   transform-origin: 0 0;
-  will-change: transform;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -97,6 +96,9 @@
 .mapLayer {
   position: absolute;
   inset: 0;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   background-image:
     linear-gradient(rgba(60, 44, 22, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(60, 44, 22, 0.12) 1px, transparent 1px),

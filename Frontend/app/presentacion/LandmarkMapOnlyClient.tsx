@@ -1,19 +1,25 @@
 "use client"
 
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
 } from "react"
 
+import { Maximize2, RotateCw } from "lucide-react"
+
 import BuildingsMap from "@/components/buildings/BuildingsMap"
-import { landmarkNameToSlug } from "@/lib/landmarks/slug"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { buildBackendApiUrl } from "@/lib/services/backend-api.service"
-import { fetchLandmarks, updateLandmark } from "@/lib/services/landmark-api.service"
+import { fetchLandmarkBySlug, updateLandmark } from "@/lib/services/landmark-api.service"
 import type { Landmark, LandmarkType } from "@/lib/types"
 import styles from "./LandmarkMapOnlyPage.module.css"
 
@@ -43,6 +49,16 @@ interface LandmarkMapOnlyClientProps {
   nombreLandmark: string
   showControls?: boolean
   showPresentationLabel?: boolean
+  flipVertical?: boolean
+  onMapBackgroundPointerDown?: () => void
+  leftControls?: ReactNode
+  middleLeftControls?: ReactNode
+  bottomRightControls?: ReactNode
+  topLeftControls?: ReactNode
+  topRightControls?: ReactNode
+  topOverlay?: ReactNode
+  overlay?: ReactNode
+  fitParentHeight?: boolean
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -140,14 +156,20 @@ function decodeSlug(raw: string | undefined) {
   }
 }
 
-function findLandmarkBySlug(landmarks: Landmark[], slug: string) {
-  return landmarks.find((item) => landmarkNameToSlug(item.nombre) === slug) ?? null
-}
-
-export function LandmarkMapOnlyClient({
+export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   nombreLandmark,
   showControls = true,
   showPresentationLabel = false,
+  flipVertical = false,
+  onMapBackgroundPointerDown,
+  leftControls,
+  middleLeftControls,
+  bottomRightControls,
+  topLeftControls,
+  topRightControls,
+  topOverlay,
+  overlay,
+  fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
   const slug = useMemo(() => decodeSlug(nombreLandmark), [nombreLandmark])
 
@@ -164,20 +186,22 @@ export function LandmarkMapOnlyClient({
   const [isRotatingMap, setIsRotatingMap] = useState(false)
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
+  const mapCanvasRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<DragState | null>(null)
   const scaleRef = useRef(scale)
   const offsetRef = useRef(offset)
   const fallbackObjectUrlRef = useRef<string | null>(null)
+  const panAnimationFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
     let isActive = true
     setLandmark(null)
     setHasResolvedLoad(false)
 
-    void fetchLandmarks()
-      .then((landmarks) => {
+    void fetchLandmarkBySlug(slug)
+      .then((nextLandmark) => {
         if (!isActive) return
-        setLandmark(findLandmarkBySlug(landmarks, slug))
+        setLandmark(nextLandmark)
         setHasResolvedLoad(true)
       })
       .catch(() => {
@@ -198,6 +222,28 @@ export function LandmarkMapOnlyClient({
   useEffect(() => {
     offsetRef.current = offset
   }, [offset])
+
+  const applyCanvasTransform = useCallback((nextScale: number, nextOffset: Point) => {
+    const mapCanvas = mapCanvasRef.current
+    if (!mapCanvas) {
+      return
+    }
+
+    mapCanvas.style.transform = `matrix(${nextScale}, 0, 0, ${nextScale}, ${nextOffset.x}, ${nextOffset.y})`
+  }, [])
+
+  useEffect(() => {
+    applyCanvasTransform(scale, offset)
+  }, [applyCanvasTransform, offset, scale])
+
+  useEffect(() => {
+    return () => {
+      if (panAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(panAnimationFrameRef.current)
+        panAnimationFrameRef.current = null
+      }
+    }
+  }, [])
 
   const effectiveMapUrl = useMemo(() => {
     if (!landmark) return null
@@ -258,28 +304,88 @@ export function LandmarkMapOnlyClient({
     rotatedMapRenderSize && mapImageNaturalSize && mapImageNaturalSize.width > 0
       ? rotatedMapRenderSize.imageWidth / mapImageNaturalSize.width
       : 1
+  const mapGridCellSize =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridCellSize(landmark.mapGridCellSize) * mapGridRenderScale
+      : 0
+  const mapGridOffsetX =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridOffset(landmark.mapGridOffsetX) * mapGridRenderScale
+      : 0
+  const mapGridOffsetY =
+    canUseBattleGrid && landmark?.mapGridEnabled
+      ? normalizeMapGridOffset(landmark.mapGridOffsetY) * mapGridRenderScale
+      : 0
+
+  const mapImageLayerStyle = useMemo<CSSProperties>(
+    () =>
+      rotatedMapRenderSize
+        ? {
+            width: `${rotatedMapRenderSize.imageWidth}px`,
+            height: `${rotatedMapRenderSize.imageHeight}px`,
+            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+            ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+            ["--map-image-scale" as "--map-image-scale"]: String(mapGridRenderScale),
+            ["--map-canvas-scale" as "--map-canvas-scale"]: String(scale),
+            ["--battle-grid-cell-size" as "--battle-grid-cell-size"]: `${mapGridCellSize}px`,
+            ["--battle-grid-offset-x" as "--battle-grid-offset-x"]: `${mapGridOffsetX}px`,
+            ["--battle-grid-offset-y" as "--battle-grid-offset-y"]: `${mapGridOffsetY}px`,
+          }
+        : {
+            width: "100%",
+            height: "100%",
+            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+            ["--map-rotation-deg" as "--map-rotation-deg"]: `${mapRotationDegrees}deg`,
+            ["--map-image-scale" as "--map-image-scale"]: String(mapGridRenderScale),
+            ["--map-canvas-scale" as "--map-canvas-scale"]: String(scale),
+            ["--battle-grid-cell-size" as "--battle-grid-cell-size"]: `${mapGridCellSize}px`,
+            ["--battle-grid-offset-x" as "--battle-grid-offset-x"]: `${mapGridOffsetX}px`,
+            ["--battle-grid-offset-y" as "--battle-grid-offset-y"]: `${mapGridOffsetY}px`,
+          },
+    [
+      mapGridCellSize,
+      mapGridOffsetX,
+      mapGridOffsetY,
+      mapGridRenderScale,
+      mapRotationDegrees,
+      rotatedMapRenderSize,
+      scale,
+    ],
+  )
 
   const mapGridOverlayStyle = useMemo(() => {
-    if (!canUseBattleGrid || !landmark?.mapGridEnabled) return undefined
-
-    const cellSize = normalizeMapGridCellSize(landmark.mapGridCellSize) * mapGridRenderScale
-    const offsetX = normalizeMapGridOffset(landmark.mapGridOffsetX) * mapGridRenderScale
-    const offsetY = normalizeMapGridOffset(landmark.mapGridOffsetY) * mapGridRenderScale
+    if (mapGridCellSize <= 0) return undefined
 
     return {
       backgroundImage:
         "linear-gradient(to right, rgba(248, 234, 199, 0.58) 1px, transparent 1px), linear-gradient(to bottom, rgba(248, 234, 199, 0.58) 1px, transparent 1px)",
-      backgroundSize: `${cellSize}px ${cellSize}px`,
-      backgroundPosition: `${offsetX}px ${offsetY}px, ${offsetX}px ${offsetY}px`,
+      backgroundSize: `${mapGridCellSize}px ${mapGridCellSize}px`,
+      backgroundPosition: `${mapGridOffsetX}px ${mapGridOffsetY}px, ${mapGridOffsetX}px ${mapGridOffsetY}px`,
     }
-  }, [
-    canUseBattleGrid,
-    landmark?.mapGridCellSize,
-    landmark?.mapGridEnabled,
-    landmark?.mapGridOffsetX,
-    landmark?.mapGridOffsetY,
-    mapGridRenderScale,
-  ])
+  }, [mapGridCellSize, mapGridOffsetX, mapGridOffsetY])
+  const mapVerticalFlipStyle = useMemo<CSSProperties | undefined>(
+    () => (flipVertical ? { transform: "scale(-1)", transformOrigin: "center" } : undefined),
+    [flipVertical],
+  )
+  const mapMainOverlayClassName = flipVertical ? styles.mapBottomOverlay : styles.mapTopOverlay
+
+  const handleMapImageLoad = useCallback(
+    (event: SyntheticEvent<HTMLImageElement>) => {
+      const { naturalWidth, naturalHeight } = event.currentTarget
+      if (naturalWidth <= 0 || naturalHeight <= 0) {
+        setMapImageNaturalSize(null)
+        setBuildingsMapError("No se pudo cargar el mapa.")
+        return
+      }
+
+      setBuildingsMapError(null)
+      setMapImageNaturalSize({
+        width: naturalWidth,
+        height: naturalHeight,
+      })
+    },
+    [],
+  )
 
   useEffect(() => {
     const nextOffset = { x: 0, y: 0 }
@@ -377,63 +483,26 @@ export function LandmarkMapOnlyClient({
     }
   }, [effectiveMapUrl, isBackendImageAsset, isResolvingImageFallback, resolvedImageMapUrl])
 
-  useEffect(() => {
-    if (!renderedImageMapUrl || shouldUseBuildingsMap) {
+  const handleMapImageError = useCallback(() => {
+    setMapImageNaturalSize(null)
+
+    if (isBackendImageAsset && !resolvedImageMapUrl) {
+      void resolveImageFallback()
       return
     }
 
-    let isActive = true
-    const probe = new Image()
-
-    probe.onload = () => {
-      if (!isActive) return
-
-      const { naturalWidth, naturalHeight } = probe
-      if (naturalWidth <= 0 || naturalHeight <= 0) {
-        setMapImageNaturalSize(null)
-
-        if (isBackendImageAsset && !resolvedImageMapUrl) {
-          void resolveImageFallback()
-          return
-        }
-
-        setBuildingsMapError("No se pudo cargar el mapa.")
-        return
-      }
-
-      setBuildingsMapError(null)
-      setMapImageNaturalSize({
-        width: naturalWidth,
-        height: naturalHeight,
-      })
-    }
-
-    probe.onerror = () => {
-      if (!isActive) return
-
-      setMapImageNaturalSize(null)
-      if (isBackendImageAsset && !resolvedImageMapUrl) {
-        void resolveImageFallback()
-        return
-      }
-
-      setBuildingsMapError("No se pudo cargar el mapa.")
-    }
-
-    probe.src = renderedImageMapUrl
-
-    return () => {
-      isActive = false
-      probe.onload = null
-      probe.onerror = null
-    }
-  }, [renderedImageMapUrl, shouldUseBuildingsMap, isBackendImageAsset, resolvedImageMapUrl, resolveImageFallback])
+    setBuildingsMapError("No se pudo cargar el mapa.")
+  }, [isBackendImageAsset, resolveImageFallback, resolvedImageMapUrl])
 
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport || !effectiveMapUrl || shouldUseBuildingsMap) return
 
     const onWheel = (event: WheelEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-battle-wheel-stop='true']")) {
+        return
+      }
+
       event.preventDefault()
 
       const rect = viewport.getBoundingClientRect()
@@ -452,22 +521,29 @@ export function LandmarkMapOnlyClient({
       const worldY = (pointer.y - currentOffset.y) / currentScale
 
       scaleRef.current = nextScale
-      setScale(nextScale)
       const nextOffset = {
         x: pointer.x - worldX * nextScale,
         y: pointer.y - worldY * nextScale,
       }
       offsetRef.current = nextOffset
+      applyCanvasTransform(nextScale, nextOffset)
+      setScale(nextScale)
       setOffset(nextOffset)
     }
 
     viewport.addEventListener("wheel", onWheel, { passive: false })
     return () => viewport.removeEventListener("wheel", onWheel)
-  }, [imageMapEffectKey])
+  }, [applyCanvasTransform, imageMapEffectKey])
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!effectiveMapUrl || shouldUseBuildingsMap) return
     if (event.button !== 0 && event.button !== 1) return
+
+    if (event.target instanceof Element && event.target.closest("[data-battle-wheel-stop='true']")) {
+      return
+    }
+
+    onMapBackgroundPointerDown?.()
     event.preventDefault()
 
     dragRef.current = {
@@ -493,7 +569,14 @@ export function LandmarkMapOnlyClient({
     }
 
     offsetRef.current = nextOffset
-    setOffset(nextOffset)
+    if (panAnimationFrameRef.current !== null) {
+      return
+    }
+
+    panAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      panAnimationFrameRef.current = null
+      applyCanvasTransform(scaleRef.current, offsetRef.current)
+    })
   }
 
   const handlePointerEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -502,6 +585,7 @@ export function LandmarkMapOnlyClient({
 
     dragRef.current = null
     setIsDragging(false)
+    setOffset(offsetRef.current)
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -512,9 +596,10 @@ export function LandmarkMapOnlyClient({
     const nextOffset = { x: 0, y: 0 }
     scaleRef.current = INITIAL_SCALE
     offsetRef.current = nextOffset
+    applyCanvasTransform(INITIAL_SCALE, nextOffset)
     setScale(INITIAL_SCALE)
     setOffset(nextOffset)
-  }, [])
+  }, [applyCanvasTransform])
 
   const handleRotateMap = useCallback(async () => {
     if (!landmark || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) {
@@ -552,8 +637,35 @@ export function LandmarkMapOnlyClient({
 
   if (shouldUseBuildingsMap) {
     return (
-      <section className={styles.root}>
+      <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
         <div className={styles.mapViewport}>
+          {topLeftControls ? (
+            <div className={styles.mapTopLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+              {topLeftControls}
+            </div>
+          ) : null}
+          {topRightControls ? (
+            <div className={styles.mapTopRightControls} onPointerDown={(event) => event.stopPropagation()}>
+              {topRightControls}
+            </div>
+          ) : null}
+          {bottomRightControls ? (
+            <div className={styles.mapBottomRightControls} onPointerDown={(event) => event.stopPropagation()}>
+              {bottomRightControls}
+            </div>
+          ) : null}
+          {middleLeftControls ? (
+            <div className={styles.mapMiddleLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+              {middleLeftControls}
+            </div>
+          ) : null}
+          {topOverlay ? (
+            <div className={mapMainOverlayClassName}>
+              <div className={styles.mapTopOverlayContent} onPointerDown={(event) => event.stopPropagation()}>
+                {topOverlay}
+              </div>
+            </div>
+          ) : null}
           {presentationLabel}
           <BuildingsMap dataUrl={effectiveMapUrl} onLoadError={setBuildingsMapError} />
           {buildingsMapError && <div className={styles.stateOverlay}>{buildingsMapError}</div>}
@@ -563,7 +675,7 @@ export function LandmarkMapOnlyClient({
   }
 
   return (
-    <section className={styles.root}>
+    <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
       <div
         ref={viewportRef}
         className={isDragging ? `${styles.mapViewport} ${styles.mapViewportDragging}` : styles.mapViewport}
@@ -573,58 +685,95 @@ export function LandmarkMapOnlyClient({
         onPointerCancel={handlePointerEnd}
         onDragStart={(event) => event.preventDefault()}
       >
-        {showControls && (
-          <div
-            className={styles.mapControls}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className={styles.mapControlButton}
-              onClick={handleResetView}
-            >
-              Ajustar
-            </button>
-            <button
-              type="button"
-              className={styles.mapControlButton}
-              onClick={handleRotateMap}
-              disabled={isRotatingMap}
-            >
-              {isRotatingMap ? "Rotando..." : `Rotar 90° (${mapRotationDegrees}°)`}
-            </button>
+        {(showControls || bottomRightControls) && (
+          <div className={styles.mapBottomRightControls} onPointerDown={(event) => event.stopPropagation()}>
+            {bottomRightControls}
+            {showControls ? (
+              <div className={styles.mapControls}>
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <button
+                        type="button"
+                        className={styles.mapControlButton}
+                        onClick={handleResetView}
+                        aria-label="Ajustar vista"
+                      >
+                        <Maximize2 className={styles.mapControlIcon} />
+                      </button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={8}>
+                    Ajustar vista
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip delayDuration={1000}>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <button
+                        type="button"
+                        className={styles.mapControlButton}
+                        onClick={handleRotateMap}
+                        disabled={isRotatingMap}
+                        aria-label="Rotar 90 grados"
+                      >
+                        <RotateCw className={styles.mapControlIcon} />
+                      </button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={8}>
+                    Rotar 90 grados
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            ) : null}
           </div>
         )}
+        {leftControls ? (
+          <div className={styles.mapLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+            {leftControls}
+          </div>
+        ) : null}
+        {middleLeftControls ? (
+          <div className={styles.mapMiddleLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+            {middleLeftControls}
+          </div>
+        ) : null}
+        {topLeftControls ? (
+          <div className={styles.mapTopLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+            {topLeftControls}
+          </div>
+        ) : null}
+        {topRightControls ? (
+          <div className={styles.mapTopRightControls} onPointerDown={(event) => event.stopPropagation()}>
+            {topRightControls}
+          </div>
+        ) : null}
+        {topOverlay ? (
+          <div className={mapMainOverlayClassName}>
+            <div className={styles.mapTopOverlayContent} onPointerDown={(event) => event.stopPropagation()}>
+              {topOverlay}
+            </div>
+          </div>
+        ) : null}
         {presentationLabel}
         <div
+          ref={mapCanvasRef}
           className={styles.mapCanvas}
-          style={{
-            transform: `matrix(${scale}, 0, 0, ${scale}, ${offset.x}, ${offset.y})`,
-          }}
         >
           <div className={styles.mapImageFrame}>
             <div
               className={styles.mapImageBounds}
               style={{
-                width: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsWidth}px` : undefined,
-                height: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsHeight}px` : undefined,
+                width: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsWidth}px` : "100%",
+                height: rotatedMapRenderSize ? `${rotatedMapRenderSize.boundsHeight}px` : "100%",
               }}
             >
               <div
                 className={styles.mapImageLayer}
-                style={
-                  rotatedMapRenderSize
-                    ? {
-                        width: `${rotatedMapRenderSize.imageWidth}px`,
-                        height: `${rotatedMapRenderSize.imageHeight}px`,
-                        transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                      }
-                    : {
-                        transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                      }
-                }
+                style={mapImageLayerStyle}
               >
-                {renderedImageMapUrl && rotatedMapRenderSize && (
+                {renderedImageMapUrl && (
                   <>
                     <img
                       key={renderedImageMapUrl}
@@ -632,13 +781,23 @@ export function LandmarkMapOnlyClient({
                       alt={`Mapa de ${landmark.nombre}`}
                       className={styles.mapImageAsset}
                       draggable={false}
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
+                      onLoad={handleMapImageLoad}
+                      onError={handleMapImageError}
                       style={{
                         width: "100%",
                         height: "100%",
+                        objectFit: "contain",
+                        ...(mapVerticalFlipStyle ?? {}),
                       }}
                     />
-                    <div className={styles.mapImageOverlay} />
-                    {mapGridOverlayStyle && <div className={styles.mapGridOverlay} style={mapGridOverlayStyle} />}
+                    <div className={styles.mapImageOverlay} style={mapVerticalFlipStyle} />
+                    {rotatedMapRenderSize && mapGridOverlayStyle && (
+                      <div className={styles.mapGridOverlay} style={{ ...mapGridOverlayStyle, ...(mapVerticalFlipStyle ?? {}) }} />
+                    )}
+                    {overlay ? <div className={styles.mapOverlayLayer}>{overlay}</div> : null}
                   </>
                 )}
               </div>
@@ -650,4 +809,6 @@ export function LandmarkMapOnlyClient({
       </div>
     </section>
   )
-}
+})
+
+LandmarkMapOnlyClient.displayName = "LandmarkMapOnlyClient"

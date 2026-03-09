@@ -21,6 +21,16 @@ export interface LandmarkReference {
   nombre: string
 }
 
+function landmarkNameToSlug(nombre: string) {
+  return nombre
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
 type LandmarkApiEventDto = {
   nombre: string
   descripcion?: string | null
@@ -560,6 +570,37 @@ export async function fetchLandmarkById(landmarkId: number, forceRefresh = false
   const landmark = toLandmark(response)
   writeLandmarkToCaches(landmark)
   return landmark
+}
+
+export async function fetchLandmarkBySlug(slug: string, forceRefresh = false): Promise<Landmark | null> {
+  const normalizedSlug = slug.trim().toLowerCase()
+  if (!normalizedSlug) {
+    return null
+  }
+
+  if (!forceRefresh) {
+    const cachedLandmark =
+      landmarksCache?.find((landmark) => landmarkNameToSlug(landmark.nombre) === normalizedSlug) ?? null
+    if (cachedLandmark) {
+      landmarkByIdCache.set(cachedLandmark.id, cachedLandmark)
+      return cachedLandmark
+    }
+
+    const cachedById = Array.from(landmarkByIdCache.values()).find(
+      (landmark) => landmarkNameToSlug(landmark.nombre) === normalizedSlug,
+    )
+    if (cachedById) {
+      return cachedById
+    }
+  }
+
+  const references = await fetchLandmarkReferences(forceRefresh)
+  const matchedReference = references.find((landmark) => landmarkNameToSlug(landmark.nombre) === normalizedSlug)
+  if (!matchedReference) {
+    return null
+  }
+
+  return fetchLandmarkById(matchedReference.id, forceRefresh)
 }
 
 export async function fetchLandmarkReferences(forceRefresh = false): Promise<LandmarkReference[]> {

@@ -48,11 +48,12 @@ import { openPresentationScreen } from "@/lib/presentation/screen"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { buildAssetUrl, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
+import { createBattle, fetchBattleHistory } from "@/lib/services/battle-api.service"
 import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchLandmarks, updateLandmark } from "@/lib/services/landmark-api.service"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
-import type { Building, Character, Landmark, LandmarkEvent, LandmarkType, Organization } from "@/lib/types"
+import type { BattleSummary, Building, Character, Landmark, LandmarkEvent, LandmarkType, Organization } from "@/lib/types"
 import styles from "./LandmarkDetailPage.module.css"
 
 const MIN_SCALE = 0.5
@@ -257,6 +258,27 @@ function toEditableLandmarkData(landmark: Landmark | null): EditableLandmarkData
     descripcionCorta: landmark?.descripcionCorta ?? "",
     historia: landmark?.historia ?? "",
   }
+}
+
+function formatBattleSummaryTimestamp(summary: BattleSummary) {
+  const source =
+    summary.status === "active"
+      ? summary.updatedAt ?? summary.createdAt
+      : summary.endedAt ?? summary.updatedAt ?? summary.createdAt
+
+  if (!source) {
+    return "Sin fecha"
+  }
+
+  const parsed = new Date(source)
+  if (Number.isNaN(parsed.getTime())) {
+    return "Sin fecha"
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(parsed)
 }
 
 function toOptionalText(value: string): string | undefined {
@@ -471,6 +493,12 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [detailOrganizationNameById, setDetailOrganizationNameById] = useState<Map<number, string>>(
     () => new Map()
   )
+  const [landmarkBattleHistory, setLandmarkBattleHistory] = useState<BattleSummary[]>([])
+  const [isBattleHistoryLoading, setIsBattleHistoryLoading] = useState(false)
+  const [isCreatingBattle, setIsCreatingBattle] = useState(false)
+  const [battleHistoryError, setBattleHistoryError] = useState<string | null>(null)
+
+  const battleHistoryRequestRef = useRef(0)
 
   useEffect(() => {
     let isActive = true
@@ -577,11 +605,18 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return mapUrlFromReference(landmark)
   }, [landmark])
 
+  const shouldUsePersistedBuildingsMap =
+    landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(mapUrlByReference)
   const effectiveMapUrl = uploadedMapUrl ?? mapUrlByReference
   const shouldUseBuildingsMap =
     landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl)
   const canUseBattleGrid = landmark
     ? Boolean(effectiveMapUrl) && !shouldUseBuildingsMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
+    : false
+  const canManageLandmarkBattles = landmark
+    ? Boolean(mapUrlByReference) &&
+      !shouldUsePersistedBuildingsMap &&
+      Boolean(landmark.mapGridEnabled)
     : false
   const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees)
   const parsedMapGridCellSize = parseMapGridNumber(mapGridDraft.cellSize)
@@ -1093,8 +1128,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       editingEventIndex === null
         ? [event, ...landmark.eventos]
         : landmark.eventos.map((currentEvent, index) =>
-            index === editingEventIndex ? event : currentEvent,
-          )
+          index === editingEventIndex ? event : currentEvent,
+        )
 
     const nextLandmark: Landmark = {
       ...landmark,
@@ -1206,6 +1241,72 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         : null,
     [allLandmarks, landmark, storedBuildings, storedCharacters, storedOrganizations],
   )
+
+  const loadLandmarkBattleHistory = useCallback(
+    async (landmarkSlug: string) => {
+      const requestId = ++battleHistoryRequestRef.current
+      setIsBattleHistoryLoading(true)
+      setBattleHistoryError(null)
+
+      try {
+        const history = await fetchBattleHistory(landmarkSlug)
+        if (requestId !== battleHistoryRequestRef.current) {
+          return
+        }
+
+        setLandmarkBattleHistory(history)
+      } catch (error) {
+        if (requestId !== battleHistoryRequestRef.current) {
+          return
+        }
+
+        setLandmarkBattleHistory([])
+        setBattleHistoryError(getBackendErrorMessage(error, "No se pudo cargar el historial de batallas."))
+      } finally {
+        if (requestId === battleHistoryRequestRef.current) {
+          setIsBattleHistoryLoading(false)
+        }
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (!canManageLandmarkBattles) {
+      battleHistoryRequestRef.current += 1
+      setLandmarkBattleHistory([])
+      setBattleHistoryError(null)
+      setIsBattleHistoryLoading(false)
+      return
+    }
+
+    void loadLandmarkBattleHistory(slug)
+  }, [canManageLandmarkBattles, loadLandmarkBattleHistory, slug])
+
+  const activeLandmarkBattle = useMemo(
+    () => landmarkBattleHistory.find((battle) => battle.status === "active") ?? null,
+    [landmarkBattleHistory],
+  )
+
+  const handleCreateLandmarkBattle = useCallback(async () => {
+    if (!canManageLandmarkBattles || !landmark || isCreatingBattle || isBattleHistoryLoading || activeLandmarkBattle) {
+      return
+    }
+
+    setBattleHistoryError(null)
+    setIsCreatingBattle(true)
+
+    try {
+      const landmarkSlug = landmarkNameToSlug(landmark.nombre)
+      await createBattle(landmarkSlug)
+      await loadLandmarkBattleHistory(landmarkSlug)
+    } catch (error) {
+      setBattleHistoryError(getBackendErrorMessage(error, "No se pudo crear la batalla para este landmark."))
+    } finally {
+      setIsCreatingBattle(false)
+    }
+  }, [activeLandmarkBattle, canManageLandmarkBattles, isBattleHistoryLoading, isCreatingBattle, landmark, loadLandmarkBattleHistory])
+
   const filteredScopedCharacters = useMemo(() => {
     if (!scopedData) return []
 
@@ -1723,13 +1824,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       style={
                         rotatedMapRenderSize
                           ? {
-                              width: `${rotatedMapRenderSize.imageWidth}px`,
-                              height: `${rotatedMapRenderSize.imageHeight}px`,
-                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                            }
+                            width: `${rotatedMapRenderSize.imageWidth}px`,
+                            height: `${rotatedMapRenderSize.imageHeight}px`,
+                            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                          }
                           : {
-                              transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
-                            }
+                            transform: `translate(-50%, -50%) rotate(${mapRotationDegrees}deg)`,
+                          }
                       }
                     >
                       <img
@@ -1740,9 +1841,9 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                         style={
                           rotatedMapRenderSize
                             ? {
-                                width: "100%",
-                                height: "100%",
-                              }
+                              width: "100%",
+                              height: "100%",
+                            }
                             : undefined
                         }
                         onLoad={(event) => {
@@ -2001,6 +2102,83 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                     icon={<Shield className="size-4" />}
                   />
                 </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={styles.mapErrorDangerButton}
+                    onClick={handleClearBrokenMap}
+                  >
+                    Borrar mapa actual
+                  </button>
+                </div>
+
+                {canManageLandmarkBattles ? (
+                  <div className="space-y-3 rounded-2xl border border-border/70 bg-card/60 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xs font-semibold text-primary">Historial de batallas</h3>
+                        <p className="text-[10px] text-muted-foreground">
+                          Disponible porque este landmark tiene mapa de imagen y grilla activa.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 text-[11px]"
+                        onClick={() => void handleCreateLandmarkBattle()}
+                        disabled={isCreatingBattle || isBattleHistoryLoading || Boolean(activeLandmarkBattle)}
+                      >
+                        <Plus className="mr-1 size-3" />
+                        {isCreatingBattle ? "Creando..." : "Nueva batalla"}
+                      </Button>
+                    </div>
+
+                    {activeLandmarkBattle ? (
+                      <p className="text-[10px] font-medium text-amber-700">
+                        Ya hay una batalla activa para este landmark.
+                      </p>
+                    ) : null}
+
+                    {battleHistoryError ? (
+                      <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+                        {battleHistoryError}
+                      </p>
+                    ) : null}
+
+                    {isBattleHistoryLoading ? (
+                      <p className="text-xs text-muted-foreground">Cargando historial...</p>
+                    ) : landmarkBattleHistory.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Todavía no hay batallas para este landmark.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {landmarkBattleHistory.map((battle) => (
+                          <div
+                            key={battle.id}
+                            className={`rounded-xl border px-3 py-2 ${
+                              battle.status === "active"
+                                ? "border-amber-300 bg-amber-50"
+                                : "border-border/70 bg-background/80"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-semibold text-foreground">
+                                #{battle.id} · {battle.status === "active" ? "Activa" : "Terminada"}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {formatBattleSummaryTimestamp(battle)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {battle.tokenCount} fichas / {battle.obstacleCount} obstáculos
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -2158,8 +2336,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                             isFocusedThis
                               ? "w-full border-primary bg-primary/12 p-3 shadow-none"
                               : isLinkingThis
-                              ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
-                              : "w-full border-border/70 bg-card/70 p-3 shadow-none"
+                                ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
+                                : "w-full border-border/70 bg-card/70 p-3 shadow-none"
                           }
                           onClick={() => {
                             if (shouldUseBuildingsMap && activeMapLinkBuildingId !== null) {

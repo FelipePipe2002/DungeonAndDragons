@@ -46,6 +46,12 @@ type CharacterApiDto = {
   tags?: string[] | null
   imagen?: string | null
   imagenAssetId?: number | null
+  tokenImageFocusX?: number | null
+  tokenImageFocusY?: number | null
+  tokenImageZoom?: number | null
+  initiativeImageFocusX?: number | null
+  initiativeImageFocusY?: number | null
+  initiativeImageZoom?: number | null
   landmarkId?: number | null
   buildingIds?: number[] | null
   organizationIds?: number[] | null
@@ -62,6 +68,12 @@ type CharacterUpsertPayload = {
   tags: string[]
   imagen: string | null
   imagenAssetId: number | null
+  tokenImageFocusX: number | null
+  tokenImageFocusY: number | null
+  tokenImageZoom: number | null
+  initiativeImageFocusX: number | null
+  initiativeImageFocusY: number | null
+  initiativeImageZoom: number | null
   landmarkId: number | null
   buildingIds: number[]
   organizationIds: number[]
@@ -124,6 +136,28 @@ function toCharacter(dto: CharacterApiDto): Character {
     tags: toStringArray(dto.tags),
     imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
     imagenAssetId,
+    tokenImageFocusX:
+      typeof dto.tokenImageFocusX === "number" && Number.isFinite(dto.tokenImageFocusX)
+        ? dto.tokenImageFocusX
+        : undefined,
+    tokenImageFocusY:
+      typeof dto.tokenImageFocusY === "number" && Number.isFinite(dto.tokenImageFocusY)
+        ? dto.tokenImageFocusY
+        : undefined,
+    tokenImageZoom:
+      typeof dto.tokenImageZoom === "number" && Number.isFinite(dto.tokenImageZoom) ? dto.tokenImageZoom : undefined,
+    initiativeImageFocusX:
+      typeof dto.initiativeImageFocusX === "number" && Number.isFinite(dto.initiativeImageFocusX)
+        ? dto.initiativeImageFocusX
+        : undefined,
+    initiativeImageFocusY:
+      typeof dto.initiativeImageFocusY === "number" && Number.isFinite(dto.initiativeImageFocusY)
+        ? dto.initiativeImageFocusY
+        : undefined,
+    initiativeImageZoom:
+      typeof dto.initiativeImageZoom === "number" && Number.isFinite(dto.initiativeImageZoom)
+        ? dto.initiativeImageZoom
+        : undefined,
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : 0,
     buildingIds: toNumberArray(dto.buildingIds),
     organizationIds: toNumberArray(dto.organizationIds),
@@ -151,6 +185,28 @@ function toCharacterUpsertPayload(input: Omit<Character, "id">): CharacterUpsert
     tags: Array.from(new Set(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))),
     imagen: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
     imagenAssetId,
+    tokenImageFocusX:
+      typeof input.tokenImageFocusX === "number" && Number.isFinite(input.tokenImageFocusX)
+        ? input.tokenImageFocusX
+        : null,
+    tokenImageFocusY:
+      typeof input.tokenImageFocusY === "number" && Number.isFinite(input.tokenImageFocusY)
+        ? input.tokenImageFocusY
+        : null,
+    tokenImageZoom:
+      typeof input.tokenImageZoom === "number" && Number.isFinite(input.tokenImageZoom) ? input.tokenImageZoom : null,
+    initiativeImageFocusX:
+      typeof input.initiativeImageFocusX === "number" && Number.isFinite(input.initiativeImageFocusX)
+        ? input.initiativeImageFocusX
+        : null,
+    initiativeImageFocusY:
+      typeof input.initiativeImageFocusY === "number" && Number.isFinite(input.initiativeImageFocusY)
+        ? input.initiativeImageFocusY
+        : null,
+    initiativeImageZoom:
+      typeof input.initiativeImageZoom === "number" && Number.isFinite(input.initiativeImageZoom)
+        ? input.initiativeImageZoom
+        : null,
     landmarkId: input.landmarkId > 0 ? input.landmarkId : null,
     buildingIds: Array.from(new Set(input.buildingIds)),
     organizationIds: Array.from(new Set(input.organizationIds)),
