@@ -23,6 +23,12 @@ export interface Character {
   tags: string[]
   imagen?: string
   imagenAssetId?: MediaAssetId
+  tokenImageFocusX?: number
+  tokenImageFocusY?: number
+  tokenImageZoom?: number
+  initiativeImageFocusX?: number
+  initiativeImageFocusY?: number
+  initiativeImageZoom?: number
   landmarkId: LandmarkId
   buildingIds: BuildingId[]
   organizationIds: OrganizationId[]

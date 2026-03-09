@@ -32,6 +32,7 @@ interface CharacterSheetDialogProps {
   characterName: string
   characterRace: string
   characterClass: string
+  readOnly?: boolean
 }
 
 type CharacterSheetSeed = {
@@ -184,6 +185,7 @@ export function CharacterSheetDialog({
   characterName,
   characterRace,
   characterClass,
+  readOnly = false,
 }: CharacterSheetDialogProps) {
   const [draft, setDraft] = useState<CharacterSheet>(() =>
     createEmptyCharacterSheetDraft(buildSeed(characterName, characterRace, characterClass)),
@@ -257,16 +259,18 @@ export function CharacterSheetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="parchment max-h-[90vh] max-w-6xl overflow-hidden">
+      <DialogContent className="parchment w-[min(96vw,72rem)] max-h-[92dvh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl text-primary">Hoja de personaje</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Edita la hoja del personaje. Nombre, raza y clase principal se sincronizan con el personaje.
+            {readOnly
+              ? "Vista de solo lectura de la hoja de personaje."
+              : "Edita la hoja del personaje. Nombre, raza y clase principal se sincronizan con el personaje."}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[72vh] pr-4">
-          <div className="space-y-6">
+          <fieldset disabled={readOnly} className="space-y-6">
             <section className="space-y-3">
               <SectionTitle title="Base" />
               <div className="grid gap-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_10rem_minmax(0,1.5fr)]">
@@ -946,23 +950,25 @@ export function CharacterSheetDialog({
                 </div>
               </div>
             </section>
-          </div>
+          </fieldset>
         </ScrollArea>
 
         <div className="flex items-center justify-between gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {readOnly ? "Cerrar" : "Cancelar"}
           </Button>
-          <div className="flex items-center gap-2">
-            {value ? (
-              <Button type="button" variant="destructive" onClick={handleClear}>
-                Quitar hoja
+          {!readOnly ? (
+            <div className="flex items-center gap-2">
+              {value ? (
+                <Button type="button" variant="destructive" onClick={handleClear}>
+                  Quitar hoja
+                </Button>
+              ) : null}
+              <Button type="button" onClick={handleSave}>
+                Guardar hoja
               </Button>
-            ) : null}
-            <Button type="button" onClick={handleSave}>
-              Guardar hoja
-            </Button>
-          </div>
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

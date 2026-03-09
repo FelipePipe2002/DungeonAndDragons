@@ -1,4 +1,5 @@
 export type BattleTokenType = "enemy" | "player"
+export type BattleTokenSourceType = "character" | "monster" | "manual"
 export type BattleObstacleShape = "circle" | "rectangle"
 export type BattleStatus = "active" | "finished"
 
@@ -6,6 +7,13 @@ export interface BattleToken {
   number: number
   nombre: string
   characterId?: number
+  sourceType?: BattleTokenSourceType
+  sourceRef?: string
+  image?: string
+  imageAssetId?: number
+  imageFocusX?: number
+  imageFocusY?: number
+  imageZoom?: number
   type: BattleTokenType
   x: number
   y: number
@@ -30,6 +38,7 @@ export interface BattleSummary {
   id: number
   slug: string
   landmarkSlug: string
+  title: string
   status: BattleStatus
   createdAt?: string
   updatedAt?: string
@@ -42,7 +51,10 @@ export interface BattleState {
   id?: number
   slug: string
   landmarkSlug: string
+  title: string
   status: BattleStatus
+  roundNumber: number
+  dmNotes: string
   nextTokenNumber: number
   nextObstacleId: number
   currentTurnTokenNumber?: number | null

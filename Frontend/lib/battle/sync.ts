@@ -1,11 +1,17 @@
 import type { BattleState } from "@/lib/types"
 
 export const BATTLE_SCREEN_STORAGE_KEY = "battle-screen-state"
+export const BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY = "battle-screen-presentation-vertical-mirror"
 const BATTLE_SCREEN_CHANNEL_NAME = "battle-screen-sync"
 
 type BattleScreenPayload = {
   revision: number
   battle: BattleState | null
+}
+
+type BattlePresentationMirrorPayload = {
+  revision: number
+  verticalMirror: boolean
 }
 
 export type BattleTokenPreview = {
@@ -32,12 +38,17 @@ export type BattleTurnUpdate = {
   battleId: number
   landmarkSlug: string
   currentTurnTokenNumber: number | null
+  roundNumber: number
 }
 
 export type BattleScreenEvent =
   | {
       type: "battle-state"
       payload: BattleScreenPayload
+    }
+  | {
+      type: "presentation-vertical-mirror"
+      payload: BattlePresentationMirrorPayload
     }
   | {
       type: "battle-turn"
@@ -133,11 +144,30 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
       return null
     }
 
-    return {
+        return {
       type: "battle-state",
       payload: {
         revision: payload.revision,
-        battle: payload.battle && isObjectRecord(payload.battle) ? (payload.battle as BattleState) : null,
+        battle: payload.battle && isObjectRecord(payload.battle) ? (payload.battle as unknown as BattleState) : null,
+      },
+    }
+  }
+
+  if (raw.type === "presentation-vertical-mirror") {
+    if (!("payload" in raw) || !isObjectRecord(raw.payload)) {
+      return null
+    }
+
+    const payload = raw.payload as Record<string, unknown>
+    if (!isFiniteNumber(payload.revision) || typeof payload.verticalMirror !== "boolean") {
+      return null
+    }
+
+    return {
+      type: "presentation-vertical-mirror",
+      payload: {
+        revision: payload.revision,
+        verticalMirror: payload.verticalMirror,
       },
     }
   }
@@ -147,7 +177,8 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
     if (
       isFiniteNumber(update.battleId) &&
       typeof update.landmarkSlug === "string" &&
-      (update.currentTurnTokenNumber === null || isFiniteNumber(update.currentTurnTokenNumber))
+      (update.currentTurnTokenNumber === null || isFiniteNumber(update.currentTurnTokenNumber)) &&
+      isFiniteNumber(update.roundNumber)
     ) {
       return {
         type: "battle-turn",
@@ -155,6 +186,7 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
           battleId: update.battleId,
           landmarkSlug: update.landmarkSlug,
           currentTurnTokenNumber: update.currentTurnTokenNumber ?? null,
+          roundNumber: update.roundNumber,
         },
       }
     }
@@ -204,7 +236,31 @@ function parsePayload(raw: string | null): BattleScreenPayload | null {
 
     return {
       revision,
-      battle: battle && isObjectRecord(battle) ? (battle as BattleState) : null,
+      battle: battle && isObjectRecord(battle) ? (battle as unknown as BattleState) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+function parsePresentationMirrorPayload(raw: string | null): BattlePresentationMirrorPayload | null {
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isObjectRecord(parsed)) {
+      return null
+    }
+
+    if (!isFiniteNumber(parsed.revision) || typeof parsed.verticalMirror !== "boolean") {
+      return null
+    }
+
+    return {
+      revision: parsed.revision,
+      verticalMirror: parsed.verticalMirror,
     }
   } catch {
     return null
@@ -221,6 +277,17 @@ export function readBattleScreenPayload() {
 
 export function readBattleScreenState() {
   return readBattleScreenPayload()?.battle ?? null
+}
+
+export function readBattleScreenPresentationVerticalMirror() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  const payload = parsePresentationMirrorPayload(
+    window.localStorage.getItem(BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY),
+  )
+  return payload?.verticalMirror ?? false
 }
 
 export function subscribeToBattleScreenEvents(onEvent: (event: BattleScreenEvent) => void) {
@@ -278,6 +345,23 @@ export function setBattleScreenState(battle: BattleState | null) {
   window.localStorage.setItem(BATTLE_SCREEN_STORAGE_KEY, JSON.stringify(payload))
   postBattleScreenEvent({
     type: "battle-state",
+    payload,
+  })
+}
+
+export function setBattleScreenPresentationVerticalMirror(verticalMirror: boolean) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const payload: BattlePresentationMirrorPayload = {
+    revision: Date.now(),
+    verticalMirror,
+  }
+
+  window.localStorage.setItem(BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY, JSON.stringify(payload))
+  postBattleScreenEvent({
+    type: "presentation-vertical-mirror",
     payload,
   })
 }

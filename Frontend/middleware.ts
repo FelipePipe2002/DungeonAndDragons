@@ -30,6 +30,8 @@ function hasUsableJwtToken(token: string | undefined) {
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+  const isBattleLowercasePath = pathname === "/batalla"
+  const isBattleUppercasePath = pathname === "/Batalla"
 
   if (pathname === LOGIN_PATH) {
     return NextResponse.next()
@@ -37,12 +39,24 @@ export function middleware(request: NextRequest) {
 
   const jwtToken = request.cookies.get(AUTH_COOKIE_NAME)?.value
   if (hasUsableJwtToken(jwtToken)) {
+    if (isBattleLowercasePath) {
+      const battleUrl = request.nextUrl.clone()
+      battleUrl.pathname = "/Batalla"
+      return NextResponse.rewrite(battleUrl)
+    }
+
+    if (isBattleUppercasePath) {
+      const lowercaseUrl = request.nextUrl.clone()
+      lowercaseUrl.pathname = "/batalla"
+      return NextResponse.redirect(lowercaseUrl)
+    }
+
     return NextResponse.next()
   }
 
   const loginUrl = request.nextUrl.clone()
   loginUrl.pathname = LOGIN_PATH
-  loginUrl.searchParams.set("next", `${pathname}${search}`)
+  loginUrl.searchParams.set("next", `${isBattleUppercasePath ? "/batalla" : pathname}${search}`)
   return NextResponse.redirect(loginUrl)
 }
 

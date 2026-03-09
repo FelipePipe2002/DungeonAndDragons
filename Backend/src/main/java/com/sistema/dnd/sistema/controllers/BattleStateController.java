@@ -3,6 +3,7 @@ package com.sistema.dnd.sistema.controllers;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
 import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
 import com.sistema.dnd.sistema.services.BattleStateService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,8 +21,13 @@ public class BattleStateController {
     }
 
     @GetMapping
-    public BattleStateDto findCurrent() {
-        return battleStateService.findCurrent();
+    public ResponseEntity<BattleStateDto> findCurrent() {
+        BattleStateDto battle = battleStateService.findCurrent();
+        if (battle == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(battle);
     }
 
     @PutMapping

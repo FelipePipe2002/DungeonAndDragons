@@ -50,4 +50,22 @@ public class CharacterEntity extends AuditableEntity {
 
     private String imagen;
 
+    @Column(name = "token_image_focus_x")
+    private Double tokenImageFocusX;
+
+    @Column(name = "token_image_focus_y")
+    private Double tokenImageFocusY;
+
+    @Column(name = "token_image_zoom")
+    private Double tokenImageZoom;
+
+    @Column(name = "initiative_image_focus_x")
+    private Double initiativeImageFocusX;
+
+    @Column(name = "initiative_image_focus_y")
+    private Double initiativeImageFocusY;
+
+    @Column(name = "initiative_image_zoom")
+    private Double initiativeImageZoom;
+
 }

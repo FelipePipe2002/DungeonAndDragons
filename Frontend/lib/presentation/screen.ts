@@ -72,5 +72,9 @@ export function openPresentationScreen(options?: { landmarkSlug?: string | null;
     clearPresentationScreenTarget()
   }
 
-  window.open("/presentacion", PRESENTATION_SCREEN_WINDOW_NAME)
+  const nextUrl = normalizedSlug
+    ? `/presentacion?landmark=${encodeURIComponent(normalizedSlug)}`
+    : "/presentacion"
+
+  window.open(nextUrl, PRESENTATION_SCREEN_WINDOW_NAME)
 }

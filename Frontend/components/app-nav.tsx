@@ -8,7 +8,7 @@ import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const navItems = [
   { href: "/mapa", label: "Mapa", icon: Scroll },
-  { href: "/Batalla", label: "Batalla", icon: Swords },
+  { href: "/batalla", label: "Batalla", icon: Swords },
   { href: "/presentacion", label: "Presentacion", icon: Monitor, opensInPresentationWindow: true },
   { href: "/Jugadores", label: "Jugadores", icon: Users },
   { href: "/personajes", label: "Personajes", icon: Users },

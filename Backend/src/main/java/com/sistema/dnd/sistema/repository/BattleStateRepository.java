@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BattleStateRepository extends JpaRepository<BattleStateEntity, Long> {
     Optional<BattleStateEntity> findBySlug(String slug);
+    Optional<BattleStateEntity> findFirstByStatusOrderByUpdatedAtDesc(BattleStatus status);
     Optional<BattleStateEntity> findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(String landmarkSlug, BattleStatus status);
     List<BattleStateEntity> findByLandmarkSlugOrderByUpdatedAtDesc(String landmarkSlug);
 }

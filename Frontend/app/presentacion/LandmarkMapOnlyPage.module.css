@@ -53,13 +53,23 @@
 }
 
 .mapControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mapBottomRightControls {
   position: absolute;
   bottom: 1rem;
   right: 1rem;
   z-index: 12;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 0.5rem;
+  max-width: calc(100% - 2rem);
 }
 
 .mapLeftControls {
@@ -74,6 +84,40 @@
   max-width: calc(100% - 2rem);
 }
 
+.mapMiddleLeftControls {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  transform: translateY(-50%);
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1.5rem);
+}
+
+.mapTopLeftControls {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 2rem);
+}
+
+.mapTopRightControls {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 2rem);
+}
+
 .mapTopOverlay {
   position: absolute;
   top: 0.4rem;
@@ -82,9 +126,25 @@
   width: calc(100% - 1rem);
   transform: translateX(-50%);
   pointer-events: none;
+  text-align: center;
+}
+
+.mapBottomOverlay {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 50%;
+  z-index: 12;
+  width: calc(100% - 1rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+  text-align: center;
 }
 
 .mapTopOverlayContent {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
   pointer-events: auto;
 }
 
@@ -144,7 +204,6 @@
   position: absolute;
   inset: 0;
   transform-origin: 50% 50%;
-  will-change: transform;
 }
 
 .mapImageFrame {
@@ -173,6 +232,9 @@
 .mapImageAsset {
   display: block;
   user-select: none;
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .mapImageOverlay {
@@ -196,11 +258,13 @@
 
 @media (max-width: 720px) {
   .mapControls {
+    gap: 0.4rem;
+  }
+
+  .mapBottomRightControls {
     bottom: 0.75rem;
     right: 0.75rem;
     gap: 0.4rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     max-width: calc(100% - 1.5rem);
   }
 
@@ -211,8 +275,32 @@
     max-width: calc(100% - 1.5rem);
   }
 
+  .mapMiddleLeftControls {
+    left: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .mapTopLeftControls {
+    top: 0.5rem;
+    left: 0.5rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .mapTopRightControls {
+    top: 0.5rem;
+    right: 0.5rem;
+    gap: 0.4rem;
+    max-width: calc(100% - 1rem);
+  }
+
   .mapTopOverlay {
     top: 0.25rem;
+    width: calc(100% - 0.75rem);
+  }
+
+  .mapBottomOverlay {
+    bottom: 0.25rem;
     width: calc(100% - 0.75rem);
   }
 

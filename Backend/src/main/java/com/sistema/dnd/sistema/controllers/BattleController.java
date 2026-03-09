@@ -27,6 +27,16 @@ public class BattleController {
         this.battleStateService = battleStateService;
     }
 
+    @GetMapping("/active/current")
+    public ResponseEntity<BattleStateDto> findCurrentActive() {
+        BattleStateDto battle = battleStateService.findCurrent();
+        if (battle == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(battle);
+    }
+
     @GetMapping("/active")
     public ResponseEntity<BattleStateDto> findActiveByLandmark(@RequestParam String landmarkSlug) {
         BattleStateDto battle = battleStateService.findActiveByLandmark(landmarkSlug);

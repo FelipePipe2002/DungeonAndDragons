@@ -1,20 +1,14 @@
 TODO-Priority-Hight:
-    Permitir cambiar de color las fichas o cargar imagenes personalizadas, para que no queden todas iguales
-    Hacer historial de batallas y turnos, asi se puede ver como era el estado anterior al turno
-    Agregar que pueda terminar la batalla, y en el landmark quede un registro de batallas y yo pueda entrar en una asi no queda siempre las fichas cargadas
     Arreglar que le cuesta subir archivos grandes ademas de mostrar progreso de subida del front y back
-    
 
 TODO-Priority-Medium:
     Poder crear caminos
 
 Ideas:
-    Manager de combate (que esten los monstruos, orden de combate, que si le doy click a un mosntruo me abra la pagina del libro del mosntruo) y Registro de peleas para poder ver contra que pelearon y como fue
+    Manager de combate (que esten los monstruos, orden de combate, que si le doy click a un mosntruo me abra la pagina del libro del mosntruo)
     Estaria bueno que pueda cargar un mapa de algunos edificios
     Poder conectar mazmorras con herramientas para hacer mazmorras
     Agregar filtros en /personajes, /edificios, /organizaciones, /landmarks
     Poder hacer hojas de personajes de NPCs
     Agregar eventos DM, que el dm pueda cargar eventos que pasan, ej "El jugador Mateo le pego a el jefe del gremio", "compraron un libro", etc, asi rapido, y que los eventos se adjunten a una sesion, por ej es la sesion 5 de jugada y adjunto eventos ahi, 
     Integrar IA
-
-

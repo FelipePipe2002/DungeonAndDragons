@@ -133,6 +133,12 @@ public class CharacterService {
             entity.setImagenAsset(null);
             entity.setImagen(optionalTrimmed(request.imagen()));
         }
+        entity.setTokenImageFocusX(clampPercentage(request.tokenImageFocusX()));
+        entity.setTokenImageFocusY(clampPercentage(request.tokenImageFocusY()));
+        entity.setTokenImageZoom(clampZoom(request.tokenImageZoom()));
+        entity.setInitiativeImageFocusX(clampPercentage(request.initiativeImageFocusX()));
+        entity.setInitiativeImageFocusY(clampPercentage(request.initiativeImageFocusY()));
+        entity.setInitiativeImageZoom(clampZoom(request.initiativeImageZoom()));
     }
 
     private void syncChildren(CharacterEntity character, CharacterUpsertRequest request) {
@@ -226,6 +232,20 @@ public class CharacterService {
             if (value != null) result.add(value);
         }
         return result.stream().toList();
+    }
+
+    private Double clampPercentage(Double value) {
+        if (value == null || !Double.isFinite(value)) {
+            return null;
+        }
+        return Math.max(0d, Math.min(100d, value));
+    }
+
+    private Double clampZoom(Double value) {
+        if (value == null || !Double.isFinite(value)) {
+            return null;
+        }
+        return Math.max(1d, Math.min(3d, value));
     }
 
     private MediaAssetEntity resolveImageAsset(Long assetId) {

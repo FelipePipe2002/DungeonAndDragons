@@ -1,16 +1,20 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 
 import { BattleInitiativeStrip } from "@/components/battle/BattleInitiativeStrip"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
+import { BATTLE_CONDITIONS } from "@/lib/battle/conditions"
 import {
+  BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY,
   BATTLE_SCREEN_STORAGE_KEY,
+  readBattleScreenPresentationVerticalMirror,
   readBattleScreenPayload,
   subscribeToBattleScreenEvents,
 } from "@/lib/battle/sync"
 import type { BattleState, Character } from "@/lib/types"
-import { fetchActiveBattleForLandmark } from "@/lib/services/battle-api.service"
+import { fetchActiveBattleForLandmark, sanitizeBattleState } from "@/lib/services/battle-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { LandmarkMapOnlyClient } from "./LandmarkMapOnlyClient"
 import {
@@ -18,23 +22,34 @@ import {
   readPresentationScreenTarget,
 } from "@/lib/presentation/screen"
 
-export default function PresentationPage() {
-  const [landmarkSlug, setLandmarkSlug] = useState<string | null>(null)
+function PresentationPageContent() {
+  const searchParams = useSearchParams()
+  const requestedLandmarkSlug = useMemo(() => {
+    const rawValue = searchParams.get("landmark")
+    if (!rawValue) {
+      return null
+    }
+
+    const normalizedValue = rawValue.trim()
+    return normalizedValue.length > 0 ? normalizedValue : null
+  }, [searchParams])
+  const [landmarkSlug, setLandmarkSlug] = useState<string | null>(requestedLandmarkSlug ?? readPresentationScreenTarget())
   const [battleState, setBattleState] = useState<BattleState | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [tokenPreviews, setTokenPreviews] = useState<Record<number, { x: number; y: number }>>({})
   const [obstaclePreviews, setObstaclePreviews] = useState<Record<number, { x: number; y: number }>>({})
   const [showPresentationLabel, setShowPresentationLabel] = useState(true)
   const [isBlackout, setIsBlackout] = useState(false)
+  const [isVerticallyMirrored, setIsVerticallyMirrored] = useState(() => readBattleScreenPresentationVerticalMirror())
 
   const syncTarget = useCallback(() => {
-    setLandmarkSlug(readPresentationScreenTarget())
-  }, [])
+    setLandmarkSlug(requestedLandmarkSlug ?? readPresentationScreenTarget())
+  }, [requestedLandmarkSlug])
 
   const syncBattleFromStorage = useCallback(
     (currentLandmarkSlug: string | null) => {
       const payload = readBattleScreenPayload()
-      const nextBattle = payload?.battle ?? null
+      const nextBattle = sanitizeBattleState(payload?.battle)
 
       if (!currentLandmarkSlug) {
         return false
@@ -138,7 +153,7 @@ export default function PresentationPage() {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== BATTLE_SCREEN_STORAGE_KEY) return
 
-      const currentLandmarkSlug = readPresentationScreenTarget()
+      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
       if (!currentLandmarkSlug) {
         setBattleState(null)
         setTokenPreviews({})
@@ -147,9 +162,10 @@ export default function PresentationPage() {
       }
 
       const payload = readBattleScreenPayload()
-      if (payload?.battle) {
-        if (payload.battle.status === "active" && payload.battle.landmarkSlug === currentLandmarkSlug) {
-          setBattleState(payload.battle)
+      const nextBattle = sanitizeBattleState(payload?.battle)
+      if (nextBattle) {
+        if (nextBattle.status === "active" && nextBattle.landmarkSlug === currentLandmarkSlug) {
+          setBattleState(nextBattle)
           setTokenPreviews({})
           setObstaclePreviews({})
         }
@@ -170,7 +186,7 @@ export default function PresentationPage() {
     }
 
     const handleFocus = () => {
-      const currentLandmarkSlug = readPresentationScreenTarget()
+      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
       setLandmarkSlug(currentLandmarkSlug)
 
       if (!currentLandmarkSlug) {
@@ -204,11 +220,32 @@ export default function PresentationPage() {
       window.removeEventListener("storage", handleStorage)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [syncBattleFromStorage])
+  }, [requestedLandmarkSlug, syncBattleFromStorage])
+
+  useEffect(() => {
+    const syncMirrorFromStorage = () => {
+      setIsVerticallyMirrored(readBattleScreenPresentationVerticalMirror())
+    }
+
+    syncMirrorFromStorage()
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY) {
+        return
+      }
+
+      syncMirrorFromStorage()
+    }
+
+    window.addEventListener("storage", handleStorage)
+    return () => {
+      window.removeEventListener("storage", handleStorage)
+    }
+  }, [])
 
   useEffect(() => {
     return subscribeToBattleScreenEvents((event) => {
-      const currentLandmarkSlug = readPresentationScreenTarget()
+      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
 
       if (!currentLandmarkSlug) {
         setBattleState(null)
@@ -218,7 +255,7 @@ export default function PresentationPage() {
       }
 
       if (event.type === "battle-state") {
-        const nextBattle = event.payload.battle
+        const nextBattle = sanitizeBattleState(event.payload.battle)
         if (nextBattle && nextBattle.status === "active" && nextBattle.landmarkSlug === currentLandmarkSlug) {
           setBattleState(nextBattle)
           setTokenPreviews({})
@@ -232,6 +269,11 @@ export default function PresentationPage() {
           setObstaclePreviews({})
         }
 
+        return
+      }
+
+      if (event.type === "presentation-vertical-mirror") {
+        setIsVerticallyMirrored(event.payload.verticalMirror)
         return
       }
 
@@ -252,6 +294,7 @@ export default function PresentationPage() {
           return {
             ...current,
             currentTurnTokenNumber: event.update.currentTurnTokenNumber,
+            roundNumber: event.update.roundNumber,
           }
         })
         return
@@ -298,7 +341,64 @@ export default function PresentationPage() {
         }
       })
     })
-  }, [])
+  }, [requestedLandmarkSlug])
+
+  useEffect(() => {
+    if (!landmarkSlug) {
+      return
+    }
+
+    let intervalId: ReturnType<typeof setInterval> | null = null
+    let cancelled = false
+
+    const refreshBattleState = () => {
+      if (document.visibilityState !== "visible") {
+        return
+      }
+
+      if (syncBattleFromStorage(landmarkSlug)) {
+        return
+      }
+
+      void fetchActiveBattleForLandmark(landmarkSlug)
+        .then((nextBattleState) => {
+          if (cancelled || syncBattleFromStorage(landmarkSlug)) {
+            return
+          }
+
+          setBattleState(nextBattleState)
+          setTokenPreviews({})
+          setObstaclePreviews({})
+        })
+        .catch(() => {
+          if (cancelled || syncBattleFromStorage(landmarkSlug)) {
+            return
+          }
+
+          setBattleState(null)
+          setTokenPreviews({})
+          setObstaclePreviews({})
+        })
+    }
+
+    intervalId = setInterval(refreshBattleState, 2000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshBattleState()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [landmarkSlug, syncBattleFromStorage])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -369,28 +469,41 @@ export default function PresentationPage() {
 
   return (
     <LandmarkMapOnlyClient
-      nombreLandmark={landmarkSlug}
-      showControls={false}
-      showPresentationLabel={showPresentationLabel}
-      topOverlay={
-        visibleBattle ? (
-          <BattleInitiativeStrip
-            tokens={visibleBattle.tokens}
-            characterById={charactersById}
-            currentTurnTokenNumber={visibleBattle.currentTurnTokenNumber ?? null}
-          />
-        ) : null
-      }
-      overlay={
+        nombreLandmark={landmarkSlug}
+        showControls={false}
+        showPresentationLabel={showPresentationLabel}
+        flipVertical={isVerticallyMirrored}
+        topOverlay={
+          visibleBattle ? (
+            <BattleInitiativeStrip
+              tokens={visibleBattle.tokens}
+              characterById={charactersById}
+              currentTurnTokenNumber={visibleBattle.currentTurnTokenNumber ?? null}
+              verticalMirror={isVerticallyMirrored}
+            />
+          ) : null
+        }
+        overlay={
         visibleBattle ? (
           <BattleTokenOverlay
             tokens={visibleBattle.tokens}
+            statusDefinitions={BATTLE_CONDITIONS}
             obstacles={visibleBattle.obstacles}
             characterById={charactersById}
+            currentTurnTokenNumber={visibleBattle.currentTurnTokenNumber ?? null}
+            verticalMirror={isVerticallyMirrored}
             hideHiddenTokens
           />
         ) : null
       }
     />
+  )
+}
+
+export default function PresentationPage() {
+  return (
+    <Suspense fallback={<main aria-label="Presentacion de mapa" className="h-dvh min-h-screen bg-black" />}>
+      <PresentationPageContent />
+    </Suspense>
   )
 }

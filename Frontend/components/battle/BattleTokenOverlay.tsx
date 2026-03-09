@@ -1,7 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { Accessibility, Bubbles, ChevronDown, Circle, EarOff, Eye, EyeOff, HatGlasses, Heart, Link2, Lock, Redo, Shell, Skull, Snowflake, Trash2, TriangleAlert, type LucideIcon } from "lucide-react"
 
+import type { BattleConditionDefinition } from "@/lib/battle/conditions"
+import { resolveBattleTokenImagePresentation } from "@/lib/battle/token-image"
 import type { BattleObstacle, BattleToken, Character } from "@/lib/types"
 
 type TokenPosition = {
@@ -23,6 +26,7 @@ type DragState =
       pointerId: number
       pointerTarget: HTMLElement
       tokenNumber: number
+      initialPosition: TokenPosition
       lastPosition: TokenPosition
       pointerOffset: TokenPosition
       metrics: TransformMetrics
@@ -48,16 +52,21 @@ type DragState =
 
 type BattleTokenOverlayProps = {
   tokens: BattleToken[]
+  statusDefinitions?: BattleConditionDefinition[]
   obstacles?: BattleObstacle[]
   characterById?: Map<number, Character>
+  currentTurnTokenNumber?: number | null
+  verticalMirror?: boolean
   interactive?: boolean
   enableTokenInspector?: boolean
+  suppressInspectorOnTokenClick?: boolean
   tokenInspectorEditable?: boolean
   hideHiddenTokens?: boolean
   ghostHiddenTokens?: boolean
   selectedTokenNumber?: number | null
   selectedObstacleId?: number | null
   onSelectToken?: (tokenNumber: number) => void
+  onTokenClick?: (tokenNumber: number) => void
   onUpdateTokenDetails?: (
     tokenNumber: number,
     nextValues: {
@@ -69,7 +78,12 @@ type BattleTokenOverlayProps = {
       hidden?: boolean
     },
   ) => void
+  onRequestTokenDuplicate?: (tokenNumber: number) => void
+  onRequestTokenQuickDelete?: (tokenNumber: number) => void
   onRequestTokenDelete?: (tokenNumber: number) => void
+  onRequestTokenCropEdit?: (tokenNumber: number) => void
+  onRequestTokenDetail?: (tokenNumber: number) => void
+  isTokenDetailAvailable?: (token: BattleToken) => boolean
   onPreviewTokenMove?: (tokenNumber: number, nextPosition: TokenPosition | null) => void
   onPreviewObstacleMove?: (obstacleId: number, nextPosition: TokenPosition | null) => void
   onMoveToken?: (tokenNumber: number, nextPosition: TokenPosition) => void
@@ -89,7 +103,40 @@ function clampTokenSize(value: number | null | undefined) {
     return 1
   }
 
-  return Math.round(clamp(value, 0.4, 2) * 100) / 100
+  return Math.round(value * 100) / 100
+}
+
+const CLICK_OPEN_DRAG_THRESHOLD_PERCENT = 0.2
+const SUPPRESS_CLICK_AFTER_DRAG_MS = 350
+const CURRENT_TURN_TRAIL_STYLE = {
+  inset: "-16%",
+  boxShadow: "0 0 0 2px rgba(74, 222, 128, 0.8), 0 0 20px rgba(16, 185, 129, 0.55)",
+}
+const CURRENT_TURN_RIPPLE_STYLE = {
+  inset: "-22%",
+  boxShadow: "0 0 0 1px rgba(134, 239, 172, 0.65), 0 0 16px rgba(52, 211, 153, 0.4)",
+}
+const CONDITION_ICON_BY_NAME: Record<string, LucideIcon> = {
+  cegado: EyeOff,
+  encantado: Heart,
+  ensordecido: EarOff,
+  agotamiento: ChevronDown,
+  asustado: TriangleAlert,
+  agarrado: Link2,
+  incapacitado: Accessibility,
+  invisible: HatGlasses,
+  paralizado: Accessibility,
+  petrificado: Snowflake,
+  envenenado: Bubbles,
+  derribado: Redo,
+  restringido: Lock,
+  aturdido: Shell,
+  inconsciente: Skull
+}
+
+function getConditionIcon(rawConditionName: string): LucideIcon {
+  const normalizedName = rawConditionName.trim().toLocaleLowerCase("es")
+  return CONDITION_ICON_BY_NAME[normalizedName] ?? Circle
 }
 
 function parseNumberInput(value: string) {
@@ -275,20 +322,670 @@ function releaseDragPointerCapture(dragState: DragState | null) {
   }
 }
 
+function transformOverlayPosition(position: TokenPosition, verticalMirror: boolean): TokenPosition {
+  return verticalMirror
+    ? {
+        x: 100 - position.x,
+        y: 100 - position.y,
+      }
+    : position
+}
+
+function updatePreviewPositionMap(
+  current: Record<number, TokenPosition>,
+  id: number,
+  nextPosition: TokenPosition | null,
+) {
+  const next = { ...current }
+
+  if (nextPosition) {
+    next[id] = nextPosition
+  } else {
+    delete next[id]
+  }
+
+  return next
+}
+
+function resolveTokenStatusDefinition(
+  rawStatus: string,
+  statusDefinitionByName: Map<string, BattleConditionDefinition>,
+) {
+  const normalizedStatus = rawStatus.trim().toLocaleLowerCase("es")
+  if (!normalizedStatus) {
+    return null
+  }
+
+  return statusDefinitionByName.get(normalizedStatus) ?? null
+}
+
+function getTokenVisualMirrorTransform(verticalMirror: boolean) {
+  return verticalMirror ? " scale(-1)" : ""
+}
+
+function shouldIgnoreShortcutTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable)
+  )
+}
+
+type BattleObstacleItemProps = {
+  obstacle: BattleObstacle
+  renderedPosition: TokenPosition
+  isSelected: boolean
+  interactive: boolean
+  onRemoveObstacle?: (obstacleId: number) => void
+  onResizeObstacle?: (obstacleId: number, nextSize: { width: number; height: number }) => void
+  onSelectObstacle?: (obstacleId: number) => void
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onResizePointerDown: (handle: "center" | "nw" | "ne" | "sw" | "se") => (event: ReactPointerEvent<HTMLElement>) => void
+}
+
+function BattleObstacleItem({
+  obstacle,
+  renderedPosition,
+  isSelected,
+  interactive,
+  onRemoveObstacle,
+  onResizeObstacle,
+  onSelectObstacle,
+  onPointerDown,
+  onResizePointerDown,
+}: BattleObstacleItemProps) {
+  const isCircle = obstacle.shape === "circle"
+  const obstacleWidth = obstacle.width
+  const obstacleHeight = isCircle ? obstacle.width : obstacle.height
+
+  return (
+    <button
+      type="button"
+      className="pointer-events-auto absolute bg-transparent p-0"
+      data-battle-wheel-stop="true"
+      style={{
+        left: `${renderedPosition.x}%`,
+        top: `${renderedPosition.y}%`,
+        width: `${obstacleWidth}%`,
+        height: isCircle ? undefined : `${obstacleHeight}%`,
+        aspectRatio: isCircle ? "1 / 1" : undefined,
+        transform: "translate(-50%, -50%)",
+        zIndex: isSelected ? 2 : 1,
+        touchAction: "none",
+        clipPath: isCircle ? "circle(50%)" : undefined,
+      }}
+      onClick={(event) => {
+        event.stopPropagation()
+        onSelectObstacle?.(obstacle.id)
+      }}
+      onDoubleClick={(event) => {
+        if (!interactive || !onRemoveObstacle) {
+          return
+        }
+
+        if (event.target !== event.currentTarget) {
+          return
+        }
+
+        event.preventDefault()
+        event.stopPropagation()
+        onRemoveObstacle(obstacle.id)
+      }}
+      onContextMenu={(event) => {
+        if (!interactive || !onRemoveObstacle) {
+          return
+        }
+
+        event.preventDefault()
+        event.stopPropagation()
+        onRemoveObstacle(obstacle.id)
+      }}
+      onPointerDown={onPointerDown}
+      onWheel={(event) => {
+        if (!interactive || !onResizeObstacle) {
+          return
+        }
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        const delta = event.deltaY < 0 ? 1 : -1
+        const nextWidth = clamp(obstacle.width + delta, 0, 100)
+        const nextHeight = clamp(obstacle.height + delta, 0, 100)
+
+        onResizeObstacle(obstacle.id, {
+          width: nextWidth,
+          height: obstacle.shape === "circle" ? nextWidth : nextHeight,
+        })
+      }}
+    >
+      <span
+        className="block size-full border-2 shadow-lg"
+        style={{
+          borderRadius: isCircle ? "50%" : "0",
+          borderColor: obstacle.color,
+          backgroundColor: withAlpha(obstacle.color, 0.32),
+          boxShadow: isSelected
+            ? `0 0 0 4px ${withAlpha("#fcd34d", 0.7)}`
+            : `0 0 0 1px ${withAlpha(obstacle.color, 0.15)}`,
+        }}
+      />
+      {interactive && onResizeObstacle && isSelected
+        ? isCircle ? (
+            <span
+              className="pointer-events-auto absolute left-1/2 top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
+              onPointerDown={onResizePointerDown("center")}
+              onWheel={(event) => {
+                if (!interactive || !onResizeObstacle) {
+                  return
+                }
+
+                event.preventDefault()
+                event.stopPropagation()
+
+                const delta = event.deltaY < 0 ? 1 : -1
+                const nextSize = clamp(obstacle.width + delta, 0, 100)
+                onResizeObstacle(obstacle.id, { width: nextSize, height: nextSize })
+              }}
+            />
+          ) : (
+            <>
+              <span
+                className="pointer-events-auto absolute left-0 top-0 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
+                onPointerDown={onResizePointerDown("nw")}
+              />
+              <span
+                className="pointer-events-auto absolute right-0 top-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
+                onPointerDown={onResizePointerDown("ne")}
+              />
+              <span
+                className="pointer-events-auto absolute left-0 bottom-0 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
+                onPointerDown={onResizePointerDown("sw")}
+              />
+              <span
+                className="pointer-events-auto absolute right-0 bottom-0 size-2.5 translate-x-1/2 translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
+                onPointerDown={onResizePointerDown("se")}
+              />
+            </>
+          )
+        : null}
+    </button>
+  )
+}
+
+type SelectedObstacleToolbarProps = {
+  obstacle: BattleObstacle
+  renderedPosition: TokenPosition
+  onRemoveObstacle?: (obstacleId: number) => void
+}
+
+function SelectedObstacleToolbar({ obstacle, renderedPosition, onRemoveObstacle }: SelectedObstacleToolbarProps) {
+  return (
+    <div
+      className="pointer-events-auto absolute z-[5] flex items-center gap-1 rounded-full border border-stone-900/15 bg-white/95 px-1.5 py-1 shadow-xl backdrop-blur"
+      style={{
+        left: `${clamp(renderedPosition.x, 10, 90)}%`,
+        top: `${clamp(renderedPosition.y + (renderedPosition.y < 18 ? 10 : -10), 10, 90)}%`,
+        transform: "translate(-50%, -50%) rotate(calc(var(--map-rotation-deg, 0deg) * -1))",
+        transformOrigin: "center",
+      }}
+      data-battle-wheel-stop="true"
+      onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
+    >
+      <button
+        type="button"
+        className="inline-flex size-8 items-center justify-center rounded-full bg-stone-900/5 text-stone-700 transition hover:bg-stone-900/10"
+        onClick={() => onRemoveObstacle?.(obstacle.id)}
+        aria-label={`Eliminar obstáculo ${obstacle.id}`}
+        title="Eliminar obstáculo"
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </div>
+  )
+}
+
+type BattleTokenItemProps = {
+  token: BattleToken
+  linkedCharacter: Character | null
+  tokenStatusDefinition: BattleConditionDefinition | null
+  renderedPosition: TokenPosition
+  selectedTokenNumber: number | null
+  currentTurnTokenNumber: number | null
+  ghostHiddenTokens: boolean
+  verticalMirror: boolean
+  onClick: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onMouseEnter: () => void
+  onMouseLeave: () => void
+  onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => void
+  onWheel: (event: React.WheelEvent<HTMLButtonElement>) => void
+}
+
+function BattleTokenItem({
+  token,
+  linkedCharacter,
+  tokenStatusDefinition,
+  renderedPosition,
+  selectedTokenNumber,
+  currentTurnTokenNumber,
+  ghostHiddenTokens,
+  verticalMirror,
+  onClick,
+  onPointerDown,
+  onMouseEnter,
+  onMouseLeave,
+  onContextMenu,
+  onWheel,
+}: BattleTokenItemProps) {
+  const isSelected = token.number === selectedTokenNumber
+  const isEnemy = token.type === "enemy"
+  const isDeadEnemy = isEnemy && (token.life ?? 1) <= 0
+  const isDefeated = typeof token.life === "number" && token.life <= 0
+  const isHidden = Boolean(token.hidden)
+  const isCurrentTurn = !isHidden && currentTurnTokenNumber !== null && token.number === currentTurnTokenNumber
+  const isGhosted = isHidden && ghostHiddenTokens
+  const tokenImagePresentation = resolveBattleTokenImagePresentation({
+    token,
+    linkedCharacter,
+    kind: "token",
+  })
+  const tokenImage = tokenImagePresentation.image
+  const shouldShowTokenNumberBadge = token.sourceType === "monster" || Boolean(tokenImage)
+  const tokenImagePresentationStyle = tokenImagePresentation.style
+  const renderedSize = clampTokenSize(token.size)
+  const tokenDiameter = Math.round(44 * renderedSize)
+  const tokenDiameterCss = `calc(${tokenDiameter}px * var(--map-image-scale, 1))`
+
+  return (
+    <button
+      type="button"
+      className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : ""}`}
+      data-battle-wheel-stop="true"
+      style={{
+        left: `${renderedPosition.x}%`,
+        top: `${renderedPosition.y}%`,
+        width: tokenDiameterCss,
+        height: tokenDiameterCss,
+        zIndex: isSelected ? 4 : 3,
+        touchAction: "none",
+      }}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onContextMenu={onContextMenu}
+      onWheel={onWheel}
+    >
+      <div
+        className="relative flex size-full items-center justify-center"
+        style={{
+          transform: `rotate(calc(var(--map-rotation-deg, 0deg) * -1))${getTokenVisualMirrorTransform(verticalMirror)}`,
+          transformOrigin: "center",
+        }}
+      >
+        {isCurrentTurn ? (
+          <>
+            <span
+              className="pointer-events-none absolute rounded-full"
+              style={CURRENT_TURN_TRAIL_STYLE}
+              aria-hidden="true"
+            />
+            <span
+              className="pointer-events-none absolute rounded-full"
+              style={CURRENT_TURN_RIPPLE_STYLE}
+              aria-hidden="true"
+            />
+          </>
+        ) : null}
+        {tokenStatusDefinition ? (
+          <span
+            className="pointer-events-none absolute rounded-full"
+            style={{
+              inset: "0",
+              boxShadow: `0 0 0 2px ${tokenStatusDefinition.color}, 0 0 12px ${withAlpha(tokenStatusDefinition.color, 0.65)}`,
+            }}
+            aria-hidden="true"
+          />
+        ) : null}
+        {tokenStatusDefinition ? (
+          (() => {
+            const TokenStatusIcon = getConditionIcon(tokenStatusDefinition.name)
+            return (
+              <span
+                className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+                title={
+                  tokenStatusDefinition.entriesText
+                    ? `${tokenStatusDefinition.name}\n${tokenStatusDefinition.entriesText}`
+                    : tokenStatusDefinition.name
+                }
+              >
+                <TokenStatusIcon
+                  className="size-[0.9rem] drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]"
+                  style={{ color: tokenStatusDefinition.color }}
+                  aria-hidden="true"
+                />
+              </span>
+            )
+          })()
+        ) : null}
+        <span
+          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border-2 text-sm font-bold shadow-lg ${
+            isDeadEnemy
+              ? "border-black/80 bg-black text-stone-100"
+              : isEnemy
+                ? "border-red-900/70 bg-red-700 text-red-50"
+                : "border-sky-900/70 bg-sky-700 text-sky-50"
+          }`}
+        >
+          {tokenImage ? (
+            <>
+              <img
+                src={tokenImage}
+                alt={linkedCharacter?.nombre ?? token.nombre}
+                className={`absolute inset-0 size-full object-cover ${isDefeated ? "grayscale brightness-75 saturate-0" : ""}`}
+                style={tokenImagePresentationStyle}
+                draggable={false}
+              />
+              <span className={`absolute inset-0 ${isDefeated ? "bg-stone-900/30" : "bg-black/10"}`} aria-hidden="true" />
+            </>
+          ) : (
+            token.sourceType === "monster" ? "X" : token.number
+          )}
+        </span>
+        {shouldShowTokenNumberBadge ? (
+          <span
+            className="pointer-events-none absolute bottom-[-0.42rem] left-1/2 z-20 inline-flex min-w-4 items-center justify-center rounded-full border border-black/70 bg-black/75 px-1 text-[0.62rem] font-bold leading-none text-white shadow-[0_1px_4px_rgba(0,0,0,0.45)]"
+            style={{
+              transform: "translateX(-50%) scale(clamp(0.62, calc(1 / var(--map-canvas-scale, 1)), 1))",
+              transformOrigin: "center top",
+            }}
+          >
+            {token.number}
+          </span>
+        ) : null}
+      </div>
+    </button>
+  )
+}
+
+type BattleTokenInspectorProps = {
+  inspectedToken: BattleToken
+  inspectedTokenStatusDefinition: BattleConditionDefinition | null
+  inspectorPlacement: {
+    left: string
+    top: string
+    transform: string
+    transformOrigin: string
+  } | null
+  statusDefinitions: BattleConditionDefinition[]
+  tokenInspectorEditable: boolean
+  isTokenDetailAvailable?: (token: BattleToken) => boolean
+  onOpenInspector: (tokenNumber: number) => void
+  onCloseInspector: () => void
+  onUpdateTokenDetails?: BattleTokenOverlayProps["onUpdateTokenDetails"]
+  onRequestTokenDelete?: (tokenNumber: number) => void
+  onRequestTokenCropEdit?: (tokenNumber: number) => void
+  onRequestTokenDetail?: (tokenNumber: number) => void
+}
+
+function BattleTokenInspector({
+  inspectedToken,
+  inspectedTokenStatusDefinition,
+  inspectorPlacement,
+  statusDefinitions,
+  tokenInspectorEditable,
+  isTokenDetailAvailable,
+  onOpenInspector,
+  onCloseInspector,
+  onUpdateTokenDetails,
+  onRequestTokenDelete,
+  onRequestTokenCropEdit,
+  onRequestTokenDetail,
+}: BattleTokenInspectorProps) {
+  return (
+    <div
+      className="pointer-events-auto absolute z-10 w-[min(23rem,calc(100vw-1rem))] max-w-[calc(100%-1rem)] max-h-[min(78dvh,34rem)] overflow-y-auto rounded-2xl border border-stone-200/90 bg-white/96 p-3 text-stone-900 shadow-2xl backdrop-blur relative"
+      style={{
+        left: inspectorPlacement?.left ?? "50%",
+        top: inspectorPlacement?.top ?? "50%",
+        transform:
+          inspectorPlacement?.transform ??
+          "translate(-50%, -50%) rotate(calc(var(--map-rotation-deg, 0deg) * -1)) scale(calc(1 / var(--map-canvas-scale, 1)))",
+        transformOrigin: inspectorPlacement?.transformOrigin ?? "center",
+      }}
+      data-battle-wheel-stop="true"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">#{inspectedToken.number}</p>
+          <span className="rounded-md bg-stone-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600">
+            {inspectedToken.type === "enemy" ? "Enemigo" : "Jugador"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="inline-flex size-8 items-center justify-center rounded-xl bg-stone-900/5 text-stone-700 transition hover:bg-stone-900/10"
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            onClick={() => {
+              onOpenInspector(inspectedToken.number)
+              onUpdateTokenDetails?.(inspectedToken.number, { hidden: !inspectedToken.hidden })
+            }}
+            aria-label={`${inspectedToken.hidden ? "Mostrar" : "Ocultar"} ficha ${inspectedToken.number}`}
+            title={inspectedToken.hidden ? "Mostrar ficha" : "Ocultar ficha"}
+          >
+            {inspectedToken.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+          </button>
+          <button
+            type="button"
+            className="inline-flex size-8 items-center justify-center rounded-xl bg-red-50 text-red-700 transition hover:bg-red-100"
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            onClick={() => {
+              onCloseInspector()
+              onRequestTokenDelete?.(inspectedToken.number)
+            }}
+            aria-label={`Eliminar ficha ${inspectedToken.number}`}
+            title="Eliminar ficha"
+          >
+            <Trash2 className="size-4" />
+          </button>
+          {isTokenDetailAvailable?.(inspectedToken) ? (
+            <button
+              type="button"
+              className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+              onClick={() => {
+                onCloseInspector()
+                onRequestTokenDetail?.(inspectedToken.number)
+              }}
+            >
+              Detalle
+            </button>
+          ) : null}
+          {tokenInspectorEditable && onRequestTokenCropEdit ? (
+            <button
+              type="button"
+              className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+              onClick={() => {
+                onCloseInspector()
+                onRequestTokenCropEdit(inspectedToken.number)
+              }}
+            >
+              Encuadre
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            onClick={() => {
+              onCloseInspector()
+            }}
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+
+      {tokenInspectorEditable ? (
+        <input
+          value={inspectedToken.nombre}
+          aria-label={`Nombre de la ficha ${inspectedToken.number}`}
+          className="mt-2 block h-8 w-full rounded-xl border border-stone-200 bg-white px-2.5 text-[12px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
+          placeholder="Nombre"
+          disabled={!tokenInspectorEditable}
+          onPointerDown={(event) => {
+            event.stopPropagation()
+          }}
+          onFocus={() => {
+            onOpenInspector(inspectedToken.number)
+          }}
+          onChange={(event) => {
+            onUpdateTokenDetails?.(inspectedToken.number, { nombre: event.target.value })
+          }}
+        />
+      ) : (
+        <p className="mt-2 truncate text-[12px] font-semibold text-stone-900">
+          {inspectedToken.nombre || `Ficha ${inspectedToken.number}`}
+        </p>
+      )}
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <input
+          inputMode="decimal"
+          aria-label={`Iniciativa de la ficha ${inspectedToken.number}`}
+          value={typeof inspectedToken.initiative === "number" ? String(inspectedToken.initiative) : ""}
+          className="h-8 w-full rounded-xl border border-stone-200 bg-white px-2.5 text-[12px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
+          placeholder="Ini"
+          onPointerDown={(event) => {
+            event.stopPropagation()
+          }}
+          onFocus={(event) => {
+            onOpenInspector(inspectedToken.number)
+            event.currentTarget.select()
+          }}
+          onChange={(event) => {
+            onUpdateTokenDetails?.(inspectedToken.number, {
+              initiative: parseInitiativeInput(event.target.value),
+            })
+          }}
+          disabled={!tokenInspectorEditable}
+        />
+        <input
+          inputMode="numeric"
+          aria-label={`Vida de la ficha ${inspectedToken.number}`}
+          value={typeof inspectedToken.life === "number" ? String(inspectedToken.life) : ""}
+          className={`h-8 w-full rounded-xl px-2.5 text-[12px] font-medium outline-none transition ${
+            inspectedToken.type === "enemy"
+              ? "border border-red-100 bg-red-50 text-red-700 focus:border-red-300"
+              : "border border-sky-100 bg-sky-50 text-sky-700 focus:border-sky-300"
+          }`}
+          placeholder="Vida"
+          onPointerDown={(event) => {
+            event.stopPropagation()
+          }}
+          onFocus={(event) => {
+            onOpenInspector(inspectedToken.number)
+            event.currentTarget.select()
+          }}
+          onChange={(event) => {
+            onUpdateTokenDetails?.(inspectedToken.number, {
+              life: parseNumberInput(event.target.value),
+            })
+          }}
+          disabled={!tokenInspectorEditable}
+        />
+        <label className="col-span-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600">
+          Estado
+          <select
+            aria-label={`Estado de la ficha ${inspectedToken.number}`}
+            value={inspectedTokenStatusDefinition?.name ?? ""}
+            title={inspectedTokenStatusDefinition?.entriesText || undefined}
+            className="mt-1 h-8 w-full rounded-xl border border-stone-200 bg-white px-2.5 text-[12px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+            }}
+            onFocus={() => {
+              onOpenInspector(inspectedToken.number)
+            }}
+            onChange={(event) => {
+              onUpdateTokenDetails?.(inspectedToken.number, { status: event.target.value })
+            }}
+            disabled={!tokenInspectorEditable}
+          >
+            <option value="">Sin estado</option>
+            {statusDefinitions.map((statusDefinition) => (
+              <option key={`status-option-${statusDefinition.name}`} value={statusDefinition.name}>
+                {statusDefinition.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {inspectedTokenStatusDefinition ? (
+          <p className="col-span-2 text-[11px] text-stone-700">
+            <span
+              className="inline-flex items-center rounded-full border px-2 py-0.5 font-semibold"
+              style={{
+                borderColor: withAlpha(inspectedTokenStatusDefinition.color, 0.62),
+                backgroundColor: withAlpha(inspectedTokenStatusDefinition.color, 0.18),
+              }}
+              title={inspectedTokenStatusDefinition.entriesText || undefined}
+            >
+              {inspectedTokenStatusDefinition.name}
+            </span>
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 export function BattleTokenOverlay({
   tokens,
+  statusDefinitions = [],
   obstacles = [],
   characterById,
+  currentTurnTokenNumber = null,
+  verticalMirror = false,
   interactive = false,
   enableTokenInspector = false,
+  suppressInspectorOnTokenClick = false,
   tokenInspectorEditable = false,
   hideHiddenTokens = false,
   ghostHiddenTokens = false,
   selectedTokenNumber = null,
   selectedObstacleId = null,
   onSelectToken,
+  onTokenClick,
   onUpdateTokenDetails,
+  onRequestTokenDuplicate,
+  onRequestTokenQuickDelete,
   onRequestTokenDelete,
+  onRequestTokenCropEdit,
+  onRequestTokenDetail,
+  isTokenDetailAvailable,
   onPreviewTokenMove,
   onPreviewObstacleMove,
   onMoveToken,
@@ -303,13 +1000,9 @@ export function BattleTokenOverlay({
   const onPreviewTokenMoveRef = useRef(onPreviewTokenMove)
   const onPreviewObstacleMoveRef = useRef(onPreviewObstacleMove)
   const frameRef = useRef<number | null>(null)
-  const inspectorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const inspectorCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const inspectorProgressFrameRef = useRef<number | null>(null)
   const previewBroadcastFrameRef = useRef<number | null>(null)
   const obstaclePreviewBroadcastFrameRef = useRef<number | null>(null)
   const hoveredTokenNumberRef = useRef<number | null>(null)
-  const dismissedTokenNumberRef = useRef<number | null>(null)
   const pendingTokenPreviewRef = useRef<Record<number, TokenPosition> | null>(null)
   const pendingObstaclePreviewRef = useRef<Record<number, TokenPosition> | null>(null)
   const pendingPreviewBroadcastRef = useRef<{
@@ -320,15 +1013,28 @@ export function BattleTokenOverlay({
     obstacleId: number
     position: TokenPosition | null
   } | null>(null)
+  const suppressInspectorClickRef = useRef<{
+    tokenNumber: number
+    expiresAt: number
+  } | null>(null)
   const [tokenPreviewPositions, setTokenPreviewPositions] = useState<Record<number, TokenPosition>>({})
   const [obstaclePreviewPositions, setObstaclePreviewPositions] = useState<Record<number, TokenPosition>>({})
   const [inspectedTokenNumber, setInspectedTokenNumber] = useState<number | null>(null)
-  const [isInspectorPinned, setIsInspectorPinned] = useState(false)
-  const [inspectorPinProgress, setInspectorPinProgress] = useState(0)
 
   const tokenByNumber = useMemo(() => {
     return new Map(tokens.map((token) => [token.number, token]))
   }, [tokens])
+  const transformPosition = useCallback(
+    (position: TokenPosition): TokenPosition => transformOverlayPosition(position, verticalMirror),
+    [verticalMirror],
+  )
+  const statusDefinitionByName = useMemo(
+    () =>
+      new Map(
+        statusDefinitions.map((condition) => [condition.name.trim().toLocaleLowerCase("es"), condition] as const),
+      ),
+    [statusDefinitions],
+  )
 
   const orderedTokens = useMemo(
     () =>
@@ -364,15 +1070,6 @@ export function BattleTokenOverlay({
         window.cancelAnimationFrame(frameRef.current)
         frameRef.current = null
       }
-      if (inspectorTimeoutRef.current) {
-        clearTimeout(inspectorTimeoutRef.current)
-      }
-      if (inspectorCloseTimeoutRef.current) {
-        clearTimeout(inspectorCloseTimeoutRef.current)
-      }
-      if (inspectorProgressFrameRef.current !== null) {
-        window.cancelAnimationFrame(inspectorProgressFrameRef.current)
-      }
       if (previewBroadcastFrameRef.current !== null) {
         window.cancelAnimationFrame(previewBroadcastFrameRef.current)
         previewBroadcastFrameRef.current = null
@@ -394,44 +1091,96 @@ export function BattleTokenOverlay({
       releaseDragPointerCapture(dragRef.current)
     }
   }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.altKey || event.metaKey) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "h") {
-        return
-      }
-
-      const target = event.target
-      if (target instanceof HTMLElement && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
-        return
-      }
-
-      const hoveredTokenNumber = hoveredTokenNumberRef.current
-      if (!hoveredTokenNumber) {
-        return
-      }
-
-      const token = tokenByNumber.get(hoveredTokenNumber)
-      if (!token) {
-        return
-      }
-
-      event.preventDefault()
-      onUpdateTokenDetails?.(token.number, { hidden: !token.hidden })
+  const handleShortcutKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (!interactive || shouldIgnoreShortcutTarget(event.target)) {
+      return
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onUpdateTokenDetails, tokenByNumber])
+    const activeTokenNumber = hoveredTokenNumberRef.current ?? selectedTokenNumber
+    if (!activeTokenNumber) {
+      return
+    }
+
+    const token = tokenByNumber.get(activeTokenNumber)
+    if (!token) {
+      return
+    }
+
+    const normalizedKey = event.key.toLowerCase()
+    if (event.ctrlKey || event.metaKey || event.altKey || !event.shiftKey || event.repeat) {
+      return
+    }
+
+    if (normalizedKey === "h") {
+      event.preventDefault()
+      onUpdateTokenDetails?.(token.number, { hidden: !token.hidden })
+      return
+    }
+
+    if (normalizedKey === "d") {
+      event.preventDefault()
+      onRequestTokenDuplicate?.(token.number)
+    }
+  })
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleShortcutKeyDown)
+    return () => window.removeEventListener("keydown", handleShortcutKeyDown)
+  }, [handleShortcutKeyDown])
 
   const inspectedToken = useMemo(
     () => tokens.find((token) => token.number === inspectedTokenNumber) ?? null,
     [inspectedTokenNumber, tokens],
   )
+  const selectedObstacle = useMemo(
+    () => obstacles.find((obstacle) => obstacle.id === selectedObstacleId) ?? null,
+    [obstacles, selectedObstacleId],
+  )
+  const inspectedTokenRenderedPosition = useMemo(() => {
+    if (!inspectedToken) {
+      return null
+    }
+
+    return tokenPreviewPositions[inspectedToken.number] ?? transformPosition({ x: inspectedToken.x, y: inspectedToken.y })
+  }, [inspectedToken, transformPosition, tokenPreviewPositions])
+
+  const inspectorPlacement = useMemo(() => {
+    if (!inspectedTokenRenderedPosition) {
+      return null
+    }
+
+    const tokenX = inspectedTokenRenderedPosition.x
+    const tokenY = inspectedTokenRenderedPosition.y
+    const placeLeft = tokenX > 30
+    const placeTop = tokenY > 30
+    const anchorX = clamp(tokenX + (placeLeft ? -3 : 3), 6, 94)
+    const anchorY = clamp(tokenY + (placeTop ? -3 : 3), 6, 94)
+    const translateX = placeLeft ? "-100%" : "0%"
+    const translateY = placeTop ? "-100%" : "0%"
+    const originX = placeLeft ? "right" : "left"
+    const originY = placeTop ? "bottom" : "top"
+
+    return {
+      left: `${anchorX}%`,
+      top: `${anchorY}%`,
+      transform: `translate(${translateX}, ${translateY}) rotate(calc(var(--map-rotation-deg, 0deg) * -1)) scale(calc(1 / var(--map-canvas-scale, 1)))`,
+      transformOrigin: `${originX} ${originY}`,
+    }
+  }, [inspectedTokenRenderedPosition])
+  const inspectedTokenStatusDefinition = useMemo(() => {
+    if (!inspectedToken) {
+      return null
+    }
+
+    return resolveTokenStatusDefinition(inspectedToken.status, statusDefinitionByName)
+  }, [inspectedToken, statusDefinitionByName])
+  const selectedObstacleRenderedPosition = useMemo(() => {
+    if (!selectedObstacle) {
+      return null
+    }
+
+    return transformPosition({ x: selectedObstacle.x, y: selectedObstacle.y })
+  }, [selectedObstacle, transformPosition])
 
   useEffect(() => {
     if (!inspectedTokenNumber) {
@@ -440,146 +1189,30 @@ export function BattleTokenOverlay({
 
     if (!tokens.some((token) => token.number === inspectedTokenNumber)) {
       setInspectedTokenNumber(null)
-      setIsInspectorPinned(false)
     }
   }, [inspectedTokenNumber, tokens])
 
-
-  const clearInspectorTimeout = () => {
-    if (!inspectorTimeoutRef.current) {
+  useEffect(() => {
+    if (selectedTokenNumber !== null || selectedObstacleId !== null) {
       return
     }
 
-    clearTimeout(inspectorTimeoutRef.current)
-    inspectorTimeoutRef.current = null
-  }
+    hoveredTokenNumberRef.current = null
+    setInspectedTokenNumber(null)
+  }, [selectedObstacleId, selectedTokenNumber])
 
-  const clearInspectorCloseTimeout = () => {
-    if (!inspectorCloseTimeoutRef.current) {
-      return
-    }
-
-    clearTimeout(inspectorCloseTimeoutRef.current)
-    inspectorCloseTimeoutRef.current = null
-  }
-
-  const stopInspectorProgress = () => {
-    if (inspectorProgressFrameRef.current === null) {
-      return
-    }
-
-    window.cancelAnimationFrame(inspectorProgressFrameRef.current)
-    inspectorProgressFrameRef.current = null
-  }
-
-  const startInspectorProgress = () => {
-    if (isInspectorPinned) {
-      setInspectorPinProgress(1)
-      return
-    }
-
-    stopInspectorProgress()
-    const startedAt = window.performance.now()
-    setInspectorPinProgress(0)
-
-    const tick = (now: number) => {
-      const nextProgress = clamp((now - startedAt) / 1000, 0, 1)
-      setInspectorPinProgress(nextProgress)
-
-      if (nextProgress >= 1 || isInspectorPinned) {
-        inspectorProgressFrameRef.current = null
-        return
-      }
-
-      inspectorProgressFrameRef.current = window.requestAnimationFrame(tick)
-    }
-
-    inspectorProgressFrameRef.current = window.requestAnimationFrame(tick)
-  }
-
-  const openInspector = (tokenNumber: number, pinned: boolean) => {
+  const openInspector = (tokenNumber: number) => {
     if (!enableTokenInspector) {
       return
     }
 
-    clearInspectorTimeout()
-    clearInspectorCloseTimeout()
-    stopInspectorProgress()
     hoveredTokenNumberRef.current = tokenNumber
-    dismissedTokenNumberRef.current = null
     setInspectedTokenNumber(tokenNumber)
-    setIsInspectorPinned(pinned)
-    setInspectorPinProgress(pinned ? 1 : 0)
   }
 
-  const closeInspector = (manualDismiss = false) => {
-    clearInspectorTimeout()
-    clearInspectorCloseTimeout()
-    stopInspectorProgress()
-    if (manualDismiss) {
-      dismissedTokenNumberRef.current = inspectedTokenNumber
-    }
+  const closeInspector = () => {
     hoveredTokenNumberRef.current = null
     setInspectedTokenNumber(null)
-    setIsInspectorPinned(false)
-    setInspectorPinProgress(0)
-  }
-
-  const scheduleInspectorOpen = (tokenNumber: number) => {
-    if (!enableTokenInspector || isInspectorPinned) {
-      return
-    }
-
-    if (dismissedTokenNumberRef.current === tokenNumber) {
-      return
-    }
-
-    clearInspectorCloseTimeout()
-    clearInspectorTimeout()
-    stopInspectorProgress()
-    hoveredTokenNumberRef.current = tokenNumber
-
-    inspectorTimeoutRef.current = setTimeout(() => {
-      if (hoveredTokenNumberRef.current !== tokenNumber) {
-        inspectorTimeoutRef.current = null
-        return
-      }
-
-      setInspectedTokenNumber(tokenNumber)
-      setIsInspectorPinned(false)
-      startInspectorProgress()
-
-      inspectorTimeoutRef.current = setTimeout(() => {
-        if (hoveredTokenNumberRef.current !== tokenNumber) {
-          inspectorTimeoutRef.current = null
-          return
-        }
-
-        stopInspectorProgress()
-        setInspectedTokenNumber(tokenNumber)
-        setIsInspectorPinned(true)
-        setInspectorPinProgress(1)
-        inspectorTimeoutRef.current = null
-      }, 1000)
-    }, 1000)
-  }
-
-  const scheduleInspectorClose = (tokenNumber: number) => {
-    if (isInspectorPinned) {
-      return
-    }
-
-    hoveredTokenNumberRef.current = null
-    clearInspectorTimeout()
-    clearInspectorCloseTimeout()
-    stopInspectorProgress()
-
-    inspectorCloseTimeoutRef.current = setTimeout(() => {
-      setInspectedTokenNumber((current) => (current === tokenNumber ? null : current))
-      setIsInspectorPinned(false)
-      setInspectorPinProgress(0)
-      inspectorCloseTimeoutRef.current = null
-    }, 220)
   }
 
 
@@ -597,47 +1230,63 @@ export function BattleTokenOverlay({
     })
   }
 
-  const scheduleTokenPreviewUpdate = (tokenNumber: number, nextPosition: TokenPosition | null) => {
-    pendingTokenPreviewRef.current = (() => {
-      const current = pendingTokenPreviewRef.current ?? tokenPreviewPositions
-      const next = { ...current }
-
-      if (nextPosition) {
-        next[tokenNumber] = nextPosition
-      } else {
-        delete next[tokenNumber]
-      }
-
-      return next
-    })()
-
-    schedulePreviewFrame()
-  }
-
-  const scheduleObstaclePreviewUpdate = (obstacleId: number, nextPosition: TokenPosition | null) => {
-    pendingObstaclePreviewRef.current = (() => {
-      const current = pendingObstaclePreviewRef.current ?? obstaclePreviewPositions
-      const next = { ...current }
-
-      if (nextPosition) {
-        next[obstacleId] = nextPosition
-      } else {
-        delete next[obstacleId]
-      }
-
-      return next
-    })()
+  const schedulePreviewUpdate = (
+    kind: "token" | "obstacle",
+    id: number,
+    nextPosition: TokenPosition | null,
+  ) => {
+    if (kind === "token") {
+      pendingTokenPreviewRef.current = updatePreviewPositionMap(
+        pendingTokenPreviewRef.current ?? tokenPreviewPositions,
+        id,
+        nextPosition,
+      )
+    } else {
+      pendingObstaclePreviewRef.current = updatePreviewPositionMap(
+        pendingObstaclePreviewRef.current ?? obstaclePreviewPositions,
+        id,
+        nextPosition,
+      )
+    }
 
     schedulePreviewFrame()
   }
 
-  const schedulePreviewBroadcast = (tokenNumber: number, nextPosition: TokenPosition | null) => {
+  const schedulePreviewBroadcast = (kind: "token" | "obstacle", id: number, nextPosition: TokenPosition | null) => {
+    if (kind === "obstacle") {
+      if (!onPreviewObstacleMove) {
+        return
+      }
+
+      pendingObstaclePreviewBroadcastRef.current = {
+        obstacleId: id,
+        position: nextPosition,
+      }
+
+      if (obstaclePreviewBroadcastFrameRef.current !== null) {
+        return
+      }
+
+      obstaclePreviewBroadcastFrameRef.current = window.requestAnimationFrame(() => {
+        obstaclePreviewBroadcastFrameRef.current = null
+
+        const pendingPreview = pendingObstaclePreviewBroadcastRef.current
+        pendingObstaclePreviewBroadcastRef.current = null
+        if (!pendingPreview) {
+          return
+        }
+
+        onPreviewObstacleMove(pendingPreview.obstacleId, pendingPreview.position)
+      })
+      return
+    }
+
     if (!onPreviewTokenMove) {
       return
     }
 
     pendingPreviewBroadcastRef.current = {
-      tokenNumber,
+      tokenNumber: id,
       position: nextPosition,
     }
 
@@ -658,71 +1307,41 @@ export function BattleTokenOverlay({
     })
   }
 
-  const scheduleObstaclePreviewBroadcast = (obstacleId: number, nextPosition: TokenPosition | null) => {
-    if (!onPreviewObstacleMove) {
+  const handleAltSnapKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (!interactive || event.key !== "Alt") {
       return
     }
 
-    pendingObstaclePreviewBroadcastRef.current = {
-      obstacleId,
-      position: nextPosition,
-    }
-
-    if (obstaclePreviewBroadcastFrameRef.current !== null) {
+    const dragState = dragRef.current
+    const overlayElement = overlayRef.current
+    if (!dragState || dragState.kind !== "token" || !overlayElement) {
       return
     }
 
-    obstaclePreviewBroadcastFrameRef.current = window.requestAnimationFrame(() => {
-      obstaclePreviewBroadcastFrameRef.current = null
-
-      const pendingPreview = pendingObstaclePreviewBroadcastRef.current
-      pendingObstaclePreviewBroadcastRef.current = null
-      if (!pendingPreview) {
-        return
-      }
-
-      onPreviewObstacleMove(pendingPreview.obstacleId, pendingPreview.position)
-    })
-  }
+    const snappedPosition = snapPositionToGrid(dragState.lastPosition, dragState.metrics, overlayElement)
+    dragRef.current = {
+      ...dragState,
+      lastPosition: snappedPosition,
+    }
+    schedulePreviewUpdate("token", dragState.tokenNumber, snappedPosition)
+    schedulePreviewBroadcast("token", dragState.tokenNumber, transformPosition(snappedPosition))
+  })
 
   useEffect(() => {
-    if (!interactive) {
-      return
-    }
-
-    const handleWindowKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift") {
-        return
-      }
-
-      const dragState = dragRef.current
-      const overlayElement = overlayRef.current
-      if (!dragState || dragState.kind !== "token" || !overlayElement) {
-        return
-      }
-
-      const snappedPosition = snapPositionToGrid(dragState.lastPosition, dragState.metrics, overlayElement)
-      dragRef.current = {
-        ...dragState,
-        lastPosition: snappedPosition,
-      }
-      scheduleTokenPreviewUpdate(dragState.tokenNumber, snappedPosition)
-      schedulePreviewBroadcast(dragState.tokenNumber, snappedPosition)
-    }
-
-    window.addEventListener("keydown", handleWindowKeyDown)
+    window.addEventListener("keydown", handleAltSnapKeyDown)
     return () => {
-      window.removeEventListener("keydown", handleWindowKeyDown)
+      window.removeEventListener("keydown", handleAltSnapKeyDown)
     }
-  }, [interactive, onPreviewTokenMove, scheduleTokenPreviewUpdate])
+  }, [handleAltSnapKeyDown])
 
-  const updateDragPosition = (clientX: number, clientY: number, snapToGrid = false) => {
+  const updateDragPosition = useEffectEvent((clientX: number, clientY: number, snapToGrid = false) => {
     const dragState = dragRef.current
     if (!dragState) {
       return
     }
 
     const pointerPosition = screenPointToLocalPosition(clientX, clientY, dragState.metrics)
+    const logicalPointerPosition = transformPosition(pointerPosition)
 
     if (dragState.kind === "token") {
       let nextPosition = {
@@ -738,8 +1357,8 @@ export function BattleTokenOverlay({
         ...dragState,
         lastPosition: nextPosition,
       }
-      scheduleTokenPreviewUpdate(dragState.tokenNumber, nextPosition)
-      schedulePreviewBroadcast(dragState.tokenNumber, nextPosition)
+      schedulePreviewUpdate("token", dragState.tokenNumber, nextPosition)
+      schedulePreviewBroadcast("token", dragState.tokenNumber, transformPosition(nextPosition))
       return
     }
 
@@ -751,11 +1370,11 @@ export function BattleTokenOverlay({
       const clampSize = (value: number) => clamp(value, 0, 100)
 
       if (dragState.resizeHandle === "center" || dragState.obstacle.shape === "circle") {
-        const nextWidth = clampSize(Math.abs(pointerPosition.x - dragState.obstacle.x) * 2)
+        const nextWidth = clampSize(Math.abs(logicalPointerPosition.x - dragState.obstacle.x) * 2)
         const nextHeight =
           dragState.obstacle.shape === "circle"
             ? nextWidth
-            : clampSize(Math.abs(pointerPosition.y - dragState.obstacle.y) * 2)
+            : clampSize(Math.abs(logicalPointerPosition.y - dragState.obstacle.y) * 2)
 
         onResizeObstacle(dragState.obstacleId, {
           width: nextWidth,
@@ -778,20 +1397,20 @@ export function BattleTokenOverlay({
 
       switch (dragState.resizeHandle) {
         case "nw":
-          nextLeft = clamp(pointerPosition.x, 0, right)
-          nextTop = clamp(pointerPosition.y, 0, bottom)
+          nextLeft = clamp(logicalPointerPosition.x, 0, right)
+          nextTop = clamp(logicalPointerPosition.y, 0, bottom)
           break
         case "ne":
-          nextRight = clamp(pointerPosition.x, left, 100)
-          nextTop = clamp(pointerPosition.y, 0, bottom)
+          nextRight = clamp(logicalPointerPosition.x, left, 100)
+          nextTop = clamp(logicalPointerPosition.y, 0, bottom)
           break
         case "sw":
-          nextLeft = clamp(pointerPosition.x, 0, right)
-          nextBottom = clamp(pointerPosition.y, top, 100)
+          nextLeft = clamp(logicalPointerPosition.x, 0, right)
+          nextBottom = clamp(logicalPointerPosition.y, top, 100)
           break
         case "se":
-          nextRight = clamp(pointerPosition.x, left, 100)
-          nextBottom = clamp(pointerPosition.y, top, 100)
+          nextRight = clamp(logicalPointerPosition.x, left, 100)
+          nextBottom = clamp(logicalPointerPosition.y, top, 100)
           break
         default:
           break
@@ -821,63 +1440,83 @@ export function BattleTokenOverlay({
       ...dragState,
       lastPosition: nextPosition,
     }
-    scheduleObstaclePreviewUpdate(dragState.obstacleId, nextPosition)
-    scheduleObstaclePreviewBroadcast(dragState.obstacleId, nextPosition)
-  }
+    schedulePreviewUpdate("obstacle", dragState.obstacleId, nextPosition)
+    schedulePreviewBroadcast("obstacle", dragState.obstacleId, transformPosition(nextPosition))
+  })
 
-  const finishDrag = () => {
+  const finishDrag = useEffectEvent(() => {
     const dragState = dragRef.current
     if (!dragState) {
       return
     }
 
     if (dragState.kind === "token") {
-      onMoveToken?.(dragState.tokenNumber, dragState.lastPosition)
-      scheduleTokenPreviewUpdate(dragState.tokenNumber, null)
-      schedulePreviewBroadcast(dragState.tokenNumber, null)
-    } else {
-      if (dragState.kind === "obstacle") {
-        onMoveObstacle?.(dragState.obstacleId, dragState.lastPosition)
-        scheduleObstaclePreviewUpdate(dragState.obstacleId, null)
-        scheduleObstaclePreviewBroadcast(dragState.obstacleId, null)
+      const movedDistance = Math.hypot(
+        dragState.lastPosition.x - dragState.initialPosition.x,
+        dragState.lastPosition.y - dragState.initialPosition.y,
+      )
+      const now = window.performance.now()
+      if (movedDistance >= CLICK_OPEN_DRAG_THRESHOLD_PERCENT) {
+        suppressInspectorClickRef.current = {
+          tokenNumber: dragState.tokenNumber,
+          expiresAt: now + SUPPRESS_CLICK_AFTER_DRAG_MS,
+        }
+      } else if (
+        suppressInspectorClickRef.current &&
+        suppressInspectorClickRef.current.tokenNumber === dragState.tokenNumber &&
+        suppressInspectorClickRef.current.expiresAt <= now
+      ) {
+        suppressInspectorClickRef.current = null
       }
+
+      onMoveToken?.(dragState.tokenNumber, transformPosition(dragState.lastPosition))
+      schedulePreviewUpdate("token", dragState.tokenNumber, null)
+      schedulePreviewBroadcast("token", dragState.tokenNumber, null)
+    } else if (dragState.kind === "obstacle") {
+      onMoveObstacle?.(dragState.obstacleId, transformPosition(dragState.lastPosition))
+      schedulePreviewUpdate("obstacle", dragState.obstacleId, null)
+      schedulePreviewBroadcast("obstacle", dragState.obstacleId, null)
     }
 
     releaseDragPointerCapture(dragState)
     dragRef.current = null
-  }
+  })
 
-  useEffect(() => {
+  const handleWindowPointerMove = useEffectEvent((event: PointerEvent) => {
     if (!interactive) {
       return
     }
 
-    const handleWindowPointerMove = (event: PointerEvent) => {
-      const dragState = dragRef.current
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return
-      }
-
-      if (event.cancelable) {
-        event.preventDefault()
-      }
-
-      updateDragPosition(event.clientX, event.clientY, event.shiftKey)
+    const dragState = dragRef.current
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return
     }
 
-    const handleWindowPointerEnd = (event: PointerEvent) => {
-      const dragState = dragRef.current
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return
-      }
-
-      if (event.cancelable) {
-        event.preventDefault()
-      }
-
-      finishDrag()
+    if (event.cancelable) {
+      event.preventDefault()
     }
 
+    updateDragPosition(event.clientX, event.clientY, event.altKey)
+  })
+
+  const handleWindowPointerEnd = useEffectEvent((event: PointerEvent) => {
+    if (!interactive) {
+      return
+    }
+
+    const dragState = dragRef.current
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return
+    }
+
+    if (event.cancelable) {
+      event.preventDefault()
+    }
+
+    finishDrag()
+  })
+
+  useEffect(() => {
     window.addEventListener("pointermove", handleWindowPointerMove, { passive: false })
     window.addEventListener("pointerup", handleWindowPointerEnd, { passive: false })
     window.addEventListener("pointercancel", handleWindowPointerEnd, { passive: false })
@@ -887,23 +1526,28 @@ export function BattleTokenOverlay({
       window.removeEventListener("pointerup", handleWindowPointerEnd)
       window.removeEventListener("pointercancel", handleWindowPointerEnd)
     }
-  }, [interactive, onMoveObstacle, onMoveToken])
+  }, [handleWindowPointerEnd, handleWindowPointerMove])
 
   const handleTokenPointerDown = (token: BattleToken) => (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
     event.stopPropagation()
-    onSelectToken?.(token.number)
 
     if (event.button !== 0) {
       return
     }
 
-    if (!interactive || !onMoveToken) {
+    if (!event.shiftKey) {
       return
     }
 
-    if (enableTokenInspector && inspectedTokenNumber !== null) {
+    event.preventDefault()
+    onSelectToken?.(token.number)
+
+    if (enableTokenInspector) {
       closeInspector()
+    }
+
+    if (!interactive || !onMoveToken) {
+      return
     }
 
     const overlayElement = overlayRef.current
@@ -917,13 +1561,14 @@ export function BattleTokenOverlay({
     }
 
     const pointerPosition = screenPointToLocalPosition(event.clientX, event.clientY, metrics)
-    const renderedPosition = tokenPreviewPositions[token.number] ?? { x: token.x, y: token.y }
+    const renderedPosition = tokenPreviewPositions[token.number] ?? transformPosition({ x: token.x, y: token.y })
 
     dragRef.current = {
       kind: "token",
       pointerId: event.pointerId,
       pointerTarget: event.currentTarget,
       tokenNumber: token.number,
+      initialPosition: renderedPosition,
       lastPosition: renderedPosition,
       pointerOffset: {
         x: renderedPosition.x - pointerPosition.x,
@@ -958,7 +1603,7 @@ export function BattleTokenOverlay({
     }
 
     const pointerPosition = screenPointToLocalPosition(event.clientX, event.clientY, metrics)
-    const renderedPosition = obstaclePreviewPositions[obstacle.id] ?? { x: obstacle.x, y: obstacle.y }
+    const renderedPosition = obstaclePreviewPositions[obstacle.id] ?? transformPosition({ x: obstacle.x, y: obstacle.y })
 
     dragRef.current = {
       kind: "obstacle",
@@ -1014,209 +1659,88 @@ export function BattleTokenOverlay({
 
   return (
     <div ref={overlayRef} className="pointer-events-none relative size-full">
-      {orderedObstacles.map((obstacle) => {
-        const renderedPosition = obstaclePreviewPositions[obstacle.id] ?? { x: obstacle.x, y: obstacle.y }
-        const isSelected = obstacle.id === selectedObstacleId
-        const isCircle = obstacle.shape === "circle"
-        const obstacleWidth = obstacle.width
-        const obstacleHeight = isCircle ? obstacle.width : obstacle.height
-
-        return (
-          <button
-            key={`obstacle-${obstacle.id}`}
-            type="button"
-            className="pointer-events-auto absolute bg-transparent p-0"
-            data-battle-wheel-stop="true"
-            style={{
-              left: `${renderedPosition.x}%`,
-              top: `${renderedPosition.y}%`,
-              width: `${obstacleWidth}%`,
-              height: isCircle ? undefined : `${obstacleHeight}%`,
-              aspectRatio: isCircle ? "1 / 1" : undefined,
-              transform: "translate(-50%, -50%)",
-              zIndex: isSelected ? 2 : 1,
-              touchAction: "none",
-              clipPath: isCircle ? "circle(50%)" : undefined,
-            }}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelectObstacle?.(obstacle.id)
-            }}
-            onDoubleClick={(event) => {
-              if (!interactive || !onRemoveObstacle) {
-                return
-              }
-
-              if (event.target !== event.currentTarget) {
-                return
-              }
-
-              event.preventDefault()
-              event.stopPropagation()
-              onRemoveObstacle(obstacle.id)
-            }}
-            onContextMenu={(event) => {
-              if (!interactive || !onRemoveObstacle) {
-                return
-              }
-
-              event.preventDefault()
-              event.stopPropagation()
-              onRemoveObstacle(obstacle.id)
-            }}
-            onPointerDown={handleObstaclePointerDown(obstacle)}
-              onWheel={(event) => {
-                if (!interactive || !onResizeObstacle) {
-                  return
-                }
-
-                event.preventDefault()
-                event.stopPropagation()
-
-                const delta = event.deltaY < 0 ? 1 : -1
-                const nextWidth = clamp(obstacle.width + delta, 0, 100)
-                const nextHeight = clamp(obstacle.height + delta, 0, 100)
-
-                onResizeObstacle(obstacle.id, {
-                  width: nextWidth,
-                  height: obstacle.shape === "circle" ? nextWidth : nextHeight,
-                })
-            }}
-          >
-            <span
-              className="block size-full border-2 shadow-lg"
-              style={{
-                borderRadius: isCircle ? "50%" : "0",
-                borderColor: obstacle.color,
-                backgroundColor: withAlpha(obstacle.color, 0.32),
-                boxShadow: isSelected
-                  ? `0 0 0 4px ${withAlpha("#fcd34d", 0.7)}`
-                  : `0 0 0 1px ${withAlpha(obstacle.color, 0.15)}`,
-              }}
-            />
-            {interactive && onResizeObstacle
-              ? isCircle ? (
-                  <span
-                    className="pointer-events-auto absolute left-1/2 top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
-                    onPointerDown={handleObstacleResizePointerDown(obstacle, "center")}
-                    onWheel={(event) => {
-                      if (!interactive || !onResizeObstacle) {
-                        return
-                      }
-
-                      event.preventDefault()
-                      event.stopPropagation()
-
-                      const delta = event.deltaY < 0 ? 1 : -1
-                      const nextSize = clamp(obstacle.width + delta, 0, 100)
-                      onResizeObstacle(obstacle.id, { width: nextSize, height: nextSize })
-                    }}
-                  />
-                ) : (
-                  <>
-                    <span
-                      className="pointer-events-auto absolute left-0 top-0 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
-                      onPointerDown={handleObstacleResizePointerDown(obstacle, "nw")}
-                    />
-                    <span
-                      className="pointer-events-auto absolute right-0 top-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
-                      onPointerDown={handleObstacleResizePointerDown(obstacle, "ne")}
-                    />
-                    <span
-                      className="pointer-events-auto absolute left-0 bottom-0 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
-                      onPointerDown={handleObstacleResizePointerDown(obstacle, "sw")}
-                    />
-                    <span
-                      className="pointer-events-auto absolute right-0 bottom-0 size-2.5 translate-x-1/2 translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
-                      onPointerDown={handleObstacleResizePointerDown(obstacle, "se")}
-                    />
-                  </>
-                )
-              : null}
-          </button>
-        )
-      })}
-
       {orderedTokens.map((token) => {
-        const isSelected = token.number === selectedTokenNumber
-        const isEnemy = token.type === "enemy"
-        const isDeadEnemy = isEnemy && (token.life ?? 1) <= 0
-        const isHidden = Boolean(token.hidden)
-        const isGhosted = isHidden && ghostHiddenTokens
         const linkedCharacter =
           typeof token.characterId === "number" ? (characterById?.get(token.characterId) ?? null) : null
-        const tokenImage = linkedCharacter?.imagen?.trim() || null
-        const renderedPosition = tokenPreviewPositions[token.number] ?? { x: token.x, y: token.y }
-        const renderedSize = clampTokenSize(token.size)
-        const tokenDiameter = Math.round(44 * renderedSize)
-        const tokenDiameterCss = `calc(${tokenDiameter}px * var(--map-image-scale, 1))`
+        const tokenStatusDefinition = resolveTokenStatusDefinition(token.status, statusDefinitionByName)
+        const renderedPosition = tokenPreviewPositions[token.number] ?? transformPosition({ x: token.x, y: token.y })
 
         return (
-          <button
+          <BattleTokenItem
             key={`token-${token.number}`}
-            type="button"
-            className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : ""}`}
-            data-battle-wheel-stop="true"
-            style={{
-              left: `${renderedPosition.x}%`,
-              top: `${renderedPosition.y}%`,
-              width: tokenDiameterCss,
-              height: tokenDiameterCss,
-              zIndex: isSelected ? 4 : 3,
-              touchAction: "none",
-              clipPath: "circle(50%)",
-            }}
+            token={token}
+            linkedCharacter={linkedCharacter}
+            tokenStatusDefinition={tokenStatusDefinition}
+            renderedPosition={renderedPosition}
+            selectedTokenNumber={selectedTokenNumber}
+            currentTurnTokenNumber={currentTurnTokenNumber}
+            ghostHiddenTokens={ghostHiddenTokens}
+            verticalMirror={verticalMirror}
             onClick={(event) => {
               event.stopPropagation()
+
+              if (event.shiftKey) {
+                return
+              }
+
               onSelectToken?.(token.number)
 
-              if (enableTokenInspector && isInspectorPinned && inspectedTokenNumber !== token.number) {
-                setInspectedTokenNumber(null)
-                setIsInspectorPinned(false)
+              if (suppressInspectorOnTokenClick) {
+                onTokenClick?.(token.number)
+                return
               }
-            }}
-            onDoubleClick={(event) => {
+
               if (!enableTokenInspector) {
                 return
               }
 
-              event.preventDefault()
-              event.stopPropagation()
-              onSelectToken?.(token.number)
-              openInspector(token.number, true)
+              const now = window.performance.now()
+              const pendingSuppressedClick = suppressInspectorClickRef.current
+              if (pendingSuppressedClick && pendingSuppressedClick.expiresAt <= now) {
+                suppressInspectorClickRef.current = null
+              }
+
+              if (
+                pendingSuppressedClick &&
+                pendingSuppressedClick.tokenNumber === token.number &&
+                pendingSuppressedClick.expiresAt > now
+              ) {
+                suppressInspectorClickRef.current = null
+                return
+              }
+
+              openInspector(token.number)
             }}
             onPointerDown={handleTokenPointerDown(token)}
             onMouseEnter={() => {
               hoveredTokenNumberRef.current = token.number
-              scheduleInspectorOpen(token.number)
             }}
             onMouseLeave={() => {
               if (hoveredTokenNumberRef.current === token.number) {
                 hoveredTokenNumberRef.current = null
               }
-
-              if (!enableTokenInspector) {
-                return
-              }
-
-              if (dismissedTokenNumberRef.current === token.number) {
-                dismissedTokenNumberRef.current = null
-              }
-              scheduleInspectorClose(token.number)
             }}
             onContextMenu={(event) => {
-              if (!onRequestTokenDelete) {
+              if (!interactive) {
                 return
               }
 
               event.preventDefault()
               event.stopPropagation()
+              if (!event.shiftKey) {
+                return
+              }
+
               onSelectToken?.(token.number)
-              closeInspector(true)
-              onRequestTokenDelete(token.number)
+              closeInspector()
+              onRequestTokenQuickDelete?.(token.number)
             }}
             onWheel={(event) => {
               if (!interactive || !onResizeToken) {
+                return
+              }
+
+              if (!event.shiftKey) {
                 return
               }
 
@@ -1225,201 +1749,48 @@ export function BattleTokenOverlay({
               const delta = event.deltaY < 0 ? 0.1 : -0.1
               onResizeToken(token.number, clampTokenSize(token.size + delta))
             }}
-          >
-            <div
-              className="flex size-full items-center justify-center"
-              style={{
-                transform: "rotate(calc(var(--map-rotation-deg, 0deg) * -1))",
-                transformOrigin: "center",
-              }}
-            >
-              <span
-                className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border-2 text-sm font-bold shadow-lg ${
-                  isDeadEnemy
-                    ? "border-black/80 bg-black text-stone-100"
-                    : isEnemy
-                      ? "border-red-900/70 bg-red-700 text-red-50"
-                      : "border-sky-900/70 bg-sky-700 text-sky-50"
-                } ${isSelected ? "ring-4 ring-amber-200/90" : ""}`}
-              >
-                {tokenImage ? (
-                  <>
-                    <img
-                      src={tokenImage}
-                      alt={linkedCharacter?.nombre ?? token.nombre}
-                      className="absolute inset-0 size-full object-cover"
-                      draggable={false}
-                    />
-                    <span className="absolute inset-0 bg-black/10" aria-hidden="true" />
-                    <span className="absolute bottom-0 right-0 z-10 flex min-w-5 items-center justify-center rounded-tl-md bg-black/70 px-1 text-[0.65rem] font-black leading-none text-white">
-                      {token.number}
-                    </span>
-                  </>
-                ) : (
-                  token.number
-                )}
-              </span>
-            </div>
-          </button>
+          />
         )
       })}
 
+      {orderedObstacles.map((obstacle) => (
+        <BattleObstacleItem
+          key={`obstacle-${obstacle.id}`}
+          obstacle={obstacle}
+          renderedPosition={obstaclePreviewPositions[obstacle.id] ?? transformPosition({ x: obstacle.x, y: obstacle.y })}
+          isSelected={obstacle.id === selectedObstacleId}
+          interactive={interactive}
+          onRemoveObstacle={onRemoveObstacle}
+          onResizeObstacle={onResizeObstacle}
+          onSelectObstacle={onSelectObstacle}
+          onPointerDown={handleObstaclePointerDown(obstacle)}
+          onResizePointerDown={(handle) => handleObstacleResizePointerDown(obstacle, handle)}
+        />
+      ))}
+
+      {interactive && selectedObstacle && selectedObstacleRenderedPosition ? (
+        <SelectedObstacleToolbar
+          obstacle={selectedObstacle}
+          renderedPosition={selectedObstacleRenderedPosition}
+          onRemoveObstacle={onRemoveObstacle}
+        />
+      ) : null}
+
       {enableTokenInspector && inspectedToken ? (
-        <div
-          className="pointer-events-auto absolute z-10 w-52 max-w-[calc(100%-1rem)] rounded-xl border border-stone-200/90 bg-white/95 p-2 pb-6 text-stone-900 shadow-2xl backdrop-blur relative"
-          style={{
-            left: `${clamp(
-              (tokenPreviewPositions[inspectedToken.number]?.x ?? inspectedToken.x) +
-                ((tokenPreviewPositions[inspectedToken.number]?.x ?? inspectedToken.x) > 72 ? -12 : 12),
-              14,
-              86,
-            )}%`,
-            top: `${clamp(
-              (tokenPreviewPositions[inspectedToken.number]?.y ?? inspectedToken.y) +
-                ((tokenPreviewPositions[inspectedToken.number]?.y ?? inspectedToken.y) < 20 ? 12 : -12),
-              14,
-              86,
-            )}%`,
-            transform: "translate(-50%, -50%) rotate(calc(var(--map-rotation-deg, 0deg) * -1))",
-            transformOrigin: "center",
-          }}
-          data-battle-wheel-stop="true"
-          onMouseEnter={() => {
-            if (isInspectorPinned) {
-              clearInspectorCloseTimeout()
-            }
-          }}
-          onMouseLeave={() => {
-            if (!isInspectorPinned) {
-              scheduleInspectorClose(inspectedToken.number)
-            }
-          }}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-                #{inspectedToken.number}
-              </p>
-              {tokenInspectorEditable ? (
-                <input
-                  value={inspectedToken.nombre}
-                  aria-label={`Nombre de la ficha ${inspectedToken.number}`}
-                  className="mt-1 block h-7 w-full rounded-lg border border-stone-200 bg-white px-2 text-[11px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
-                  placeholder="Nombre"
-                  disabled={!tokenInspectorEditable}
-                  onPointerDown={(event) => {
-                    event.stopPropagation()
-                  }}
-                  onFocus={() => {
-                    openInspector(inspectedToken.number, true)
-                  }}
-                  onChange={(event) => {
-                    onUpdateTokenDetails?.(inspectedToken.number, { nombre: event.target.value })
-                  }}
-                />
-              ) : (
-                <p className="truncate text-[11px] font-semibold text-stone-900">
-                  {inspectedToken.nombre || `Ficha ${inspectedToken.number}`}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="rounded-md bg-stone-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600">
-                {inspectedToken.type === "enemy" ? "Enemigo" : "Jugador"}
-              </span>
-              <button
-                type="button"
-                className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                }}
-                onClick={() => {
-                  closeInspector(true)
-                }}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <input
-              inputMode="decimal"
-              aria-label={`Iniciativa de la ficha ${inspectedToken.number}`}
-              value={typeof inspectedToken.initiative === "number" ? String(inspectedToken.initiative) : ""}
-              className="h-7 w-full rounded-lg border border-stone-200 bg-white px-2 text-[11px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
-              placeholder="Ini"
-              onPointerDown={(event) => {
-                event.stopPropagation()
-              }}
-              onFocus={(event) => {
-                openInspector(inspectedToken.number, true)
-                event.currentTarget.select()
-              }}
-              onChange={(event) => {
-                onUpdateTokenDetails?.(inspectedToken.number, {
-                  initiative: parseInitiativeInput(event.target.value),
-                })
-              }}
-              disabled={!tokenInspectorEditable}
-            />
-            <input
-              inputMode="numeric"
-              aria-label={`Vida de la ficha ${inspectedToken.number}`}
-              value={typeof inspectedToken.life === "number" ? String(inspectedToken.life) : ""}
-              className={`h-7 w-full rounded-lg px-2 text-[11px] font-medium outline-none transition ${
-                inspectedToken.type === "enemy"
-                  ? "border border-red-100 bg-red-50 text-red-700 focus:border-red-300"
-                  : "border border-sky-100 bg-sky-50 text-sky-700 focus:border-sky-300"
-              }`}
-              placeholder="Vida"
-              onPointerDown={(event) => {
-                event.stopPropagation()
-              }}
-              onFocus={(event) => {
-                openInspector(inspectedToken.number, true)
-                event.currentTarget.select()
-              }}
-              onChange={(event) => {
-                onUpdateTokenDetails?.(inspectedToken.number, {
-                  life: parseNumberInput(event.target.value),
-                })
-              }}
-              disabled={!tokenInspectorEditable}
-            />
-            <input
-              aria-label={`Estado de la ficha ${inspectedToken.number}`}
-              value={inspectedToken.status}
-              className="col-span-2 h-7 w-full rounded-lg border border-stone-200 bg-white px-2 text-[11px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
-              placeholder="Estado"
-              onPointerDown={(event) => {
-                event.stopPropagation()
-              }}
-              onFocus={() => {
-                openInspector(inspectedToken.number, true)
-              }}
-              onChange={(event) => {
-                onUpdateTokenDetails?.(inspectedToken.number, { status: event.target.value })
-              }}
-              disabled={!tokenInspectorEditable}
-            />
-          </div>
-
-          <div className="absolute bottom-2 left-2 flex items-center justify-start">
-            <span
-              aria-hidden="true"
-              className={`relative block size-3 rounded-full ${isInspectorPinned ? "border-2 border-black" : "border border-stone-300"}`}
-              style={{
-                background: isInspectorPinned
-                  ? "conic-gradient(#111827 360deg, #111827 360deg)"
-                  : `conic-gradient(#78716c ${Math.round(inspectorPinProgress * 360)}deg, #e7e5e4 0deg)`,
-              }}
-            >
-              <span className="absolute inset-[2px] rounded-full bg-white/95" />
-            </span>
-          </div>
-        </div>
+        <BattleTokenInspector
+          inspectedToken={inspectedToken}
+          inspectedTokenStatusDefinition={inspectedTokenStatusDefinition}
+          inspectorPlacement={inspectorPlacement}
+          statusDefinitions={statusDefinitions}
+          tokenInspectorEditable={tokenInspectorEditable}
+          isTokenDetailAvailable={isTokenDetailAvailable}
+          onOpenInspector={openInspector}
+          onCloseInspector={closeInspector}
+          onUpdateTokenDetails={onUpdateTokenDetails}
+          onRequestTokenDelete={onRequestTokenDelete}
+          onRequestTokenCropEdit={onRequestTokenCropEdit}
+          onRequestTokenDetail={onRequestTokenDetail}
+        />
       ) : null}
     </div>
   )

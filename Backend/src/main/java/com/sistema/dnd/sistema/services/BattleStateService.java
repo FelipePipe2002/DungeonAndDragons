@@ -40,7 +40,10 @@ public class BattleStateService {
     }
 
     public BattleStateDto findCurrent() {
-        throw new ResponseStatusException(HttpStatus.GONE, "Usa /v1/battles");
+        return battleStateRepository
+            .findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
+            .map(this::toDto)
+            .orElse(null);
     }
 
     public BattleStateDto updateCurrent(BattleStateUpsertRequest request) {
@@ -73,16 +76,19 @@ public class BattleStateService {
     public BattleStateDto create(CreateBattleRequest request) {
         String landmarkSlug = requireLandmarkSlug(request == null ? null : request.landmarkSlug());
 
-        battleStateRepository.findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(landmarkSlug, BattleStatus.ACTIVE)
+        battleStateRepository.findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
             .ifPresent(existing -> {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una batalla activa para este landmark");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una batalla activa en el juego");
             });
 
         BattleStateEntity entity = new BattleStateEntity();
         entity.setSlug(buildBattleSlug());
         entity.setLandmarkSlug(landmarkSlug);
+        entity.setTitle(defaultBattleTitle(landmarkSlug));
         entity.setStatus(BattleStatus.ACTIVE);
         entity.setEndedAt(null);
+        entity.setRoundNumber(1);
+        entity.setDmNotes(null);
         entity.setNextTokenNumber(1);
         entity.setCurrentTurnTokenNumber(null);
         entity.setTokensJson("[]");
@@ -104,6 +110,9 @@ public class BattleStateService {
             normalizedTokens
         );
 
+        entity.setTitle(normalizeBattleTitle(request == null ? null : request.title(), entity.getLandmarkSlug()));
+        entity.setRoundNumber(normalizeRoundNumber(request == null ? null : request.roundNumber()));
+        entity.setDmNotes(normalizeBattleNotes(request == null ? null : request.dmNotes()));
         entity.setNextTokenNumber(resolveNextTokenNumber(request == null ? null : request.nextTokenNumber(), normalizedTokens));
         entity.setCurrentTurnTokenNumber(normalizedCurrentTurnTokenNumber);
         entity.setTokensJson(battleStateJsonCodec.write(normalizedTokens));
@@ -130,9 +139,8 @@ public class BattleStateService {
     @Transactional
     public BattleStateDto reopen(Long id) {
         BattleStateEntity entity = requireBattle(id);
-        String landmarkSlug = requireLandmarkSlug(entity.getLandmarkSlug());
 
-        battleStateRepository.findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(landmarkSlug, BattleStatus.ACTIVE)
+        battleStateRepository.findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
             .ifPresent(activeBattle -> {
                 if (!Objects.equals(activeBattle.getId(), entity.getId())) {
                     activeBattle.setStatus(BattleStatus.FINISHED);
@@ -143,6 +151,9 @@ public class BattleStateService {
 
         entity.setStatus(BattleStatus.ACTIVE);
         entity.setEndedAt(null);
+        entity.setTitle(normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()));
+        entity.setRoundNumber(normalizeRoundNumber(entity.getRoundNumber()));
+        entity.setDmNotes(normalizeBattleNotes(entity.getDmNotes()));
         entity.setCurrentTurnTokenNumber(
             normalizeCurrentTurnTokenNumber(
                 entity.getCurrentTurnTokenNumber(),
@@ -200,6 +211,7 @@ public class BattleStateService {
             entity.getId(),
             entity.getSlug(),
             normalizedOrNull(entity.getLandmarkSlug()),
+            normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()),
             toStatusValue(effectiveStatus(entity)),
             entity.getCreatedAt(),
             entity.getUpdatedAt(),
@@ -218,7 +230,10 @@ public class BattleStateService {
             entity.getId(),
             entity.getSlug(),
             requireLandmarkSlug(entity.getLandmarkSlug()),
+            normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()),
             toStatusValue(effectiveStatus(entity)),
+            normalizeRoundNumber(entity.getRoundNumber()),
+            normalizeBattleNotes(entity.getDmNotes()),
             resolveNextTokenNumber(entity.getNextTokenNumber(), tokens),
             normalizedCurrentTurnTokenNumber,
             tokens,
@@ -305,8 +320,19 @@ public class BattleStateService {
         String type = normalizeTokenType(token.type());
         String nombre = normalizedOrNull(token.nombre());
         Integer characterId = positiveOptionalInt(token.characterId());
+        String sourceType = normalizeTokenSourceType(token.sourceType(), characterId);
+        String sourceRef = normalizeTokenSourceRef(token.sourceRef(), sourceType, characterId);
+        String image = normalizedOrNull(token.image());
+        Long imageAssetId = positiveOptionalLong(token.imageAssetId());
+        Double imageFocusX = clampPercent(token.imageFocusX(), 50);
+        Double imageFocusY = clampPercent(token.imageFocusY(), 50);
+        Double imageZoom = clampTokenImageZoom(token.imageZoom(), 1);
         if (nombre == null) {
             nombre = "%s %d".formatted(type.equals("player") ? "Jugador" : "Enemigo", number);
+        }
+
+        if (imageAssetId != null) {
+            image = null;
         }
 
         Integer life = optionalInt(token.life());
@@ -316,6 +342,13 @@ public class BattleStateService {
             number,
             trimToLength(nombre, 120),
             characterId,
+            sourceType,
+            sourceRef,
+            trimToLength(image, 2000),
+            imageAssetId,
+            imageFocusX,
+            imageFocusY,
+            imageZoom,
             type,
             clampPercent(token.x(), 50),
             clampPercent(token.y(), 50),
@@ -378,6 +411,32 @@ public class BattleStateService {
         return lowered.equals("player") ? "player" : "enemy";
     }
 
+    private String normalizeTokenSourceType(String value, Integer characterId) {
+        if (characterId != null) {
+            return "character";
+        }
+
+        String normalized = normalizedOrNull(value);
+        if (normalized == null) {
+            return "manual";
+        }
+
+        String lowered = normalized.toLowerCase(Locale.ROOT);
+        return lowered.equals("monster") ? "monster" : "manual";
+    }
+
+    private String normalizeTokenSourceRef(String value, String sourceType, Integer characterId) {
+        if ("character".equals(sourceType) && characterId != null) {
+            return String.valueOf(characterId);
+        }
+
+        if ("monster".equals(sourceType)) {
+            return trimToLength(normalizedOrNull(value), 255);
+        }
+
+        return null;
+    }
+
     private String normalizeObstacleShape(String value) {
         String normalized = normalizedOrNull(value);
         if (normalized == null) {
@@ -386,6 +445,23 @@ public class BattleStateService {
 
         String lowered = normalized.toLowerCase(Locale.ROOT);
         return lowered.equals("circle") ? "circle" : "rectangle";
+    }
+
+    private String normalizeBattleTitle(String value, String landmarkSlug) {
+        String normalized = trimToLength(normalizedOrNull(value), 255);
+        if (normalized != null) {
+            return normalized;
+        }
+
+        return defaultBattleTitle(landmarkSlug);
+    }
+
+    private int normalizeRoundNumber(Integer value) {
+        return positiveInt(value, 1);
+    }
+
+    private String normalizeBattleNotes(String value) {
+        return trimToLength(normalizedOrNull(value), 8000);
     }
 
     private String requireLandmarkSlug(String value) {
@@ -433,7 +509,15 @@ public class BattleStateService {
             return fallback;
         }
 
-        return Math.max(0.4, Math.min(2, value));
+        return value;
+    }
+
+    private Double clampTokenImageZoom(Double value, double fallback) {
+        if (value == null || !Double.isFinite(value)) {
+            return fallback;
+        }
+
+        return Math.max(1, Math.min(3, value));
     }
 
     private Double clampObstacleDimension(Double value, double fallback) {
@@ -472,6 +556,13 @@ public class BattleStateService {
         return value;
     }
 
+    private Long positiveOptionalLong(Long value) {
+        if (value == null || value < 1) {
+            return null;
+        }
+        return value;
+    }
+
     private BattleStatus effectiveStatus(BattleStateEntity entity) {
         return entity.getStatus() == null ? BattleStatus.FINISHED : entity.getStatus();
     }
@@ -482,5 +573,20 @@ public class BattleStateService {
 
     private String buildBattleSlug() {
         return "battle-" + UUID.randomUUID();
+    }
+
+    private String defaultBattleTitle(String landmarkSlug) {
+        String normalizedSlug = requireLandmarkSlug(landmarkSlug);
+        String[] parts = normalizedSlug.split("-");
+        String label = java.util.Arrays.stream(parts)
+            .filter(part -> !part.isBlank())
+            .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
+            .collect(Collectors.joining(" "));
+
+        if (label.isBlank()) {
+            return "Batalla";
+        }
+
+        return "Batalla en " + label;
     }
 }

@@ -28,12 +28,21 @@ public class BattleStateEntity extends AuditableEntity {
     @Column(name = "landmark_slug", length = 255)
     private String landmarkSlug;
 
+    @Column(name = "title", nullable = false, length = 255)
+    private String title = "";
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private BattleStatus status = BattleStatus.ACTIVE;
 
     @Column(name = "ended_at")
     private OffsetDateTime endedAt;
+
+    @Column(name = "round_number", nullable = false)
+    private Integer roundNumber = 1;
+
+    @Column(name = "dm_notes", columnDefinition = "TEXT")
+    private String dmNotes;
 
     @Column(name = "next_token_number", nullable = false)
     private Integer nextTokenNumber = 1;
