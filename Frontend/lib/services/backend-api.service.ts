@@ -65,6 +65,10 @@ function readStoredXsrfToken() {
   return window.localStorage.getItem(XSRF_STORAGE_KEY)
 }
 
+export function readBackendXsrfToken() {
+  return readStoredXsrfToken()
+}
+
 function writeStoredXsrfToken(token: string | null) {
   if (!isBrowser()) return
   if (!token) {

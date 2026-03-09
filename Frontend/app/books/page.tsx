@@ -5,7 +5,12 @@ import { BookOpen, ExternalLink, Loader2, Trash2, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
-import { deleteBook, fetchBooks, uploadBook } from "@/lib/services/book-api.service"
+import {
+  deleteBook,
+  fetchBooks,
+  uploadBook,
+  type BookUploadProgress,
+} from "@/lib/services/book-api.service"
 import type { StoredBook } from "@/lib/types"
 
 const BOOK_FILE_ACCEPT =
@@ -55,6 +60,7 @@ export default function BooksPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<BookUploadProgress | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -100,13 +106,27 @@ export default function BooksPage() {
 
   async function handleUpload(file: File) {
     setIsUploading(true)
+    setUploadProgress({
+      fileName: file.name,
+      frontendPercent: 0,
+      frontendUploadedBytes: 0,
+      frontendTotalBytes: file.size,
+      backendStatus: "awaiting_upload",
+      backendPercent: 0,
+      backendProcessedBytes: 0,
+      backendTotalBytes: file.size || null,
+    })
     setStatusMessage(null)
     setErrorMessage(null)
 
     try {
-      const createdBook = await uploadBook(file)
+      const createdBook = await uploadBook(file, {
+        onProgress: (nextProgress) => {
+          setUploadProgress(nextProgress)
+        },
+      })
       await reloadBooks(createdBook.id)
-      setStatusMessage(`Libro cargado: ${createdBook.filename}`)
+      setUploadProgress(null)
     } catch (error) {
       setErrorMessage(getBackendErrorMessage(error, "No se pudo subir el libro."))
     } finally {
@@ -141,6 +161,15 @@ export default function BooksPage() {
     if (!file) return
     void handleUpload(file)
   }
+
+  const uploadPhaseLabel =
+    uploadProgress?.backendStatus === "completed"
+      ? "Completado"
+      : uploadProgress?.backendStatus === "failed"
+        ? "Error"
+        : uploadProgress?.frontendPercent === 100
+          ? "Procesando en backend"
+          : "Subiendo al backend"
 
   return (
     <div className="mx-auto w-full max-w-[2200px] px-4 py-6 md:px-6 md:py-8">
@@ -179,6 +208,74 @@ export default function BooksPage() {
           </div>
         </div>
         <div className="ornament-divider mt-4">~</div>
+
+        {uploadProgress ? (
+          <div className="mt-4 rounded-sm border border-border bg-card p-4">
+            <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Subida actual</p>
+                <p className="max-w-[720px] truncate text-xs text-muted-foreground">{uploadProgress.fileName}</p>
+              </div>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Estado: {uploadPhaseLabel}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>Frontend</span>
+                  <span>
+                    {uploadProgress.frontendPercent}% · {formatByteSize(uploadProgress.frontendUploadedBytes)} /{" "}
+                    {formatByteSize(uploadProgress.frontendTotalBytes)}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-200"
+                    style={{ width: `${uploadProgress.frontendPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>Backend</span>
+                  <span>
+                    {uploadProgress.backendStatus === "awaiting_upload"
+                      ? "Esperando recepcion"
+                      : `${uploadProgress.backendPercent}% · ${formatByteSize(uploadProgress.backendProcessedBytes)} / ${formatByteSize(uploadProgress.backendTotalBytes ?? 0)}`}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-amber-600 transition-[width] duration-200"
+                    style={{
+                      width: `${
+                        uploadProgress.backendStatus === "awaiting_upload" ? 6 : uploadProgress.backendPercent
+                      }%`,
+                    }}
+                  />
+                </div>
+                {uploadProgress.backendErrorMessage ? (
+                  <p className="mt-1 text-xs text-destructive">{uploadProgress.backendErrorMessage}</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {statusMessage ? (
+          <div className="mt-4 rounded-sm border border-emerald-600/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-900">
+            {statusMessage}
+          </div>
+        ) : null}
+
+        {errorMessage ? (
+          <div className="mt-4 rounded-sm border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
       </div>
 
       {isLoading ? (

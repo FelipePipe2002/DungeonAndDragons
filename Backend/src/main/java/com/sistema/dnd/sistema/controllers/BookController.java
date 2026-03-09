@@ -1,6 +1,7 @@
 package com.sistema.dnd.sistema.controllers;
 
 import com.sistema.dnd.sistema.dto.domain.BookDto;
+import com.sistema.dnd.sistema.dto.domain.BookUploadSessionDto;
 import com.sistema.dnd.sistema.services.BookService;
 import java.util.List;
 import org.springframework.core.io.Resource;
@@ -33,9 +34,22 @@ public class BookController {
         return bookService.findAll();
     }
 
+    @PostMapping("/uploads")
+    public ResponseEntity<BookUploadSessionDto> createUploadSession() {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bookService.createUploadSession());
+    }
+
+    @GetMapping("/uploads/{sessionId}")
+    public BookUploadSessionDto getUploadSession(@PathVariable String sessionId) {
+        return bookService.getUploadSession(sessionId);
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BookDto> upload(@RequestParam("file") MultipartFile file) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(bookService.create(file));
+    public ResponseEntity<BookDto> upload(
+        @RequestParam("file") MultipartFile file,
+        @RequestParam(value = "uploadSessionId", required = false) String uploadSessionId
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(bookService.create(file, uploadSessionId));
     }
 
     @GetMapping("/{id}")

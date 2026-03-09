@@ -1,5 +1,6 @@
 package com.sistema.dnd.sistema.exception;
 
+import com.sistema.dnd.sistema.services.BookUploadProgressService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,6 +25,12 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private final BookUploadProgressService bookUploadProgressService;
+
+    public GlobalExceptionHandler(BookUploadProgressService bookUploadProgressService) {
+        this.bookUploadProgressService = bookUploadProgressService;
+    }
 
     private Map<String, Object> baseBody(HttpStatus status, String message, HttpServletRequest request) {
         Map<String, Object> body = new HashMap<>();
@@ -99,7 +106,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException ex, HttpServletRequest request) {
         HttpStatus status = HttpStatus.PAYLOAD_TOO_LARGE;
-        Map<String, Object> body = baseBody(status, "El archivo supera el tamano maximo permitido para la subida", request);
+        String uploadSessionId = request.getParameter("uploadSessionId");
+        if (uploadSessionId != null && !uploadSessionId.isBlank()) {
+            bookUploadProgressService.markFailed(uploadSessionId, "El archivo supera el tamano maximo permitido de 500 MB");
+        }
+
+        Map<String, Object> body = baseBody(status, "El archivo supera el tamano maximo permitido de 500 MB", request);
         String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         if (detail != null && !detail.isBlank()) {
             body.put("detail", detail);

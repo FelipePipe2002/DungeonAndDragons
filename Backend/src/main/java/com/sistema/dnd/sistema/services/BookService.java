@@ -1,6 +1,7 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.BookDto;
+import com.sistema.dnd.sistema.dto.domain.BookUploadSessionDto;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.MediaAssetStorageMode;
@@ -8,10 +9,11 @@ import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.NoSuchAlgorithmException;
 import java.security.MessageDigest;
@@ -31,17 +33,20 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class BookService {
 
-    private static final long MAX_UPLOAD_BYTES = 250L * 1024L * 1024L;
+    private static final long MAX_UPLOAD_BYTES = 500L * 1024L * 1024L;
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".pdf", ".epub", ".txt", ".md");
 
     private final MediaAssetRepository mediaAssetRepository;
+    private final BookUploadProgressService bookUploadProgressService;
     private final Path booksStorageRoot;
 
     public BookService(
         MediaAssetRepository mediaAssetRepository,
+        BookUploadProgressService bookUploadProgressService,
         @Value("${app.storage.books-dir:storage/books}") String booksStorageDir
     ) {
         this.mediaAssetRepository = mediaAssetRepository;
+        this.bookUploadProgressService = bookUploadProgressService;
         this.booksStorageRoot = Paths.get(booksStorageDir).toAbsolutePath().normalize();
     }
 
@@ -52,8 +57,16 @@ public class BookService {
             .toList();
     }
 
+    public BookUploadSessionDto createUploadSession() {
+        return bookUploadProgressService.createSession();
+    }
+
+    public BookUploadSessionDto getUploadSession(String sessionId) {
+        return bookUploadProgressService.getStatus(sessionId);
+    }
+
     @Transactional
-    public BookDto create(MultipartFile file) {
+    public BookDto create(MultipartFile file, String uploadSessionId) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo es obligatorio");
         }
@@ -63,7 +76,7 @@ public class BookService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo esta vacio");
         }
         if (declaredSize > MAX_UPLOAD_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo supera el tamano maximo permitido de 250 MB");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo supera el tamano maximo permitido de 500 MB");
         }
 
         String filename = normalizeFilename(file.getOriginalFilename());
@@ -78,24 +91,34 @@ public class BookService {
         ensureStorageRootExists();
         String storedFilename = buildStoredFilename(extension);
         Path targetPath = booksStorageRoot.resolve(storedFilename).normalize();
-        StoredFile storedFile = storeFile(file, targetPath, storedFilename);
-
-        MediaAssetEntity entity = new MediaAssetEntity();
-        entity.setKind(MediaAssetKind.book);
-        entity.setFilename(filename);
-        entity.setContentType(resolveContentType(file.getContentType(), extension));
-        entity.setByteSize(storedFile.byteSize());
-        entity.setChecksumSha256(storedFile.checksumSha256());
-        entity.setStorageMode(MediaAssetStorageMode.file_system);
-        entity.setStoragePath(storedFile.storagePath());
-        entity.setBinaryContent(null);
-        entity.setTextContent(null);
+        bookUploadProgressService.markProcessing(uploadSessionId, declaredSize, filename);
 
         try {
-            MediaAssetEntity saved = mediaAssetRepository.save(entity);
-            return toDto(saved);
+            StoredFile storedFile = storeFile(file, targetPath, storedFilename, declaredSize, uploadSessionId);
+
+            MediaAssetEntity entity = new MediaAssetEntity();
+            entity.setKind(MediaAssetKind.book);
+            entity.setFilename(filename);
+            entity.setContentType(resolveContentType(file.getContentType(), extension));
+            entity.setByteSize(storedFile.byteSize());
+            entity.setChecksumSha256(storedFile.checksumSha256());
+            entity.setStorageMode(MediaAssetStorageMode.file_system);
+            entity.setStoragePath(storedFile.storagePath());
+            entity.setBinaryContent(null);
+            entity.setTextContent(null);
+
+            try {
+                MediaAssetEntity saved = mediaAssetRepository.save(entity);
+                bookUploadProgressService.markCompleted(uploadSessionId, saved.getId(), saved.getFilename(), storedFile.byteSize());
+                return toDto(saved);
+            } catch (RuntimeException ex) {
+                deleteStoredFileIfExists(targetPath);
+                bookUploadProgressService.markFailed(uploadSessionId, extractFailureMessage(ex));
+                throw ex;
+            }
         } catch (RuntimeException ex) {
             deleteStoredFileIfExists(targetPath);
+            bookUploadProgressService.markFailed(uploadSessionId, extractFailureMessage(ex));
             throw ex;
         }
     }
@@ -166,13 +189,37 @@ public class BookService {
         return UUID.randomUUID() + extension;
     }
 
-    private StoredFile storeFile(MultipartFile file, Path targetPath, String storedFilename) {
+    private StoredFile storeFile(
+        MultipartFile file,
+        Path targetPath,
+        String storedFilename,
+        long declaredSize,
+        String uploadSessionId
+    ) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             try (InputStream inputStream = file.getInputStream();
-                 DigestInputStream digestStream = new DigestInputStream(inputStream, digest)) {
-                long writtenBytes = Files.copy(digestStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                 DigestInputStream digestStream = new DigestInputStream(inputStream, digest);
+                 OutputStream outputStream = Files.newOutputStream(
+                     targetPath,
+                     StandardOpenOption.CREATE,
+                     StandardOpenOption.TRUNCATE_EXISTING,
+                     StandardOpenOption.WRITE
+                 )) {
+                byte[] buffer = new byte[1024 * 1024];
+                long writtenBytes = 0L;
+                int readBytes;
+
+                while ((readBytes = digestStream.read(buffer)) >= 0) {
+                    if (readBytes == 0) {
+                        continue;
+                    }
+
+                    outputStream.write(buffer, 0, readBytes);
+                    writtenBytes += readBytes;
+                    bookUploadProgressService.updateProcessedBytes(uploadSessionId, writtenBytes, declaredSize);
+                }
 
                 if (writtenBytes <= 0) {
                     deleteStoredFileIfExists(targetPath);
@@ -191,6 +238,22 @@ public class BookService {
             deleteStoredFileIfExists(targetPath);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo guardar el archivo");
         }
+    }
+
+    private String extractFailureMessage(RuntimeException exception) {
+        if (exception instanceof ResponseStatusException responseStatusException) {
+            String reason = responseStatusException.getReason();
+            if (reason != null && !reason.isBlank()) {
+                return reason;
+            }
+        }
+
+        String message = exception.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+
+        return "No se pudo subir el libro";
     }
 
     private String normalizeFilename(String originalFilename) {

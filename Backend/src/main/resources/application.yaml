@@ -4,8 +4,8 @@ spring:
     import: optional:file:.env[.properties]
   servlet:
     multipart:
-      max-file-size: 250MB
-      max-request-size: 255MB
+      max-file-size: 520MB
+      max-request-size: 530MB
   datasource:
     url: jdbc:postgresql://localhost:5432/${DB_NAME}?serverTimezone=America/Argentina/Buenos_Aires
     username: ${DB_USERNAME}
