@@ -10,7 +10,6 @@ const navItems = [
   { href: "/mapa", label: "Mapa", icon: Scroll },
   { href: "/batalla", label: "Batalla", icon: Swords },
   { href: "/presentacion", label: "Presentacion", icon: Monitor, opensInPresentationWindow: true },
-  { href: "/Jugadores", label: "Jugadores", icon: Users },
   { href: "/personajes", label: "Personajes", icon: Users },
   { href: "/edificios", label: "Edificios", icon: Building2 },
   { href: "/organizaciones", label: "Organizaciones", icon: Shield },
@@ -23,6 +22,7 @@ const navItems = [
 export function AppNav() {
   const pathname = usePathname()
   const isPresentationScreenPage = pathname === "/presentacion"
+  const normalizedPathname = pathname === "/Jugadores" ? "/personajes" : pathname
 
   if (pathname === "/login" || isPresentationScreenPage) {
     return null
@@ -43,7 +43,7 @@ export function AppNav() {
           </Link>
           <div className="flex items-center">
             {navItems.map((item) => {
-              const isActive = pathname === item.href
+              const isActive = normalizedPathname === item.href
               if (item.opensInPresentationWindow) {
                 return (
                   <button

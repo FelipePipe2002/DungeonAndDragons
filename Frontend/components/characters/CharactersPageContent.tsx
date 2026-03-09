@@ -46,22 +46,27 @@ function CharacterImage({
 }
 
 type CharactersPageContentProps = {
-  title: string
-  emptyLabel: string
-  loadingLabel: string
-  noMatchesLabel: string
-  creationLabel: string
-  scope: "players" | "npcs"
+  initialScope?: "players" | "npcs"
 }
 
-export function CharactersPageContent({
-  title,
-  emptyLabel,
-  loadingLabel,
-  noMatchesLabel,
-  creationLabel,
-  scope,
-}: CharactersPageContentProps) {
+const CHARACTER_SCOPE_LABELS = {
+  players: {
+    tabLabel: "Jugadores",
+    emptyLabel: "jugadores registrados en el codex",
+    loadingLabel: "Cargando jugadores...",
+    noMatchesLabel: "No hay jugadores que coincidan.",
+    creationLabel: "Crear Jugador",
+  },
+  npcs: {
+    tabLabel: "Personajes",
+    emptyLabel: "personajes registrados en el codex",
+    loadingLabel: "Cargando personajes...",
+    noMatchesLabel: "No hay personajes que coincidan.",
+    creationLabel: "Crear Personaje",
+  },
+} as const
+
+export function CharactersPageContent({ initialScope = "npcs" }: CharactersPageContentProps) {
   const [charactersData, setCharactersData] = useState<Character[]>([])
   const [landmarkNamesById, setLandmarkNamesById] = useState<Record<number, string>>({})
   const [buildingNamesById, setBuildingNamesById] = useState<Record<number, string>>({})
@@ -73,6 +78,7 @@ export function CharactersPageContent({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedSheetCharacter, setSelectedSheetCharacter] = useState<Character | null>(null)
   const [characterSheetDialogOpen, setCharacterSheetDialogOpen] = useState(false)
+  const [scope, setScope] = useState<"players" | "npcs">(initialScope)
 
   const loadPageData = useCallback(async () => {
     setIsLoading(true)
@@ -137,6 +143,8 @@ export function CharactersPageContent({
     [buildingNamesById, landmarkNamesById, organizationNamesById, scopedCharacters, searchQuery],
   )
 
+  const scopeLabels = CHARACTER_SCOPE_LABELS[scope]
+
   const handleOpenCharacterDialog = (character: Character) => {
     setSelectedCharacter(character)
     setDialogOpen(true)
@@ -181,22 +189,41 @@ export function CharactersPageContent({
               <Swords className="size-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-serif text-primary">{title}</h1>
+              <h1 className="text-3xl font-serif text-primary">Personajes</h1>
               <p className="text-sm text-muted-foreground">
-                {filteredCharacters.length} de {scopedCharacters.length} {emptyLabel}
+                {filteredCharacters.length} de {scopedCharacters.length} {scopeLabels.emptyLabel}
               </p>
             </div>
           </div>
-          <Button
-            onClick={() => {
-              setSelectedCharacter(null)
-              setDialogOpen(true)
-            }}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            {creationLabel}
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-sm border border-border bg-card p-1">
+              {(["players", "npcs"] as const).map((scopeOption) => {
+                const isActive = scope === scopeOption
+                return (
+                  <Button
+                    key={scopeOption}
+                    type="button"
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => setScope(scopeOption)}
+                  >
+                    {CHARACTER_SCOPE_LABELS[scopeOption].tabLabel}
+                  </Button>
+                )
+              })}
+            </div>
+            <Button
+              onClick={() => {
+                setSelectedCharacter(null)
+                setDialogOpen(true)
+              }}
+              className="gap-2"
+            >
+              <Plus className="size-4" />
+              {scopeLabels.creationLabel}
+            </Button>
+          </div>
         </div>
         <div className="ornament-divider mt-4">~</div>
       </div>
@@ -208,7 +235,7 @@ export function CharactersPageContent({
         className="mb-4"
       />
       {loadError && <p className="mb-4 text-sm text-destructive">{loadError}</p>}
-      {isLoading && <p className="mb-4 text-sm text-muted-foreground">{loadingLabel}</p>}
+      {isLoading && <p className="mb-4 text-sm text-muted-foreground">{scopeLabels.loadingLabel}</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredCharacters.map((character) => {
@@ -319,7 +346,7 @@ export function CharactersPageContent({
       </div>
 
       {filteredCharacters.length === 0 && (
-        <p className="mt-6 text-center text-sm text-muted-foreground">{noMatchesLabel}</p>
+        <p className="mt-6 text-center text-sm text-muted-foreground">{scopeLabels.noMatchesLabel}</p>
       )}
 
       <CharacterDetailDialog
