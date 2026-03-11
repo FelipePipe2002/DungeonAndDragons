@@ -4,7 +4,9 @@
 import { useState } from "react"
 import type { MonsterRecord } from "@/lib/monster/types"
 
+import { MONSTER_UI_CSS } from "@/lib/monster/monster-ui-css"
 import { buildMonsterPanelModel, cleanInlineText, containsAlertMarker } from "@/lib/monster/monster-panel-service"
+import { resolveMonsterImage } from "@/lib/monster/utils"
 
 function renderInlineText(text, key) {
   const raw = text;
@@ -310,7 +312,7 @@ function DetailsBlock({ details, isOpen }) {
   }
 
   return (
-    <section className="details-panel details-panel-open" id={details.id}>
+    <section className="details-panel" id={details.id}>
       {details.rows.length > 0 && (
         <dl className="monster-lines details-lines">
           {details.rows.map((row) => (
@@ -333,16 +335,41 @@ function DetailsBlock({ details, isOpen }) {
 type MonsterCardProps = {
   monster: MonsterRecord
   index: number
+  embedded?: boolean
 }
 
-export default function MonsterCard({ monster, index }: MonsterCardProps) {
+export default function MonsterCard({ monster, index, embedded = false }: MonsterCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const panel = buildMonsterPanelModel(monster, index)
+  const monsterImage = resolveMonsterImage(monster)
+  const body = (
+    <>
+      <StatsBlock columns={panel.statsColumns} />
+      <CombatFactsBlock rows={panel.combatRows} />
+
+      {panel.bands.length > 0 && (
+        <section className="combat-bands">
+          {panel.bands.map((band) => (
+            <SummaryBand key={band.label} label={band.label} tone={band.tone} value={band.value} />
+          ))}
+        </section>
+      )}
+
+      {panel.sections.map((section) => (
+        <PanelSection key={section.key} section={section} />
+      ))}
+
+      <DetailsBlock details={panel.details} isOpen={isDetailsOpen} />
+    </>
+  )
   return (
-    <article className={`monster-ui-theme monster-card${panel.hasError ? " monster-card-error" : ""}`}>
+    <article
+      className={`monster-ui-theme monster-card${panel.hasError ? " monster-card-error" : ""}`}
+    >
+      {embedded ? <style data-monster-ui="true">{MONSTER_UI_CSS}</style> : null}
       <header className="card-header">
         <div className="card-header-top">
-          <p className="card-index">{panel.indexLabel}</p>
+          <p className="card-index">{embedded ? "Monstruo" : panel.indexLabel}</p>
           <div className="card-header-tools">
             {panel.hasError && <span className="error-pill">{panel.errorLabel}</span>}
             {panel.hasDetailsContent && (
@@ -359,33 +386,27 @@ export default function MonsterCard({ monster, index }: MonsterCardProps) {
           </div>
         </div>
         <div className="card-title-row">
-          <h1 className="card-title">{panel.title}</h1>
-        </div>
-        {panel.metaChips.length > 0 && (
-          <div className="monster-meta">
-            {panel.metaChips.map((chip, index) => (
-              <SummaryChip chip={chip} key={`meta-chip-${index}`} />
-            ))}
+          <div className="card-title-copy">
+            <h1 className="card-title">{panel.title}</h1>
+            {panel.metaChips.length > 0 && (
+              <div className="monster-meta">
+                {panel.metaChips.map((chip, index) => (
+                  <SummaryChip chip={chip} key={`meta-chip-${index}`} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          {monsterImage && (
+            <img
+              alt={panel.title || monster.name || "Monster image"}
+              className="monster-portrait-image"
+              loading="lazy"
+              src={monsterImage}
+            />
+          )}
+        </div>
       </header>
-
-      <DetailsBlock details={panel.details} isOpen={isDetailsOpen} />
-
-      <StatsBlock columns={panel.statsColumns} />
-      <CombatFactsBlock rows={panel.combatRows} />
-
-      {panel.bands.length > 0 && (
-        <section className="combat-bands">
-          {panel.bands.map((band) => (
-            <SummaryBand key={band.label} label={band.label} tone={band.tone} value={band.value} />
-          ))}
-        </section>
-      )}
-
-      {panel.sections.map((section) => (
-        <PanelSection key={section.key} section={section} />
-      ))}
+      {embedded ? <div className="monster-inner-panel">{body}</div> : body}
     </article>
   );
 }

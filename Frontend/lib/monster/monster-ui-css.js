@@ -1,13 +1,11 @@
 export const MONSTER_UI_CSS = String.raw`
 .monster-ui-theme {
-  --page-bg: #ece2cf;
   --panel-bg: rgba(251, 246, 236, 0.97);
   --panel-border: #b99e73;
   --panel-border-soft: rgba(114, 84, 47, 0.18);
   --ink-strong: #21160f;
   --ink-soft: #5d4936;
   --accent: #7d3e1d;
-  --accent-soft: rgba(125, 62, 29, 0.08);
   --accent-line: rgba(125, 62, 29, 0.24);
   --shadow: 0 18px 38px rgba(31, 20, 12, 0.12);
   --danger: #9d2d21;
@@ -128,6 +126,24 @@ export const MONSTER_UI_CSS = String.raw`
   justify-items: start;
 }
 
+.monster-portrait-wrap {
+  width: 104px;
+  min-width: 104px;
+  border: 1px solid var(--panel-border-soft);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 241, 0.98), rgba(239, 226, 201, 0.94));
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.monster-portrait-image {
+  display: block;
+  width: 100%;
+  height: 104px;
+  object-fit: cover;
+}
+
 .feed-status {
   display: grid;
   gap: 10px;
@@ -186,27 +202,78 @@ export const MONSTER_UI_CSS = String.raw`
 
 .monster-card {
   display: grid;
-  gap: 6px;
+  gap: 0;
   width: 100%;
   max-width: 100%;
   margin: 0;
   justify-self: start;
-  padding: 10px;
-  border: 1px solid var(--panel-border);
-  border-radius: 14px;
-  background: var(--panel-bg);
-  box-shadow: var(--shadow);
-  position: relative;
-  overflow: hidden;
+  padding: 24px;
+  border: 1px solid #d8c7ab;
+  border-left: 6px solid #7d3e1d;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(245, 236, 221, 0.97));
+  box-shadow: 0 12px 26px rgba(48, 33, 18, 0.13);
 }
 
 .monster-card::before {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border: 1px solid rgba(114, 84, 47, 0.08);
-  border-radius: 10px;
-  pointer-events: none;
+  content: none;
+}
+
+.monster-card .card-header {
+  padding-bottom: 0;
+  margin-bottom: 16px;
+  border-bottom: none;
+}
+
+.monster-card .card-index {
+  color: #7b6249;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+}
+
+.monster-card .card-title {
+  font-family: "Times New Roman", serif;
+  font-size: 1.95rem;
+  color: #6f3116;
+  line-height: 1.08;
+}
+
+.monster-card .monster-meta .summary-chip {
+  border-color: rgba(125, 62, 29, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+  color: #6a4b31;
+}
+
+.monster-inner-panel {
+  display: grid;
+  gap: 8px;
+  max-height: 65vh;
+  overflow-y: auto;
+  border: 1px solid #d7c5a8;
+  border-radius: 4px;
+  background: rgba(255, 249, 238, 0.74);
+  padding: 12px;
+}
+
+.monster-card .stats-column {
+  border-color: rgba(125, 62, 29, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.monster-card .summary-band {
+  border-color: rgba(125, 62, 29, 0.2);
+  background: rgba(255, 252, 246, 0.9);
+}
+
+.monster-card .trait-card,
+.monster-card .action-card {
+  border-top-color: rgba(125, 62, 29, 0.16);
+}
+
+.monster-card .entry-list,
+.monster-card .action-lines,
+.monster-card .extra-row > div {
+  color: #4c3828;
 }
 
 .monster-card-error {
@@ -257,10 +324,17 @@ export const MONSTER_UI_CSS = String.raw`
   letter-spacing: 0.02em;
 }
 
+.card-title-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
 .card-title-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: start;
 }
 
@@ -287,45 +361,6 @@ export const MONSTER_UI_CSS = String.raw`
   border-color: rgba(157, 45, 33, 0.22);
   background: var(--danger-soft);
   color: var(--danger);
-}
-
-.combat-summary-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(48px, 56px);
-  gap: 3px;
-  align-content: start;
-}
-
-.summary-stat {
-  display: grid;
-  gap: 1px;
-  min-height: 42px;
-  padding: 4px 3px;
-  text-align: center;
-  justify-items: center;
-  align-content: start;
-  border: 1px solid var(--panel-border-soft);
-  border-radius: 7px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(125, 62, 29, 0.03)),
-    rgba(255, 248, 236, 0.92);
-}
-
-.summary-stat span {
-  color: var(--ink-soft);
-  font-size: 0.52rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.summary-stat strong {
-  color: var(--ink-strong);
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  line-height: 1.02;
-  font-weight: 700;
 }
 
 .combat-facts {
@@ -721,10 +756,15 @@ export const MONSTER_UI_CSS = String.raw`
     gap: 8px;
   }
 
-  .combat-summary-grid {
-    grid-auto-flow: row;
-    grid-auto-columns: auto;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .monster-portrait-wrap {
+    width: 100%;
+    min-width: 0;
   }
+
+  .monster-portrait-image {
+    height: 220px;
+    object-fit: contain;
+  }
+
 }
 `;

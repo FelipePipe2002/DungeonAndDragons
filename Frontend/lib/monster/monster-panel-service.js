@@ -1427,7 +1427,7 @@ function buildAttachedItemsAction(attachedItems) {
   }
 
   return {
-    name: "Attached Items",
+    name: "Items",
     entries: attachedItems.map((item) => cleanInlineText(formatInlineValue(item))).filter(Boolean)
   };
 }

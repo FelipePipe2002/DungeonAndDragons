@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Users, Building2, Shield, Map, Scroll, BookOpen, BookMarked, Monitor, Link2, Swords } from "lucide-react"
+import { Users, Building2, Shield, Map, Scroll, BookOpen, Monitor, Swords, FileText } from "lucide-react"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const navItems = [
@@ -14,8 +14,7 @@ const navItems = [
   { href: "/edificios", label: "Edificios", icon: Building2 },
   { href: "/organizaciones", label: "Organizaciones", icon: Shield },
   { href: "/landmarks", label: "Landmarks", icon: Map },
-  { href: "/books", label: "Libros", icon: BookMarked },
-  { href: "/paginas", label: "Paginas", icon: Link2 },
+  { href: "/informacion", label: "Informacion", icon: FileText },
   { href: "/notas", label: "Notas", icon: BookOpen },
 ]
 

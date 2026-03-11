@@ -39,7 +39,6 @@ import {
   findBattleConditionByName,
   normalizeBattleConditionStatus,
 } from "@/lib/battle/conditions"
-import { MONSTER_UI_CSS } from "@/lib/monster/monster-ui-css"
 import type { MonsterListItem, MonsterRecord } from "@/lib/monster/types"
 import { extractMonsterInitiativeModifier, resolveMonsterImage } from "@/lib/monster/utils"
 import { getOrderedInitiativeTokens, normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
@@ -3744,30 +3743,7 @@ export function BattlePageClient() {
               {monsterPanelError}
             </p>
           ) : libraryMonsterPanel ? (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
-              <div className="max-h-[72vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white/80 p-3 pr-2">
-                <style data-monster-ui="true">{MONSTER_UI_CSS}</style>
-                <MonsterCard monster={libraryMonsterPanel} index={0} />
-              </div>
-              <aside className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white/90 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">Imagen</p>
-                <div className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
-                  {libraryMonsterPanelImage ? (
-                    <img
-                      src={libraryMonsterPanelImage}
-                      alt={String(libraryMonsterPanel.name ?? "Monstruo")}
-                      className="h-64 w-full object-cover"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="flex h-64 w-full items-center justify-center text-sm font-medium text-stone-500">
-                      Sin imagen
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm font-semibold text-stone-700">{String(libraryMonsterPanel.name ?? "Monstruo")}</p>
-              </aside>
-            </div>
+            <MonsterCard monster={libraryMonsterPanel} index={0} embedded />
           ) : (
             <p className="rounded-xl border border-stone-200 bg-white/80 px-3 py-3 text-sm text-stone-600">
               No hay monstruo para mostrar.
@@ -3785,7 +3761,7 @@ export function BattlePageClient() {
           }
         }}
       >
-        <DialogContent className="w-[min(96vw,72rem)] max-h-[92dvh] overflow-y-auto rounded-[2rem] border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,244,0.96))] p-4 sm:p-6">
+        <DialogContent className="w-[min(96vw,72rem)] max-w-[min(96vw,72rem)] max-h-[92dvh] overflow-y-auto gap-0 border-0 bg-transparent p-0 shadow-none">
           <DialogHeader className="sr-only">
             <DialogTitle>Detalle del monstruo</DialogTitle>
             <DialogDescription>Información completa del monstruo vinculado a la ficha seleccionada.</DialogDescription>
@@ -3800,10 +3776,7 @@ export function BattlePageClient() {
               {monsterDetailError}
             </p>
           ) : detailMonsterPanel ? (
-            <div className="max-h-[72vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white/80 p-3 pr-2">
-              <style data-monster-ui="true">{MONSTER_UI_CSS}</style>
-              <MonsterCard monster={detailMonsterPanel} index={0} />
-            </div>
+            <MonsterCard monster={detailMonsterPanel} index={0} embedded />
           ) : (
             <p className="rounded-xl border border-stone-200 bg-white/80 px-3 py-3 text-sm text-stone-600">
               No hay monstruo para mostrar.
