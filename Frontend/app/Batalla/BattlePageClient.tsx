@@ -3991,12 +3991,16 @@ export function BattlePageClient() {
             <DialogDescription>Atajos activos dentro de /batalla.</DialogDescription>
           </DialogHeader>
           <div className="mt-2 space-y-2 text-sm text-stone-700">
+            <p><span className="font-semibold text-stone-900">Ctrl/Cmd + Z:</span> deshacer cambios de combate.</p>
+            <p><span className="font-semibold text-stone-900">Ctrl/Cmd + Shift + Z</span> o <span className="font-semibold text-stone-900">Ctrl/Cmd + Y:</span> rehacer cambios.</p>
             <p><span className="font-semibold text-stone-900">Click:</span> abre el diálogo de la ficha.</p>
             <p><span className="font-semibold text-stone-900">Shift + Click sostenido:</span> mover ficha.</p>
+            <p><span className="font-semibold text-stone-900">Alt (mientras arrastrás):</span> alinear ficha a la grilla.</p>
             <p><span className="font-semibold text-stone-900">Shift + Click derecho:</span> elimina directo (sin confirmación).</p>
             <p><span className="font-semibold text-stone-900">Shift + Scroll sobre ficha:</span> cambiar tamaño.</p>
             <p><span className="font-semibold text-stone-900">Shift + H:</span> ocultar o desocultar ficha.</p>
             <p><span className="font-semibold text-stone-900">Shift + D:</span> duplicar ficha.</p>
+            <p><span className="font-semibold text-stone-900">Shift + Click en iniciativa:</span> ajustar encuadre del personaje vinculado.</p>
           </div>
         </DialogContent>
       </Dialog>

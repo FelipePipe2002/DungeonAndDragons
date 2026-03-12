@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { MedievalSharp } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppNav } from '@/components/app-nav'
+import { GlobalNavigationShortcuts } from '@/components/global-navigation-shortcuts'
+import { NavSettingsSheet } from '@/components/nav-settings-sheet'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -47,6 +49,8 @@ export default function RootLayout({
     <html lang="es">
       <body className="font-sans antialiased">
         <div className="flex min-h-screen flex-col">
+          <GlobalNavigationShortcuts />
+          <NavSettingsSheet showTrigger={false} />
           <AppNav />
           <main className="flex-1">
             {children}

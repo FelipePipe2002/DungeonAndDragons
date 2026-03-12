@@ -3,25 +3,28 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Users, Building2, Shield, Map, Scroll, BookOpen, Monitor, Swords, FileText } from "lucide-react"
+import { type LucideIcon, Users, Building2, Shield, Map, Scroll, BookOpen, Monitor, Swords, FileText, Settings2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { type MainNavItemId, MAIN_NAV_ITEMS, normalizeMainNavPath } from "@/lib/navigation/main-nav"
+import { toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 
-const navItems = [
-  { href: "/mapa", label: "Mapa", icon: Scroll },
-  { href: "/batalla", label: "Batalla", icon: Swords },
-  { href: "/presentacion", label: "Presentacion", icon: Monitor, opensInPresentationWindow: true },
-  { href: "/personajes", label: "Personajes", icon: Users },
-  { href: "/edificios", label: "Edificios", icon: Building2 },
-  { href: "/organizaciones", label: "Organizaciones", icon: Shield },
-  { href: "/landmarks", label: "Landmarks", icon: Map },
-  { href: "/informacion", label: "Informacion", icon: FileText },
-  { href: "/notas", label: "Notas", icon: BookOpen },
-]
+const NAV_ITEM_ICONS: Record<MainNavItemId, LucideIcon> = {
+  mapa: Scroll,
+  personajes: Users,
+  organizaciones: Shield,
+  landmarks: Map,
+  edificios: Building2,
+  notas: BookOpen,
+  informacion: FileText,
+  batalla: Swords,
+  presentacion: Monitor,
+}
 
 export function AppNav() {
   const pathname = usePathname()
   const isPresentationScreenPage = pathname === "/presentacion"
-  const normalizedPathname = pathname === "/Jugadores" ? "/personajes" : pathname
+  const normalizedPathname = normalizeMainNavPath(pathname)
 
   if (pathname === "/login" || isPresentationScreenPage) {
     return null
@@ -41,12 +44,13 @@ export function AppNav() {
             <span className="hidden font-serif text-xl text-primary sm:inline tracking-wide">DM Codex</span>
           </Link>
           <div className="flex items-center">
-            {navItems.map((item) => {
+            {MAIN_NAV_ITEMS.map((item) => {
               const isActive = normalizedPathname === item.href
+              const Icon = NAV_ITEM_ICONS[item.id]
               if (item.opensInPresentationWindow) {
                 return (
                   <button
-                    key={item.href}
+                    key={item.id}
                     type="button"
                     onClick={() => openPresentationScreen({ reset: true })}
                     className={cn(
@@ -54,7 +58,7 @@ export function AppNav() {
                       "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <item.icon className="size-4" />
+                    <Icon className="size-4" />
                     <span className="hidden md:inline">{item.label}</span>
                   </button>
                 )
@@ -62,7 +66,7 @@ export function AppNav() {
 
               return (
                 <Link
-                  key={item.href}
+                  key={item.id}
                   href={item.href}
                   className={cn(
                     "relative flex h-full items-center gap-2 px-4 text-sm font-medium transition-colors",
@@ -71,7 +75,7 @@ export function AppNav() {
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <item.icon className="size-4" />
+                  <Icon className="size-4" />
                   <span className="hidden md:inline">{item.label}</span>
                   {isActive && (
                     <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
@@ -79,6 +83,19 @@ export function AppNav() {
                 </Link>
               )
             })}
+          </div>
+          <div className="ml-auto flex items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Configuracion"
+              title="Configuracion"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={toggleNavSettingsPanel}
+            >
+              <Settings2 className="size-4" />
+            </Button>
           </div>
         </div>
       </div>
