@@ -1,6 +1,7 @@
 import type { Building } from "@/lib/types"
 import { backendRequest } from "@/lib/services/backend-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
+import type { MediaAssetKind } from "@/lib/types"
 
 type BuildingApiDto = {
   id: number
@@ -12,6 +13,20 @@ type BuildingApiDto = {
   duenoId?: number | null
   mapBuildingIndex?: number | null
   organizationId?: number | null
+  mapAssetId?: number | null
+  mapAssetKind?: string | null
+  mapRotationDegrees?: number | null
+  mapGridEnabled?: boolean | null
+  mapGridCellSize?: number | null
+  mapGridOffsetX?: number | null
+  mapGridOffsetY?: number | null
+  mapa?: {
+    kind?: string | null
+    filename?: string | null
+    url?: string | null
+    key?: string | null
+    dataUrl?: string | null
+  } | null
 }
 
 type BuildingUpsertPayload = {
@@ -23,6 +38,18 @@ type BuildingUpsertPayload = {
   duenoId: number | null
   mapBuildingIndex: number | null
   organizationId: number | null
+  mapAssetId: number | null
+  mapRotationDegrees: number
+  mapGridEnabled: boolean
+  mapGridCellSize: number
+  mapGridOffsetX: number
+  mapGridOffsetY: number
+  mapa:
+    | { kind: "asset"; filename: string }
+    | { kind: "embedded"; dataUrl: string }
+    | { kind: "external"; url: string }
+    | { kind: "stored"; key: string }
+    | null
 }
 
 let buildingsCache: Building[] | null = null
@@ -48,7 +75,77 @@ function toPosition(value: number[] | null | undefined): [number, number] | unde
   return [x, y]
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function normalizeMapRotationDegrees(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  const normalized = Math.round(value)
+  const snappedQuarterTurns = Math.round(normalized / 90)
+  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
+}
+
+function normalizeMapGridCellSize(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 48
+  return Math.round(clamp(value, 8, 512) * 100) / 100
+}
+
+function normalizeMapGridOffset(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0
+  return Math.round(value * 100) / 100
+}
+
+function isMediaAssetKind(value: unknown): value is MediaAssetKind {
+  return value === "image" || value === "json" || value === "other"
+}
+
+function toBuildingMapReference(dto: BuildingApiDto["mapa"]): Building["mapa"] {
+  if (!dto || typeof dto.kind !== "string") return undefined
+
+  if (dto.kind === "asset" && typeof dto.filename === "string" && dto.filename.trim().length > 0) {
+    return { kind: "asset", filename: dto.filename.trim() }
+  }
+
+  if (dto.kind === "embedded" && typeof dto.dataUrl === "string" && dto.dataUrl.trim().length > 0) {
+    return { kind: "embedded", dataUrl: dto.dataUrl.trim() }
+  }
+
+  if (dto.kind === "external" && typeof dto.url === "string" && dto.url.trim().length > 0) {
+    return { kind: "external", url: dto.url.trim() }
+  }
+
+  if (dto.kind === "stored" && typeof dto.key === "string" && dto.key.trim().length > 0) {
+    return { kind: "stored", key: dto.key.trim() }
+  }
+
+  return undefined
+}
+
+function toBuildingMapPayload(map: Building["mapa"]): BuildingUpsertPayload["mapa"] {
+  if (!map) return null
+
+  if (map.kind === "asset") {
+    return { kind: "asset", filename: map.filename.trim() }
+  }
+
+  if (map.kind === "embedded") {
+    return { kind: "embedded", dataUrl: map.dataUrl.trim() }
+  }
+
+  if (map.kind === "external") {
+    return { kind: "external", url: map.url.trim() }
+  }
+
+  return { kind: "stored", key: map.key.trim() }
+}
+
 function toBuilding(dto: BuildingApiDto): Building {
+  const mapAssetId =
+    typeof dto.mapAssetId === "number" && Number.isFinite(dto.mapAssetId) && dto.mapAssetId > 0
+      ? dto.mapAssetId
+      : undefined
+
   return {
     id: dto.id,
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : null,
@@ -63,6 +160,14 @@ function toBuilding(dto: BuildingApiDto): Building {
         : undefined,
     organizationId:
       typeof dto.organizationId === "number" && dto.organizationId > 0 ? dto.organizationId : undefined,
+    mapAssetId,
+    mapAssetKind: isMediaAssetKind(dto.mapAssetKind) ? dto.mapAssetKind : undefined,
+    mapRotationDegrees: normalizeMapRotationDegrees(dto.mapRotationDegrees),
+    mapGridEnabled: typeof dto.mapGridEnabled === "boolean" ? dto.mapGridEnabled : false,
+    mapGridCellSize: normalizeMapGridCellSize(dto.mapGridCellSize),
+    mapGridOffsetX: normalizeMapGridOffset(dto.mapGridOffsetX),
+    mapGridOffsetY: normalizeMapGridOffset(dto.mapGridOffsetY),
+    mapa: toBuildingMapReference(dto.mapa),
   }
 }
 
@@ -92,6 +197,11 @@ async function hydrateOwnerNames(buildings: Building[]): Promise<Building[]> {
 }
 
 function toBuildingUpsertPayload(input: Omit<Building, "id">): BuildingUpsertPayload {
+  const mapAssetId =
+    typeof input.mapAssetId === "number" && Number.isFinite(input.mapAssetId) && input.mapAssetId > 0
+      ? input.mapAssetId
+      : null
+
   return {
     landmarkId: typeof input.landmarkId === "number" && input.landmarkId > 0 ? input.landmarkId : null,
     nombre: input.nombre.trim(),
@@ -104,6 +214,13 @@ function toBuildingUpsertPayload(input: Omit<Building, "id">): BuildingUpsertPay
         ? input.mapBuildingIndex
         : null,
     organizationId: input.organizationId ?? null,
+    mapAssetId,
+    mapRotationDegrees: normalizeMapRotationDegrees(input.mapRotationDegrees),
+    mapGridEnabled: Boolean(input.mapGridEnabled),
+    mapGridCellSize: normalizeMapGridCellSize(input.mapGridCellSize),
+    mapGridOffsetX: normalizeMapGridOffset(input.mapGridOffsetX),
+    mapGridOffsetY: normalizeMapGridOffset(input.mapGridOffsetY),
+    mapa: mapAssetId ? null : toBuildingMapPayload(input.mapa),
   }
 }
 

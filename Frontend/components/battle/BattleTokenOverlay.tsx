@@ -76,8 +76,10 @@ type BattleTokenOverlayProps = {
       size?: number
       status?: string
       hidden?: boolean
+      type?: BattleToken["type"]
     },
   ) => void
+  onRequestToggleTokenType?: (tokenNumber: number) => void
   onRequestTokenDuplicate?: (tokenNumber: number) => void
   onRequestTokenQuickDelete?: (tokenNumber: number) => void
   onRequestTokenDelete?: (tokenNumber: number) => void
@@ -92,6 +94,7 @@ type BattleTokenOverlayProps = {
   onMoveObstacle?: (obstacleId: number, nextPosition: TokenPosition) => void
   onResizeObstacle?: (obstacleId: number, nextSize: { width: number; height: number }) => void
   onRemoveObstacle?: (obstacleId: number) => void
+  neutralPalette?: boolean
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -559,6 +562,7 @@ type BattleTokenItemProps = {
   currentTurnTokenNumber: number | null
   ghostHiddenTokens: boolean
   verticalMirror: boolean
+  neutralPalette: boolean
   onClick: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onMouseEnter: () => void
@@ -576,6 +580,7 @@ function BattleTokenItem({
   currentTurnTokenNumber,
   ghostHiddenTokens,
   verticalMirror,
+  neutralPalette,
   onClick,
   onPointerDown,
   onMouseEnter,
@@ -588,7 +593,7 @@ function BattleTokenItem({
   const isDeadEnemy = isEnemy && (token.life ?? 1) <= 0
   const isDefeated = typeof token.life === "number" && token.life <= 0
   const isHidden = Boolean(token.hidden)
-  const isCurrentTurn = !isHidden && currentTurnTokenNumber !== null && token.number === currentTurnTokenNumber
+  const isCurrentTurn = !neutralPalette && !isHidden && currentTurnTokenNumber !== null && token.number === currentTurnTokenNumber
   const isGhosted = isHidden && ghostHiddenTokens
   const tokenImagePresentation = resolveBattleTokenImagePresentation({
     token,
@@ -596,7 +601,7 @@ function BattleTokenItem({
     kind: "token",
   })
   const tokenImage = tokenImagePresentation.image
-  const shouldShowTokenNumberBadge = token.sourceType === "monster" || Boolean(tokenImage)
+  const shouldShowTokenNumberBadge = !neutralPalette && (token.sourceType === "monster" || Boolean(tokenImage))
   const tokenImagePresentationStyle = tokenImagePresentation.style
   const renderedSize = clampTokenSize(token.size)
   const tokenDiameter = Math.round(44 * renderedSize)
@@ -674,13 +679,35 @@ function BattleTokenItem({
             )
           })()
         ) : null}
+        {isHidden ? (
+          <>
+            <span
+              className="pointer-events-none absolute rounded-full"
+              style={{
+                inset: "-10%",
+                boxShadow: "0 0 0 2px rgba(34, 211, 238, 0.9), 0 0 18px rgba(34, 211, 238, 0.45)",
+              }}
+              aria-hidden="true"
+            />
+            <span
+              className="pointer-events-none absolute top-[-0.35rem] right-[-0.35rem] z-30 inline-flex size-5 items-center justify-center rounded-full border border-cyan-100/80 bg-cyan-500 text-cyan-950 shadow-[0_0_10px_rgba(34,211,238,0.45)]"
+              aria-hidden="true"
+            >
+              <EyeOff className="size-3.5" />
+            </span>
+          </>
+        ) : null}
         <span
-          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border-2 text-sm font-bold shadow-lg ${
-            isDeadEnemy
-              ? "border-black/80 bg-black text-stone-100"
-              : isEnemy
-                ? "border-red-900/70 bg-red-700 text-red-50"
-                : "border-sky-900/70 bg-sky-700 text-sky-50"
+          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
+            neutralPalette
+              ? tokenImage
+                ? ""
+                : "bg-stone-500 text-stone-50 shadow-lg"
+              : isDeadEnemy
+                ? "border-2 border-black/80 bg-black text-stone-100 shadow-lg"
+                : isEnemy
+                  ? "border-2 border-red-900/70 bg-red-700 text-red-50 shadow-lg"
+                  : "border-2 border-sky-900/70 bg-sky-700 text-sky-50 shadow-lg"
           }`}
         >
           {tokenImage ? (
@@ -981,6 +1008,7 @@ export function BattleTokenOverlay({
   onTokenClick,
   onUpdateTokenDetails,
   onRequestTokenDuplicate,
+  onRequestToggleTokenType,
   onRequestTokenQuickDelete,
   onRequestTokenDelete,
   onRequestTokenCropEdit,
@@ -994,6 +1022,7 @@ export function BattleTokenOverlay({
   onMoveObstacle,
   onResizeObstacle,
   onRemoveObstacle,
+  neutralPalette = false,
 }: BattleTokenOverlayProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -1107,7 +1136,17 @@ export function BattleTokenOverlay({
     }
 
     const normalizedKey = event.key.toLowerCase()
-    if (event.ctrlKey || event.metaKey || event.altKey || !event.shiftKey || event.repeat) {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) {
+      return
+    }
+
+    if (!event.shiftKey && normalizedKey === "s") {
+      event.preventDefault()
+      onRequestToggleTokenType?.(token.number)
+      return
+    }
+
+    if (!event.shiftKey) {
       return
     }
 
@@ -1676,6 +1715,7 @@ export function BattleTokenOverlay({
             currentTurnTokenNumber={currentTurnTokenNumber}
             ghostHiddenTokens={ghostHiddenTokens}
             verticalMirror={verticalMirror}
+            neutralPalette={neutralPalette}
             onClick={(event) => {
               event.stopPropagation()
 

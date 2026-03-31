@@ -79,7 +79,10 @@ export function BattleInitiativeStrip({
     return rows
   }, [orderedTokens])
   const normalizedCurrentTurnTokenNumber = useMemo(
-    () => normalizeCurrentTurnTokenNumber(orderedTokens, currentTurnTokenNumber),
+    () =>
+      typeof currentTurnTokenNumber === "number"
+        ? normalizeCurrentTurnTokenNumber(orderedTokens, currentTurnTokenNumber)
+        : null,
     [currentTurnTokenNumber, orderedTokens],
   )
   const displayedTokenRows = useMemo(

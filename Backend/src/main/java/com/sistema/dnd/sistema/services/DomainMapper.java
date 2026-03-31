@@ -10,6 +10,7 @@ import com.sistema.dnd.sistema.dto.domain.LandmarkMapDto;
 import com.sistema.dnd.sistema.dto.domain.OrganizationDto;
 import com.sistema.dnd.sistema.dto.domain.OrganizationMemberDto;
 import com.sistema.dnd.sistema.entity.BuildingEntity;
+import com.sistema.dnd.sistema.entity.BuildingMapRefEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
 import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
@@ -17,6 +18,7 @@ import com.sistema.dnd.sistema.entity.OrganizationEntity;
 import com.sistema.dnd.sistema.entity.OrganizationMembershipEntity;
 import com.sistema.dnd.sistema.entity.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
+import com.sistema.dnd.sistema.repository.BuildingMapRefRepository;
 import com.sistema.dnd.sistema.repository.CharacterBuildingRepository;
 import com.sistema.dnd.sistema.repository.CharacterEventRepository;
 import com.sistema.dnd.sistema.repository.CharacterRepository;
@@ -39,6 +41,7 @@ public class DomainMapper {
     private final LandmarkEventRepository landmarkEventRepository;
     private final LandmarkMapRefRepository landmarkMapRefRepository;
     private final BuildingRepository buildingRepository;
+    private final BuildingMapRefRepository buildingMapRefRepository;
     private final CharacterRepository characterRepository;
     private final CharacterEventRepository characterEventRepository;
     private final CharacterBuildingRepository characterBuildingRepository;
@@ -52,6 +55,7 @@ public class DomainMapper {
         LandmarkEventRepository landmarkEventRepository,
         LandmarkMapRefRepository landmarkMapRefRepository,
         BuildingRepository buildingRepository,
+        BuildingMapRefRepository buildingMapRefRepository,
         CharacterRepository characterRepository,
         CharacterEventRepository characterEventRepository,
         CharacterBuildingRepository characterBuildingRepository,
@@ -64,6 +68,7 @@ public class DomainMapper {
         this.landmarkEventRepository = landmarkEventRepository;
         this.landmarkMapRefRepository = landmarkMapRefRepository;
         this.buildingRepository = buildingRepository;
+        this.buildingMapRefRepository = buildingMapRefRepository;
         this.characterRepository = characterRepository;
         this.characterEventRepository = characterEventRepository;
         this.characterBuildingRepository = characterBuildingRepository;
@@ -155,6 +160,9 @@ public class DomainMapper {
 
     public BuildingDto toBuildingDto(BuildingEntity building) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.building, building.getId());
+        LandmarkMapDto mapa = buildingMapRefRepository.findByBuildingId(building.getId())
+            .map(this::toLandmarkMapDto)
+            .orElse(null);
 
         return new BuildingDto(
             building.getId(),
@@ -165,7 +173,15 @@ public class DomainMapper {
             tags,
             building.getDueno() != null ? building.getDueno().getId() : null,
             building.getMapBuildingIndex(),
-            building.getOrganization() != null ? building.getOrganization().getId() : null
+            building.getOrganization() != null ? building.getOrganization().getId() : null,
+            building.getMapAsset() != null ? building.getMapAsset().getId() : null,
+            building.getMapAsset() != null ? building.getMapAsset().getKind().name() : null,
+            building.getMapRotationDegrees(),
+            building.getMapGridEnabled(),
+            building.getMapGridCellSize(),
+            building.getMapGridOffsetX(),
+            building.getMapGridOffsetY(),
+            mapa
         );
     }
 
@@ -273,6 +289,17 @@ public class DomainMapper {
     }
 
     private LandmarkMapDto toLandmarkMapDto(LandmarkMapRefEntity mapRef) {
+        return new LandmarkMapDto(
+            mapRef.getKind().name(),
+            mapRef.getSource() != null ? mapRef.getSource().name() : null,
+            mapRef.getFilename(),
+            mapRef.getUrl(),
+            mapRef.getStorageKey(),
+            mapRef.getDataUrl()
+        );
+    }
+
+    private LandmarkMapDto toLandmarkMapDto(BuildingMapRefEntity mapRef) {
         return new LandmarkMapDto(
             mapRef.getKind().name(),
             mapRef.getSource() != null ? mapRef.getSource().name() : null,

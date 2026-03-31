@@ -11,6 +11,14 @@ public record BuildingDto(
     List<String> tags,
     Long duenoId,
     Integer mapBuildingIndex,
-    Long organizationId
+    Long organizationId,
+    Long mapAssetId,
+    String mapAssetKind,
+    Integer mapRotationDegrees,
+    Boolean mapGridEnabled,
+    Double mapGridCellSize,
+    Double mapGridOffsetX,
+    Double mapGridOffsetY,
+    LandmarkMapDto mapa
 ) {
 }

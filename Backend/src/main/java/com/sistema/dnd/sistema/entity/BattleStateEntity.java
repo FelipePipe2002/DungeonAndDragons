@@ -25,8 +25,15 @@ public class BattleStateEntity extends AuditableEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String slug;
 
-    @Column(name = "landmark_slug", length = 255)
-    private String landmarkSlug;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scene_type", nullable = false, length = 20)
+    private BattleSceneType sceneType = BattleSceneType.LANDMARK;
+
+    @Column(name = "scene_slug", nullable = false, length = 255)
+    private String sceneSlug;
+
+    @Column(name = "parent_landmark_slug", nullable = false, length = 255)
+    private String parentLandmarkSlug;
 
     @Column(name = "title", nullable = false, length = 255)
     private String title = "";
@@ -58,4 +65,13 @@ public class BattleStateEntity extends AuditableEntity {
 
     @Column(name = "obstacles_json", nullable = false, columnDefinition = "TEXT")
     private String obstaclesJson = "[]";
+
+    @Column(name = "fog_enabled", nullable = false)
+    private Boolean fogEnabled = false;
+
+    @Column(name = "next_fog_reveal_id", nullable = false)
+    private Integer nextFogRevealId = 1;
+
+    @Column(name = "fog_reveals_json", nullable = false, columnDefinition = "TEXT")
+    private String fogRevealsJson = "[]";
 }

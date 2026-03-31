@@ -36,6 +36,7 @@ type BuildingsMapProps = {
   isPlacementActive?: boolean;
   onPlaceEvent?: (position: { x: number; y: number }) => void;
   onLoadError?: (message: string | null) => void;
+  onLoadComplete?: () => void;
   buildingLinks?: Record<number, number>;
   buildingNames?: Record<number, string>;
   activeLinkBuildingId?: number | null;
@@ -45,6 +46,7 @@ type BuildingsMapProps = {
   focusScale?: number | null;
   focusBuildingIndex?: number | null;
   focusRequestId?: number;
+  showGrid?: boolean;
 };
 type WallSegmentsBuild = {
   segments: WallSegment[];
@@ -625,6 +627,7 @@ export default function BuildingsMap({
   isPlacementActive = false,
   onPlaceEvent,
   onLoadError,
+  onLoadComplete,
   buildingLinks,
   buildingNames,
   activeLinkBuildingId = null,
@@ -634,6 +637,7 @@ export default function BuildingsMap({
   focusScale,
   focusBuildingIndex,
   focusRequestId = 0,
+  showGrid = true,
 }: BuildingsMapProps): ReactElement {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [rings, setRings] = useState<Ring[]>([]);
@@ -928,6 +932,7 @@ export default function BuildingsMap({
         setHasLoaded(true);
         setLoadError(null);
         onLoadError?.(null);
+        onLoadComplete?.();
       }
     }
 
@@ -956,7 +961,7 @@ export default function BuildingsMap({
     return () => {
       alive = false;
     };
-  }, [dataUrl, onLoadError, storageKey]);
+  }, [dataUrl, onLoadComplete, onLoadError, storageKey]);
 
   const selectionBounds = useMemo<MapBounds | null>(() => {
     if (selectionPoints.length !== 2) return null;
@@ -1722,7 +1727,7 @@ export default function BuildingsMap({
                 <feComposite in="tree-fill-color" in2="tree-distorted" operator="in" />
               </filter>
             </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
+            {showGrid ? <rect width="100%" height="100%" fill="url(#grid)" /> : null}
 
             <g style={dimStyle}>
               {earth && (

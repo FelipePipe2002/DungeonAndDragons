@@ -10,6 +10,9 @@ public record UpdateBattleStateRequest(
     Integer currentTurnTokenNumber,
     List<BattleTokenData> tokens,
     Integer nextObstacleId,
-    List<BattleObstacleData> obstacles
+    List<BattleObstacleData> obstacles,
+    Boolean fogEnabled,
+    Integer nextFogRevealId,
+    List<BattleFogRevealData> fogReveals
 ) {
 }

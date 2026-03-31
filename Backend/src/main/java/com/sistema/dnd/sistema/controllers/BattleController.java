@@ -38,8 +38,11 @@ public class BattleController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<BattleStateDto> findActiveByLandmark(@RequestParam String landmarkSlug) {
-        BattleStateDto battle = battleStateService.findActiveByLandmark(landmarkSlug);
+    public ResponseEntity<BattleStateDto> findActiveByScene(
+        @RequestParam String sceneType,
+        @RequestParam String sceneSlug
+    ) {
+        BattleStateDto battle = battleStateService.findActiveByScene(sceneType, sceneSlug);
         if (battle == null) {
             return ResponseEntity.noContent().build();
         }
@@ -48,8 +51,12 @@ public class BattleController {
     }
 
     @GetMapping
-    public List<BattleSummaryDto> findHistoryByLandmark(@RequestParam String landmarkSlug) {
-        return battleStateService.findHistoryByLandmark(landmarkSlug);
+    public List<BattleSummaryDto> findHistory(
+        @RequestParam String parentLandmarkSlug,
+        @RequestParam(required = false) String sceneType,
+        @RequestParam(required = false) String sceneSlug
+    ) {
+        return battleStateService.findHistory(parentLandmarkSlug, sceneType, sceneSlug);
     }
 
     @GetMapping("/{id}")

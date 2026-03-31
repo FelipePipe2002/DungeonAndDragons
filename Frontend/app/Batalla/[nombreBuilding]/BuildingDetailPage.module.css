@@ -1,0 +1,655 @@
+.root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  height: calc(100dvh - var(--app-nav-height, 4.5rem));
+  min-height: calc(100vh - var(--app-nav-height, 4.5rem));
+  border: 1px solid oklch(0.76 0.04 68);
+  border-radius: 0;
+  overflow: hidden;
+  background: oklch(0.9 0.02 76);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.mapPane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid oklch(0.76 0.04 68);
+}
+
+.mapRotateButton {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.25rem;
+  border: 1px solid oklch(0.67 0.07 50 / 0.5);
+  border-radius: 999px;
+  background: oklch(0.96 0.02 79 / 0.92);
+  color: oklch(0.27 0.04 53);
+  padding: 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.mapRotateButton:hover:not(:disabled) {
+  background: oklch(0.93 0.03 76 / 0.94);
+}
+
+.mapRotateButton:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.mapRotateIcon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.mapGridToggleButton {
+  position: absolute;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 30;
+  height: 2.25rem;
+  border: 1px solid oklch(0.67 0.07 50 / 0.5);
+  border-radius: 999px;
+  background: oklch(0.96 0.02 79 / 0.92);
+  color: oklch(0.27 0.04 53);
+  padding: 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.mapGridToggleButton:hover {
+  background: oklch(0.93 0.03 76 / 0.94);
+}
+
+.mapGridPanel {
+  position: absolute;
+  top: 3.65rem;
+  left: 0.9rem;
+  z-index: 30;
+  width: min(22rem, calc(100% - 1.8rem));
+  border: 1px solid oklch(0.67 0.07 50 / 0.4);
+  border-radius: 0.75rem;
+  background: oklch(0.96 0.02 79 / 0.95);
+  padding: 0.85rem;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 0.65rem 2rem oklch(0.35 0.03 40 / 0.12);
+}
+
+.mapGridPanelTitle {
+  color: oklch(0.24 0.04 54);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.mapGridHint {
+  margin-top: 0.28rem;
+  color: oklch(0.4 0.03 56);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.mapGridActions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mapGridActionButton,
+.mapGridPrimaryButton {
+  height: 2rem;
+  border-radius: 0.45rem;
+  padding: 0 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mapGridActionButton {
+  border: 1px solid oklch(0.7 0.05 58 / 0.55);
+  background: oklch(0.92 0.02 76);
+  color: oklch(0.3 0.04 54);
+}
+
+.mapGridActionButton:hover {
+  background: oklch(0.89 0.03 73);
+}
+
+.mapGridPrimaryButton {
+  border: 1px solid oklch(0.56 0.11 58 / 0.5);
+  background: oklch(0.78 0.08 71);
+  color: oklch(0.23 0.04 45);
+}
+
+.mapGridPrimaryButton:hover:not(:disabled) {
+  background: oklch(0.74 0.09 69);
+}
+
+.mapGridPrimaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mapGridErrorText {
+  margin-top: 0.55rem;
+  color: oklch(0.44 0.15 30);
+  font-size: 0.7rem;
+}
+
+.mapGridField {
+  margin-top: 0.75rem;
+}
+
+.mapGridLabel {
+  display: block;
+  color: oklch(0.28 0.04 54);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.mapGridRangeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.75rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mapGridOffsetsRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.mapGridRangeInput {
+  position: relative;
+  width: 100%;
+  height: 2rem;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.mapGridRangeTrack,
+.mapGridRangeFill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 0.35rem;
+  transform: translateY(-50%);
+  border-radius: 999px;
+}
+
+.mapGridRangeTrack {
+  width: 100%;
+  background: oklch(0.86 0.02 72);
+}
+
+.mapGridRangeFill {
+  background: oklch(0.58 0.11 58);
+}
+
+.mapGridRangeThumb {
+  position: absolute;
+  top: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid oklch(0.58 0.11 58);
+  border-radius: 999px;
+  background: oklch(0.98 0.01 78);
+  box-shadow: 0 0.15rem 0.4rem oklch(0.35 0.03 40 / 0.18);
+  transform: translate(-50%, -50%);
+}
+
+.mapGridRangeInput:focus-visible .mapGridRangeThumb {
+  box-shadow: 0 0 0 3px oklch(0.63 0.1 58 / 0.22);
+}
+
+.mapGridNumberInput {
+  width: 100%;
+  height: 2rem;
+  border-radius: 0.45rem;
+  border: 1px solid oklch(0.72 0.04 62);
+  background: oklch(0.98 0.01 78);
+  color: oklch(0.25 0.03 55);
+  padding: 0 0.55rem;
+  font-size: 0.72rem;
+}
+
+.mapGridNumberInput:focus {
+  outline: 2px solid oklch(0.63 0.1 58 / 0.35);
+  outline-offset: 1px;
+}
+
+.mapViewport {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background: linear-gradient(155deg, oklch(0.86 0.03 70), oklch(0.8 0.04 66));
+}
+
+.mapViewportDragging {
+  cursor: grabbing;
+}
+
+.mapCanvas {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.mapImageFrame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mapImageBounds {
+  position: relative;
+  flex: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.mapImageLayer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 50% 50%;
+}
+
+.mapImageAsset {
+  display: block;
+  user-select: none;
+}
+
+.mapImageOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(34, 23, 9, 0.12);
+  pointer-events: none;
+}
+
+.mapGridOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapGridAnchorMarker {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mapGridAnchorMarker::before,
+.mapGridAnchorMarker::after {
+  content: "";
+  position: absolute;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.mapGridAnchorMarker::before {
+  left: 50%;
+  top: -0.5rem;
+  width: 2px;
+  height: 2rem;
+  transform: translateX(-50%);
+}
+
+.mapGridAnchorMarker::after {
+  left: -0.5rem;
+  top: 50%;
+  width: 2rem;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.noMapPrompt {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: min(28rem, calc(100% - 2rem));
+  border: 1px solid oklch(0.58 0.08 45 / 0.45);
+  border-radius: 0.5rem;
+  background: oklch(0.95 0.02 78 / 0.96);
+  padding: 0.8rem 0.95rem;
+  text-align: center;
+}
+
+.noMapMainButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  align-items: center;
+}
+
+.noMapTitle {
+  color: oklch(0.24 0.03 55);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.noMapText {
+  color: oklch(0.42 0.03 60);
+  font-size: 0.75rem;
+}
+
+.noMapPreloadedRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.noMapPreloadedInput {
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: 1px solid oklch(0.76 0.04 68);
+  background: oklch(0.98 0.01 78);
+  padding: 0 0.6rem;
+  color: oklch(0.25 0.03 56);
+  font-size: 0.75rem;
+}
+
+.noMapPreloadedInput:focus {
+  outline: 2px solid oklch(0.64 0.12 58 / 0.45);
+  outline-offset: 1px;
+}
+
+.noMapPreloadedButton {
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: 1px solid oklch(0.66 0.08 54 / 0.5);
+  background: oklch(0.9 0.03 72);
+  color: oklch(0.29 0.04 52);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0 0.65rem;
+  cursor: pointer;
+}
+
+.noMapPreloadedButton:hover {
+  background: oklch(0.87 0.04 70);
+}
+
+.mapErrorPrompt {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 25;
+  transform: translate(-50%, -50%);
+  width: min(34rem, calc(100% - 2rem));
+  border: 1px solid oklch(0.55 0.11 35 / 0.42);
+  border-radius: 0.5rem;
+  background: oklch(0.95 0.02 78 / 0.96);
+  padding: 0.9rem 1rem;
+}
+
+.mapErrorTitle {
+  color: oklch(0.27 0.06 35);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.mapErrorText {
+  margin-top: 0.35rem;
+  color: oklch(0.35 0.03 55);
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+.mapErrorActions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mapErrorDangerButton {
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: 1px solid oklch(0.57 0.16 30 / 0.5);
+  background: oklch(0.88 0.05 38);
+  color: oklch(0.31 0.08 30);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0 0.65rem;
+  cursor: pointer;
+}
+
+.mapErrorDangerButton:hover {
+  background: oklch(0.84 0.06 36);
+}
+
+.infoPanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: oklch(0.92 0.02 78);
+}
+
+.panelHeader {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid oklch(0.76 0.04 68);
+}
+
+.panelHeaderIcon {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid oklch(0.67 0.07 50 / 0.25);
+  border-radius: 0.35rem;
+  background: oklch(0.96 0.02 79);
+  color: oklch(0.35 0.06 52);
+  font-size: 1.1rem;
+}
+
+.panelHeaderBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.panelHeaderRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panelTitle {
+  min-width: 0;
+  font-family: var(--font-cinzel, serif);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: oklch(0.34 0.06 52);
+}
+
+.panelMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.45rem;
+}
+
+.panelMetaLink,
+.panelMetaText {
+  font-size: 0.72rem;
+  color: oklch(0.45 0.03 56);
+}
+
+.panelMetaLink:hover {
+  color: oklch(0.35 0.06 52);
+}
+
+.panelBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.panelSection {
+  border: 1px solid oklch(0.76 0.04 68 / 0.85);
+  border-radius: 0.75rem;
+  background: oklch(0.97 0.01 79 / 0.8);
+  padding: 0.9rem;
+}
+
+.sectionTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: oklch(0.5 0.03 56);
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detailList {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 4.8rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.detailLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: oklch(0.44 0.03 56);
+}
+
+.detailValue {
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: oklch(0.24 0.03 54);
+  word-break: break-word;
+}
+
+.descriptionInput {
+  margin-top: 0.7rem;
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.descriptionText {
+  margin-top: 0.7rem;
+  white-space: pre-wrap;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: oklch(0.24 0.03 54);
+}
+
+.tagList {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.emptyText {
+  margin-top: 0.7rem;
+  font-size: 0.75rem;
+  color: oklch(0.48 0.03 56);
+}
+
+.errorBox {
+  border: 1px solid oklch(0.7 0.12 28 / 0.35);
+  border-radius: 0.75rem;
+  background: oklch(0.95 0.03 28 / 0.9);
+  padding: 0.8rem 0.9rem;
+  font-size: 0.8rem;
+  color: oklch(0.44 0.15 30);
+}
+
+@media (max-width: 980px) {
+  .root {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .mapPane {
+    border-right: none;
+    border-bottom: 1px solid oklch(0.76 0.04 68);
+  }
+
+  .infoPanel {
+    max-height: 42dvh;
+  }
+
+  .mapGridPanel {
+    width: min(24rem, calc(100% - 1.8rem));
+  }
+
+  .panelHeaderRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .detailRow {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .mapGridOffsetsRow {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

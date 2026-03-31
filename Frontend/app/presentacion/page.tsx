@@ -1,11 +1,13 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 import { BattleInitiativeStrip } from "@/components/battle/BattleInitiativeStrip"
+import { BattleFogOverlay } from "@/components/battle/BattleFogOverlay"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import { BATTLE_CONDITIONS } from "@/lib/battle/conditions"
+import { isBattleTokenNumberVisibleThroughFog, isBattleTokenVisibleThroughFog } from "@/lib/battle/fog"
 import {
   BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY,
   BATTLE_SCREEN_STORAGE_KEY,
@@ -14,48 +16,168 @@ import {
   subscribeToBattleScreenEvents,
 } from "@/lib/battle/sync"
 import type { BattleState, Character } from "@/lib/types"
-import { fetchActiveBattleForLandmark, sanitizeBattleState } from "@/lib/services/battle-api.service"
+import { fetchActiveBattle, sanitizeBattleState } from "@/lib/services/battle-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { LandmarkMapOnlyClient } from "./LandmarkMapOnlyClient"
 import {
   PRESENTATION_SCREEN_STORAGE_KEY,
+  type PresentationScreenPayload,
+  type PresentationScreenTarget,
+  publishPresentationSceneStatus,
   readPresentationScreenTarget,
+  setPresentationScreenTarget,
 } from "@/lib/presentation/screen"
+import { PresentationCover } from "./PresentationCover"
+
+function matchesPresentationTarget(battle: BattleState | null, target: PresentationScreenTarget | null) {
+  return Boolean(
+    battle &&
+      target &&
+      battle.status === "active" &&
+      battle.sceneType === target.sceneType &&
+      battle.sceneSlug === target.sceneSlug,
+  )
+}
+
+function matchesPresentationTargetIdentity(
+  target: PresentationScreenTarget | null,
+  payload: PresentationScreenPayload | null,
+) {
+  return Boolean(
+    target &&
+      payload &&
+      target.sceneType === payload.sceneType &&
+      target.sceneSlug === payload.sceneSlug,
+  )
+}
+
+function resolvePresentationTarget(requestedTarget: PresentationScreenTarget | null, persist = true) {
+  const storedTarget = readPresentationScreenTarget()
+  if (!requestedTarget) {
+    return storedTarget
+  }
+
+  if (matchesPresentationTargetIdentity(requestedTarget, storedTarget)) {
+    return storedTarget
+  }
+
+  if (!persist) {
+    return {
+      ...requestedTarget,
+      revision: storedTarget?.revision ?? Date.now(),
+    }
+  }
+
+  return setPresentationScreenTarget(requestedTarget) ?? {
+    ...requestedTarget,
+    revision: Date.now(),
+  }
+}
+
+function PresentationFallbackImage() {
+  return <PresentationCover className="absolute inset-0" />
+}
 
 function PresentationPageContent() {
   const searchParams = useSearchParams()
-  const requestedLandmarkSlug = useMemo(() => {
-    const rawValue = searchParams.get("landmark")
-    if (!rawValue) {
+  const requestedPresentationTarget = useMemo<PresentationScreenTarget | null>(() => {
+    const rawScene = searchParams.get("scene")
+    const rawSceneType = searchParams.get("sceneType")
+    if (rawScene?.trim()) {
+      return {
+        sceneType: rawSceneType === "building" ? "building" : "landmark",
+        sceneSlug: rawScene.trim(),
+      }
+    }
+
+    const rawLandmark = searchParams.get("landmark")
+    if (!rawLandmark?.trim()) {
       return null
     }
 
-    const normalizedValue = rawValue.trim()
-    return normalizedValue.length > 0 ? normalizedValue : null
+    return {
+      sceneType: "landmark",
+      sceneSlug: rawLandmark.trim(),
+    }
   }, [searchParams])
-  const [landmarkSlug, setLandmarkSlug] = useState<string | null>(requestedLandmarkSlug ?? readPresentationScreenTarget())
+  const [presentationTarget, setPresentationTarget] = useState<PresentationScreenPayload | null>(() =>
+    resolvePresentationTarget(requestedPresentationTarget, false),
+  )
   const [battleState, setBattleState] = useState<BattleState | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [tokenPreviews, setTokenPreviews] = useState<Record<number, { x: number; y: number }>>({})
   const [obstaclePreviews, setObstaclePreviews] = useState<Record<number, { x: number; y: number }>>({})
   const [showPresentationLabel, setShowPresentationLabel] = useState(true)
   const [isBlackout, setIsBlackout] = useState(false)
+  const [isBlackoutImageVerticallyFlipped, setIsBlackoutImageVerticallyFlipped] = useState(false)
   const [isVerticallyMirrored, setIsVerticallyMirrored] = useState(() => readBattleScreenPresentationVerticalMirror())
+  const [isFriendlyPresentationMode, setIsFriendlyPresentationMode] = useState(() => {
+    return readBattleScreenPayload()?.presentationFriendlyMode === true
+  })
+  const lastPresentedSceneKeyRef = useRef<string | null>(null)
 
   const syncTarget = useCallback(() => {
-    setLandmarkSlug(requestedLandmarkSlug ?? readPresentationScreenTarget())
-  }, [requestedLandmarkSlug])
+    setPresentationTarget(resolvePresentationTarget(requestedPresentationTarget))
+  }, [requestedPresentationTarget])
+
+  const loadActiveBattleForTarget = useCallback((target: PresentationScreenTarget) => {
+    return fetchActiveBattle(target.sceneType, target.sceneSlug)
+  }, [])
+
+  const handleSceneReady = useCallback(
+    (payload: { sceneType: PresentationScreenTarget["sceneType"]; sceneSlug: string; sceneLabel: string }) => {
+      if (
+        !presentationTarget ||
+        payload.sceneType !== presentationTarget.sceneType ||
+        payload.sceneSlug !== presentationTarget.sceneSlug
+      ) {
+        return
+      }
+
+      publishPresentationSceneStatus({
+        sceneType: payload.sceneType,
+        sceneSlug: payload.sceneSlug,
+        sceneLabel: payload.sceneLabel,
+        revision: presentationTarget.revision,
+        status: "loaded",
+      })
+    },
+    [presentationTarget],
+  )
+
+  const handleSceneLoadError = useCallback(
+    (payload: { sceneType: PresentationScreenTarget["sceneType"]; sceneSlug: string; sceneLabel: string; message?: string }) => {
+      if (
+        !presentationTarget ||
+        payload.sceneType !== presentationTarget.sceneType ||
+        payload.sceneSlug !== presentationTarget.sceneSlug
+      ) {
+        return
+      }
+
+      publishPresentationSceneStatus({
+        sceneType: payload.sceneType,
+        sceneSlug: payload.sceneSlug,
+        sceneLabel: payload.sceneLabel,
+        revision: presentationTarget.revision,
+        status: "error",
+        message: payload.message,
+      })
+    },
+    [presentationTarget],
+  )
 
   const syncBattleFromStorage = useCallback(
-    (currentLandmarkSlug: string | null) => {
+    (currentTarget: PresentationScreenTarget | null) => {
       const payload = readBattleScreenPayload()
       const nextBattle = sanitizeBattleState(payload?.battle)
+      setIsFriendlyPresentationMode(payload?.presentationFriendlyMode === true)
 
-      if (!currentLandmarkSlug) {
+      if (!currentTarget) {
         return false
       }
 
-      if (nextBattle && nextBattle.status === "active" && nextBattle.landmarkSlug === currentLandmarkSlug) {
+      if (matchesPresentationTarget(nextBattle, currentTarget)) {
         setBattleState(nextBattle)
         setTokenPreviews({})
         setObstaclePreviews({})
@@ -107,9 +229,21 @@ function PresentationPageContent() {
   }, [syncTarget])
 
   useEffect(() => {
+    const currentSceneKey = presentationTarget
+      ? `${presentationTarget.sceneType}:${presentationTarget.sceneSlug}`
+      : null
+
+    if (currentSceneKey && currentSceneKey !== lastPresentedSceneKeyRef.current) {
+      setIsBlackout(true)
+    }
+
+    lastPresentedSceneKeyRef.current = currentSceneKey
+  }, [presentationTarget])
+
+  useEffect(() => {
     let isActive = true
 
-    if (!landmarkSlug) {
+    if (!presentationTarget) {
       setBattleState(null)
       setTokenPreviews({})
       setObstaclePreviews({})
@@ -118,16 +252,16 @@ function PresentationPageContent() {
       }
     }
 
-    syncBattleFromStorage(landmarkSlug)
+    syncBattleFromStorage(presentationTarget)
 
-    void fetchActiveBattleForLandmark(landmarkSlug)
+    void loadActiveBattleForTarget(presentationTarget)
       .then((nextBattleState) => {
         if (!isActive) {
           return
         }
 
-        if (!syncBattleFromStorage(landmarkSlug)) {
-          setBattleState(nextBattleState)
+        if (!syncBattleFromStorage(presentationTarget)) {
+          setBattleState(matchesPresentationTarget(nextBattleState, presentationTarget) ? nextBattleState : null)
           setTokenPreviews({})
           setObstaclePreviews({})
         }
@@ -137,7 +271,7 @@ function PresentationPageContent() {
           return
         }
 
-        if (!syncBattleFromStorage(landmarkSlug)) {
+        if (!syncBattleFromStorage(presentationTarget)) {
           setBattleState(null)
           setTokenPreviews({})
           setObstaclePreviews({})
@@ -147,14 +281,14 @@ function PresentationPageContent() {
     return () => {
       isActive = false
     }
-  }, [landmarkSlug, syncBattleFromStorage])
+  }, [loadActiveBattleForTarget, presentationTarget, syncBattleFromStorage])
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== BATTLE_SCREEN_STORAGE_KEY) return
 
-      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
-      if (!currentLandmarkSlug) {
+      const currentTarget = requestedPresentationTarget ?? readPresentationScreenTarget()
+      if (!currentTarget) {
         setBattleState(null)
         setTokenPreviews({})
         setObstaclePreviews({})
@@ -164,7 +298,7 @@ function PresentationPageContent() {
       const payload = readBattleScreenPayload()
       const nextBattle = sanitizeBattleState(payload?.battle)
       if (nextBattle) {
-        if (nextBattle.status === "active" && nextBattle.landmarkSlug === currentLandmarkSlug) {
+        if (matchesPresentationTarget(nextBattle, currentTarget)) {
           setBattleState(nextBattle)
           setTokenPreviews({})
           setObstaclePreviews({})
@@ -172,9 +306,9 @@ function PresentationPageContent() {
         return
       }
 
-      void fetchActiveBattleForLandmark(currentLandmarkSlug)
+      void loadActiveBattleForTarget(currentTarget)
       .then((nextBattleState) => {
-        setBattleState(nextBattleState)
+        setBattleState(matchesPresentationTarget(nextBattleState, currentTarget) ? nextBattleState : null)
         setTokenPreviews({})
         setObstaclePreviews({})
       })
@@ -186,23 +320,23 @@ function PresentationPageContent() {
     }
 
     const handleFocus = () => {
-      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
-      setLandmarkSlug(currentLandmarkSlug)
+      const currentTarget = requestedPresentationTarget ?? readPresentationScreenTarget()
+      setPresentationTarget(resolvePresentationTarget(requestedPresentationTarget))
 
-      if (!currentLandmarkSlug) {
+      if (!currentTarget) {
         setBattleState(null)
         setTokenPreviews({})
         setObstaclePreviews({})
         return
       }
 
-      if (syncBattleFromStorage(currentLandmarkSlug)) {
+      if (syncBattleFromStorage(currentTarget)) {
         return
       }
 
-      void fetchActiveBattleForLandmark(currentLandmarkSlug)
+      void loadActiveBattleForTarget(currentTarget)
         .then((nextBattleState) => {
-          setBattleState(nextBattleState)
+          setBattleState(matchesPresentationTarget(nextBattleState, currentTarget) ? nextBattleState : null)
           setTokenPreviews({})
           setObstaclePreviews({})
         })
@@ -220,7 +354,7 @@ function PresentationPageContent() {
       window.removeEventListener("storage", handleStorage)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [requestedLandmarkSlug, syncBattleFromStorage])
+  }, [loadActiveBattleForTarget, requestedPresentationTarget, syncBattleFromStorage])
 
   useEffect(() => {
     const syncMirrorFromStorage = () => {
@@ -245,9 +379,9 @@ function PresentationPageContent() {
 
   useEffect(() => {
     return subscribeToBattleScreenEvents((event) => {
-      const currentLandmarkSlug = requestedLandmarkSlug ?? readPresentationScreenTarget()
+      const currentTarget = requestedPresentationTarget ?? readPresentationScreenTarget()
 
-      if (!currentLandmarkSlug) {
+      if (!currentTarget) {
         setBattleState(null)
         setTokenPreviews({})
         setObstaclePreviews({})
@@ -256,7 +390,8 @@ function PresentationPageContent() {
 
       if (event.type === "battle-state") {
         const nextBattle = sanitizeBattleState(event.payload.battle)
-        if (nextBattle && nextBattle.status === "active" && nextBattle.landmarkSlug === currentLandmarkSlug) {
+        setIsFriendlyPresentationMode(event.payload.presentationFriendlyMode)
+        if (matchesPresentationTarget(nextBattle, currentTarget)) {
           setBattleState(nextBattle)
           setTokenPreviews({})
           setObstaclePreviews({})
@@ -278,7 +413,7 @@ function PresentationPageContent() {
       }
 
       if (event.type === "battle-turn") {
-        if (event.update.landmarkSlug !== currentLandmarkSlug) {
+        if (event.update.sceneSlug !== currentTarget.sceneSlug) {
           return
         }
 
@@ -300,7 +435,7 @@ function PresentationPageContent() {
         return
       }
 
-      if (event.preview.landmarkSlug !== currentLandmarkSlug) {
+      if (event.preview.sceneSlug !== currentTarget.sceneSlug) {
         return
       }
 
@@ -341,10 +476,10 @@ function PresentationPageContent() {
         }
       })
     })
-  }, [requestedLandmarkSlug])
+  }, [requestedPresentationTarget])
 
   useEffect(() => {
-    if (!landmarkSlug) {
+    if (!presentationTarget) {
       return
     }
 
@@ -356,22 +491,22 @@ function PresentationPageContent() {
         return
       }
 
-      if (syncBattleFromStorage(landmarkSlug)) {
+      if (syncBattleFromStorage(presentationTarget)) {
         return
       }
 
-      void fetchActiveBattleForLandmark(landmarkSlug)
+      void loadActiveBattleForTarget(presentationTarget)
         .then((nextBattleState) => {
-          if (cancelled || syncBattleFromStorage(landmarkSlug)) {
+          if (cancelled || syncBattleFromStorage(presentationTarget)) {
             return
           }
 
-          setBattleState(nextBattleState)
+          setBattleState(matchesPresentationTarget(nextBattleState, presentationTarget) ? nextBattleState : null)
           setTokenPreviews({})
           setObstaclePreviews({})
         })
         .catch(() => {
-          if (cancelled || syncBattleFromStorage(landmarkSlug)) {
+          if (cancelled || syncBattleFromStorage(presentationTarget)) {
             return
           }
 
@@ -398,7 +533,7 @@ function PresentationPageContent() {
       }
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [landmarkSlug, syncBattleFromStorage])
+  }, [loadActiveBattleForTarget, presentationTarget, syncBattleFromStorage])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -411,6 +546,11 @@ function PresentationPageContent() {
 
       if (event.key.toLowerCase() === "h") {
         setShowPresentationLabel((current) => !current)
+        return
+      }
+
+      if (event.key.toLowerCase() === "f") {
+        setIsBlackoutImageVerticallyFlipped((current) => !current)
       }
     }
 
@@ -455,54 +595,100 @@ function PresentationPageContent() {
   const visibleBattle =
     renderedBattleState &&
     renderedBattleState.status === "active" &&
-    renderedBattleState.landmarkSlug === landmarkSlug
+    presentationTarget &&
+    renderedBattleState.sceneType === presentationTarget.sceneType &&
+    renderedBattleState.sceneSlug === presentationTarget.sceneSlug
       ? renderedBattleState
       : null
+  const visiblePresentationTokens = useMemo(() => {
+    if (!visibleBattle) {
+      return []
+    }
+
+    return visibleBattle.tokens.filter((token) => isBattleTokenVisibleThroughFog(visibleBattle, token))
+  }, [visibleBattle])
+  const visibleInitiativeCurrentTurnTokenNumber = useMemo(() => {
+    if (!visibleBattle || typeof visibleBattle.currentTurnTokenNumber !== "number") {
+      return null
+    }
+
+    return isBattleTokenNumberVisibleThroughFog(visibleBattle, visibleBattle.currentTurnTokenNumber)
+      ? visibleBattle.currentTurnTokenNumber
+      : null
+  }, [visibleBattle])
   const charactersById = useMemo(
     () => new Map(characters.map((character) => [character.id, character])),
     [characters],
   )
 
-  if (!landmarkSlug || isBlackout) {
-    return <main aria-label="Presentacion de mapa" className="h-dvh min-h-screen bg-black" />
-  }
-
   return (
-    <LandmarkMapOnlyClient
-        nombreLandmark={landmarkSlug}
-        showControls={false}
-        showPresentationLabel={showPresentationLabel}
-        flipVertical={isVerticallyMirrored}
-        topOverlay={
-          visibleBattle ? (
-            <BattleInitiativeStrip
-              tokens={visibleBattle.tokens}
-              characterById={charactersById}
-              currentTurnTokenNumber={visibleBattle.currentTurnTokenNumber ?? null}
-              verticalMirror={isVerticallyMirrored}
-            />
-          ) : null
-        }
-        overlay={
-        visibleBattle ? (
-          <BattleTokenOverlay
-            tokens={visibleBattle.tokens}
-            statusDefinitions={BATTLE_CONDITIONS}
-            obstacles={visibleBattle.obstacles}
-            characterById={charactersById}
-            currentTurnTokenNumber={visibleBattle.currentTurnTokenNumber ?? null}
-            verticalMirror={isVerticallyMirrored}
-            hideHiddenTokens
-          />
-        ) : null
-      }
-    />
+    <main aria-label="Presentacion de mapa" className="relative h-dvh min-h-screen overflow-hidden bg-black">
+      {presentationTarget ? (
+        <LandmarkMapOnlyClient
+          sceneType={presentationTarget.sceneType}
+          sceneSlug={presentationTarget.sceneSlug}
+          showControls={false}
+          showPresentationLabel={showPresentationLabel}
+          emptyFallbackImageSrc="/presentacion.png"
+          onSceneReady={handleSceneReady}
+          onSceneLoadError={handleSceneLoadError}
+          flipVertical={isVerticallyMirrored}
+          showBattleGrid={!isFriendlyPresentationMode}
+          topOverlay={
+            visibleBattle && !isFriendlyPresentationMode ? (
+              <BattleInitiativeStrip
+                tokens={visiblePresentationTokens}
+                characterById={charactersById}
+                currentTurnTokenNumber={visibleInitiativeCurrentTurnTokenNumber}
+                verticalMirror={isVerticallyMirrored}
+              />
+            ) : null
+          }
+          overlay={
+            visibleBattle ? (
+              <div className="relative size-full">
+                <BattleTokenOverlay
+                  tokens={visiblePresentationTokens}
+                  statusDefinitions={BATTLE_CONDITIONS}
+                  obstacles={visibleBattle.obstacles}
+                  characterById={charactersById}
+                  currentTurnTokenNumber={isFriendlyPresentationMode ? null : visibleInitiativeCurrentTurnTokenNumber}
+                  verticalMirror={isVerticallyMirrored}
+                  hideHiddenTokens
+                  neutralPalette={isFriendlyPresentationMode}
+                />
+                <BattleFogOverlay
+                  fogEnabled={visibleBattle.fogEnabled}
+                  fogReveals={visibleBattle.fogReveals}
+                  verticalMirror={isVerticallyMirrored}
+                />
+              </div>
+            ) : null
+          }
+        />
+      ) : (
+        <PresentationFallbackImage />
+      )}
+      {isBlackout ? (
+        <PresentationCover
+          alt="Presentacion oculta"
+          className="absolute inset-0 z-[100]"
+          flipVertical={isBlackoutImageVerticallyFlipped}
+        />
+      ) : null}
+    </main>
   )
 }
 
 export default function PresentationPage() {
   return (
-    <Suspense fallback={<main aria-label="Presentacion de mapa" className="h-dvh min-h-screen bg-black" />}>
+    <Suspense
+      fallback={
+        <main aria-label="Presentacion de mapa" className="relative h-dvh min-h-screen overflow-hidden bg-black">
+          <PresentationFallbackImage />
+        </main>
+      }
+    >
       <PresentationPageContent />
     </Suspense>
   )

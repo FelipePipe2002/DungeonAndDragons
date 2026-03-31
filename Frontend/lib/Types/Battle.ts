@@ -2,6 +2,7 @@ export type BattleTokenType = "enemy" | "player"
 export type BattleTokenSourceType = "character" | "monster" | "manual"
 export type BattleObstacleShape = "circle" | "rectangle"
 export type BattleStatus = "active" | "finished"
+export type BattleSceneType = "landmark" | "building"
 
 export interface BattleToken {
   number: number
@@ -34,10 +35,22 @@ export interface BattleObstacle {
   color: string
 }
 
+export interface BattleFogReveal {
+  id: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface BattleSummary {
   id: number
   slug: string
+  // Legacy alias kept for compatibility; it resolves to parentLandmarkSlug in normalized data.
   landmarkSlug: string
+  sceneType: BattleSceneType
+  sceneSlug: string
+  parentLandmarkSlug: string
   title: string
   status: BattleStatus
   createdAt?: string
@@ -50,16 +63,23 @@ export interface BattleSummary {
 export interface BattleState {
   id?: number
   slug: string
+  // Legacy alias kept for compatibility; it resolves to parentLandmarkSlug in normalized data.
   landmarkSlug: string
+  sceneType: BattleSceneType
+  sceneSlug: string
+  parentLandmarkSlug: string
   title: string
   status: BattleStatus
   roundNumber: number
   dmNotes: string
   nextTokenNumber: number
   nextObstacleId: number
+  fogEnabled: boolean
+  nextFogRevealId: number
   currentTurnTokenNumber?: number | null
   tokens: BattleToken[]
   obstacles: BattleObstacle[]
+  fogReveals: BattleFogReveal[]
   createdAt?: string
   updatedAt?: string
   endedAt?: string

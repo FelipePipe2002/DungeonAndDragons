@@ -125,8 +125,20 @@ const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
       action: "Ocultar/mostrar ficha",
     },
     {
+      key: "S",
+      action: "Cambiar aliado/enemigo de la ficha seleccionada o hovereada",
+    },
+    {
       key: "Shift+D",
       action: "Duplicar ficha",
+    },
+    {
+      key: "Shift+R",
+      action: "Reiniciar iniciativas y mandar jugadores con personaje al final",
+    },
+    {
+      key: "F",
+      action: "Activar/desactivar modo Friendly en presentacion",
     },
     {
       key: "Shift+Click y arrastrar (ficha)",
@@ -135,6 +147,14 @@ const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
     {
       key: "Alt (durante arrastre de ficha)",
       action: "Ajustar a grilla",
+    },
+    {
+      key: "Alt (durante niebla)",
+      action: "Ajustar las esquinas del rectangulo a la grilla",
+    },
+    {
+      key: "Esc (editor de niebla)",
+      action: "Salir de Mostrar/Tapar sin cerrar el panel",
     },
     {
       key: "Shift+Click derecho (ficha)",

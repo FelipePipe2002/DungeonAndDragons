@@ -6,7 +6,9 @@ import java.util.List;
 public record BattleStateDto(
     Long id,
     String slug,
-    String landmarkSlug,
+    String sceneType,
+    String sceneSlug,
+    String parentLandmarkSlug,
     String title,
     String status,
     Integer roundNumber,
@@ -16,6 +18,9 @@ public record BattleStateDto(
     List<BattleTokenData> tokens,
     Integer nextObstacleId,
     List<BattleObstacleData> obstacles,
+    Boolean fogEnabled,
+    Integer nextFogRevealId,
+    List<BattleFogRevealData> fogReveals,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     OffsetDateTime endedAt

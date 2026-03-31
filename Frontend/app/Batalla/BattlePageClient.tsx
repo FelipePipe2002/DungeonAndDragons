@@ -1,11 +1,14 @@
 "use client"
 
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react"
 import {
   ArrowRight,
   ArrowUpDown,
   ArrowUp,
   Circle,
+  Eye,
+  EyeOff,
   Flag,
   ImagePlus,
   Keyboard,
@@ -16,6 +19,7 @@ import {
   Search,
   Square,
   Swords,
+  Trash2,
   Undo2,
   UserRound,
 } from "lucide-react"
@@ -23,6 +27,7 @@ import {
 import { LandmarkMapOnlyClient } from "@/app/presentacion/LandmarkMapOnlyClient"
 import { BattleStatusBanner } from "@/components/battle/BattleStatusBanner"
 import { CharacterImageCropDialog } from "@/components/battle/CharacterImageCropDialog"
+import { BattleFogOverlay } from "@/components/battle/BattleFogOverlay"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import MonsterCard from "@/components/monster/monster-card"
 import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
@@ -47,28 +52,42 @@ import {
   broadcastBattleTurn,
   broadcastBattleObstaclePreview,
   broadcastBattleTokenPreview,
+  readBattleScreenPresentationFriendlyMode,
   readBattleScreenPresentationVerticalMirror,
-  readBattleScreenState,
   setBattleScreenPresentationVerticalMirror,
   setBattleScreenState,
 } from "@/lib/battle/sync"
-import { openPresentationScreen } from "@/lib/presentation/screen"
+import {
+  openPresentationScreen,
+  type PresentationScreenTarget,
+} from "@/lib/presentation/screen"
 import {
   createBattle,
   fetchBattleById,
   fetchBattleHistory,
-  fetchCurrentBattle,
   finishBattle,
   reopenBattle,
   sanitizeBattleState,
   updateBattle,
 } from "@/lib/services/battle-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
+import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchCharacters, updateCharacter } from "@/lib/services/character-api.service"
 import { fetchMonsterByExactName, searchMonsters } from "@/lib/services/monster-api.service"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
+import { serviceMessage } from "@/lib/service-message"
 import { fetchLandmarks } from "@/lib/services/landmark-api.service"
-import type { BattleObstacle, BattleObstacleShape, BattleState, BattleSummary, BattleToken, Character, Landmark } from "@/lib/types"
+import type {
+  BattleFogReveal,
+  BattleObstacle,
+  BattleObstacleShape,
+  BattleState,
+  BattleSummary,
+  BattleToken,
+  Building,
+  Character,
+  Landmark,
+} from "@/lib/types"
 
 function parseNumberInput(value: string) {
   const trimmed = value.trim()
@@ -116,6 +135,28 @@ function getAbilityModifier(score: number | null | undefined) {
 
 function getCharacterDexterityModifier(character: Character | null | undefined) {
   return getAbilityModifier(character?.characterSheet?.ability_scores?.dex?.score)
+}
+
+function getResetInitiativeForToken(
+  token: BattleToken,
+  charactersById: Map<number, Character>,
+  monsterByNameCache: Map<string, MonsterRecord>,
+) {
+  if (token.type === "player" && typeof token.characterId === "number" && token.characterId > 0) {
+    return -1
+  }
+
+  if (typeof token.characterId === "number" && token.characterId > 0) {
+    return rollInitiativeDie() + getCharacterDexterityModifier(charactersById.get(token.characterId) ?? null)
+  }
+
+  if (token.sourceType === "monster") {
+    const sourceKey = getMonsterSourceKeyFromToken(token)
+    const cachedMonster = sourceKey ? monsterByNameCache.get(sourceKey) ?? null : null
+    return rollInitiativeDie() + (cachedMonster ? extractMonsterInitiativeModifier(cachedMonster) : 0)
+  }
+
+  return rollInitiativeDie()
 }
 
 type MonsterSortField = "name" | "type" | "cr"
@@ -259,6 +300,16 @@ function getSelectedBattleModeLabel(selectedBattle: BattleState | null, isEditab
   return isEditable ? "Edicion" : "Lectura"
 }
 
+function shouldIgnoreShortcutTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable)
+  )
+}
+
 function formatBattleSummaryTimestamp(battle: BattleSummary) {
   const rawValue = battle.updatedAt ?? battle.endedAt ?? battle.createdAt
   if (!rawValue) {
@@ -287,7 +338,115 @@ function sortBattleState(battle: BattleState): BattleState {
     currentTurnTokenNumber: normalizeCurrentTurnTokenNumber(tokens, normalizedBattle.currentTurnTokenNumber ?? null),
     tokens,
     obstacles: [...normalizedBattle.obstacles].sort((left, right) => left.id - right.id),
+    fogReveals: [...normalizedBattle.fogReveals].sort((left, right) => left.id - right.id),
   }
+}
+
+function isLandmarkFogSupported(landmark: Landmark | null) {
+  if (!landmark) {
+    return true
+  }
+
+  if (landmark.mapAssetKind === "json" || landmark.mapa?.kind === "buildings") {
+    return false
+  }
+
+  if (landmark.mapa?.kind === "asset") {
+    return !isJsonMapReference(landmark.mapa.filename)
+  }
+
+  if (landmark.mapa?.kind === "external") {
+    return !isJsonMapReference(landmark.mapa.url)
+  }
+
+  return true
+}
+
+function isBuildingFogSupported(building: Building | null) {
+  if (!building) {
+    return true
+  }
+
+  if (building.mapAssetKind === "json") {
+    return false
+  }
+
+  if (building.mapa?.kind === "asset") {
+    return !isJsonMapReference(building.mapa.filename)
+  }
+
+  if (building.mapa?.kind === "external") {
+    return !isJsonMapReference(building.mapa.url)
+  }
+
+  if (building.mapa?.kind === "embedded") {
+    return !isJsonMapReference(building.mapa.dataUrl)
+  }
+
+  return true
+}
+
+function subtractFogAreaFromReveal(reveal: BattleFogReveal, coveredArea: Omit<BattleFogReveal, "id">) {
+  const revealRight = reveal.x + reveal.width
+  const revealBottom = reveal.y + reveal.height
+  const coveredRight = coveredArea.x + coveredArea.width
+  const coveredBottom = coveredArea.y + coveredArea.height
+
+  const overlapLeft = Math.max(reveal.x, coveredArea.x)
+  const overlapTop = Math.max(reveal.y, coveredArea.y)
+  const overlapRight = Math.min(revealRight, coveredRight)
+  const overlapBottom = Math.min(revealBottom, coveredBottom)
+
+  if (overlapLeft >= overlapRight || overlapTop >= overlapBottom) {
+    return [reveal]
+  }
+
+  const fragments: Array<Omit<BattleFogReveal, "id">> = []
+
+  if (overlapTop > reveal.y) {
+    fragments.push({
+      x: reveal.x,
+      y: reveal.y,
+      width: reveal.width,
+      height: overlapTop - reveal.y,
+    })
+  }
+
+  if (overlapBottom < revealBottom) {
+    fragments.push({
+      x: reveal.x,
+      y: overlapBottom,
+      width: reveal.width,
+      height: revealBottom - overlapBottom,
+    })
+  }
+
+  if (overlapLeft > reveal.x) {
+    fragments.push({
+      x: reveal.x,
+      y: overlapTop,
+      width: overlapLeft - reveal.x,
+      height: overlapBottom - overlapTop,
+    })
+  }
+
+  if (overlapRight < revealRight) {
+    fragments.push({
+      x: overlapRight,
+      y: overlapTop,
+      width: revealRight - overlapRight,
+      height: overlapBottom - overlapTop,
+    })
+  }
+
+  return fragments
+    .map((fragment) => ({
+      x: Math.round(fragment.x * 100) / 100,
+      y: Math.round(fragment.y * 100) / 100,
+      width: Math.round(fragment.width * 100) / 100,
+      height: Math.round(fragment.height * 100) / 100,
+    }))
+    .filter((fragment) => fragment.width >= 0.25 && fragment.height >= 0.25)
 }
 
 function isTurnOnlyBattleChange(previous: BattleState | null, next: BattleState | null) {
@@ -299,14 +458,19 @@ function isTurnOnlyBattleChange(previous: BattleState | null, next: BattleState 
     previous !== next &&
     previous.id === next.id &&
     previous.slug === next.slug &&
-    previous.landmarkSlug === next.landmarkSlug &&
+    previous.sceneType === next.sceneType &&
+    previous.sceneSlug === next.sceneSlug &&
+    previous.parentLandmarkSlug === next.parentLandmarkSlug &&
     previous.title === next.title &&
     previous.status === next.status &&
     previous.dmNotes === next.dmNotes &&
     previous.nextTokenNumber === next.nextTokenNumber &&
     previous.nextObstacleId === next.nextObstacleId &&
+    previous.fogEnabled === next.fogEnabled &&
+    previous.nextFogRevealId === next.nextFogRevealId &&
     previous.tokens === next.tokens &&
     previous.obstacles === next.obstacles &&
+    previous.fogReveals === next.fogReveals &&
     ((previous.currentTurnTokenNumber ?? null) !== (next.currentTurnTokenNumber ?? null) ||
       previous.roundNumber !== next.roundNumber)
   )
@@ -410,7 +574,10 @@ function createEmptyTokenFormDraft(type: BattleToken["type"]): TokenFormDraft {
 }
 
 export function BattlePageClient() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [characters, setCharacters] = useState<Character[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [activeBattle, setActiveBattle] = useState<BattleState | null>(null)
   const [selectedBattle, setSelectedBattle] = useState<BattleState | null>(null)
@@ -463,7 +630,9 @@ export function BattlePageClient() {
   const [isPresentationViewVerticallyMirrored, setIsPresentationViewVerticallyMirrored] = useState(
     () => readBattleScreenPresentationVerticalMirror(),
   )
-  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false)
+  const [isPresentationFriendlyMode, setIsPresentationFriendlyMode] = useState(
+    () => readBattleScreenPresentationFriendlyMode(),
+  )
   const [isLifeModifierDialogOpen, setIsLifeModifierDialogOpen] = useState(false)
   const [lifeModifierTokenNumber, setLifeModifierTokenNumber] = useState("")
   const [lifeModifierValue, setLifeModifierValue] = useState("")
@@ -479,6 +648,9 @@ export function BattlePageClient() {
   const [isLibraryMonsterPanelDialogOpen, setIsLibraryMonsterPanelDialogOpen] = useState(false)
   const [monsterPanelError, setMonsterPanelError] = useState<string | null>(null)
   const [isMonsterPanelLoading, setIsMonsterPanelLoading] = useState(false)
+  const [isFogEditorOpen, setIsFogEditorOpen] = useState(false)
+  const [fogEditorMode, setFogEditorMode] = useState<"idle" | "reveal" | "erase">("idle")
+  const [haveResolvedBuildings, setHaveResolvedBuildings] = useState(false)
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tokenLibraryDialogFrameRef = useRef<number | null>(null)
@@ -493,6 +665,7 @@ export function BattlePageClient() {
   const battleHistoryRequestRef = useRef(0)
   const monsterSearchRequestRef = useRef(0)
   const selectedBattleRef = useRef<BattleState | null>(null)
+  const handledBattleNavigationRequestRef = useRef<string | null>(null)
   const battleEditHistoryRef = useRef<{
     past: BattleEditHistoryEntry[]
     future: BattleEditHistoryEntry[]
@@ -591,6 +764,28 @@ export function BattlePageClient() {
   const lifeModifierValueInputRef = useRef<HTMLInputElement | null>(null)
   const statusLoaderTokenInputRef = useRef<HTMLInputElement | null>(null)
   const deferredCharacterLibraryQuery = useDeferredValue(characterLibraryQuery)
+  const requestedBattleLandmarkSlug = useMemo(() => {
+    const rawValue = searchParams.get("landmark")
+    return rawValue?.trim() ? rawValue.trim() : null
+  }, [searchParams])
+  const requestedBattleId = useMemo(() => {
+    const rawValue = searchParams.get("battleId")
+    if (!rawValue) {
+      return null
+    }
+
+    const parsed = Number.parseInt(rawValue, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  }, [searchParams])
+  const requestedReopenBattleId = useMemo(() => {
+    const rawValue = searchParams.get("reopenBattleId")
+    if (!rawValue) {
+      return null
+    }
+
+    const parsed = Number.parseInt(rawValue, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  }, [searchParams])
 
   useEffect(() => {
     selectedTokenNumberRef.current = selectedTokenNumber
@@ -603,6 +798,35 @@ export function BattlePageClient() {
   useEffect(() => {
     selectedBattleRef.current = selectedBattle
   }, [selectedBattle])
+
+  useEffect(() => {
+    if (!isFogEditorOpen) {
+      return
+    }
+
+    setSelectedTokenNumber(null)
+    setSelectedObstacleId(null)
+  }, [isFogEditorOpen])
+
+  useEffect(() => {
+    if (!isFogEditorOpen || fogEditorMode === "idle") {
+      return
+    }
+
+    const handleFogEditorEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return
+      }
+
+      event.preventDefault()
+      setFogEditorMode("idle")
+    }
+
+    window.addEventListener("keydown", handleFogEditorEscape, true)
+    return () => {
+      window.removeEventListener("keydown", handleFogEditorEscape, true)
+    }
+  }, [fogEditorMode, isFogEditorOpen])
 
   const updateBattleEditHistoryState = useCallback(
     (
@@ -636,26 +860,13 @@ export function BattlePageClient() {
     setLoadError(null)
 
     try {
-      let fetchedBattle = await fetchCurrentBattle()
-      const localBattle = sanitizeBattleState(readBattleScreenState())
-      if (
-        fetchedBattle &&
-        localBattle &&
-        localBattle.status === "active" &&
-        typeof localBattle.id === "number" &&
-        localBattle.id === fetchedBattle.id
-      ) {
-        fetchedBattle = sortBattleState(localBattle)
-      }
-
       if (requestId !== battleLoadRequestRef.current) {
         return
       }
 
-      const nextBattle = fetchedBattle ? sortBattleState(fetchedBattle) : null
-      setActiveBattle(nextBattle)
-      applySelectedBattle(nextBattle)
-      lastSyncedSnapshotRef.current = nextBattle ? JSON.stringify(nextBattle) : null
+      setActiveBattle(null)
+      applySelectedBattle(null)
+      lastSyncedSnapshotRef.current = null
     } catch (error) {
       if (requestId !== battleLoadRequestRef.current) {
         return
@@ -692,6 +903,32 @@ export function BattlePageClient() {
         }
 
         setCharacters([])
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    void fetchBuildings()
+      .then((fetchedBuildings) => {
+        if (!isMounted) {
+          return
+        }
+
+        setBuildings(fetchedBuildings)
+        setHaveResolvedBuildings(true)
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setBuildings([])
+        setHaveResolvedBuildings(true)
       })
 
     return () => {
@@ -790,10 +1027,11 @@ export function BattlePageClient() {
   )
 
   useEffect(() => {
-    if (selectedBattle?.landmarkSlug) {
-      setSelectedLandmarkSlug(selectedBattle.landmarkSlug)
+    const nextLandmarkSlug = selectedBattle?.parentLandmarkSlug ?? selectedBattle?.landmarkSlug
+    if (nextLandmarkSlug) {
+      setSelectedLandmarkSlug(nextLandmarkSlug)
     }
-  }, [selectedBattle?.landmarkSlug])
+  }, [selectedBattle?.landmarkSlug, selectedBattle?.parentLandmarkSlug])
 
   useEffect(() => {
     if (!selectedLandmarkSlug && eligibleLandmarks.length > 0) {
@@ -850,7 +1088,7 @@ export function BattlePageClient() {
         typeof activeBattle.id === "number" &&
         broadcastBattleTurn({
           battleId: activeBattle.id,
-          landmarkSlug: activeBattle.landmarkSlug,
+          sceneSlug: activeBattle.sceneSlug,
           currentTurnTokenNumber: activeBattle.currentTurnTokenNumber ?? null,
           roundNumber: activeBattle.roundNumber,
         })
@@ -860,21 +1098,28 @@ export function BattlePageClient() {
         setPresentationSyncStatus("storage")
       }
 
-      setBattleScreenState(activeBattle)
+      setBattleScreenState(activeBattle, {
+        presentationFriendlyMode: isPresentationFriendlyMode,
+      })
       lastBroadcastBattleRef.current = activeBattle
       return
     }
 
-    const nextSnapshot = activeBattle ? JSON.stringify(activeBattle) : null
+    const nextSnapshot = JSON.stringify({
+      battle: activeBattle,
+      presentationFriendlyMode: isPresentationFriendlyMode,
+    })
     if (nextSnapshot === lastBroadcastSnapshotRef.current) {
       return
     }
 
-    setBattleScreenState(activeBattle)
+    setBattleScreenState(activeBattle, {
+      presentationFriendlyMode: isPresentationFriendlyMode,
+    })
     setPresentationSyncStatus("storage")
     lastBroadcastSnapshotRef.current = nextSnapshot
     lastBroadcastBattleRef.current = activeBattle
-  }, [activeBattle])
+  }, [activeBattle, isPresentationFriendlyMode])
 
   const selectedBattleId = selectedBattle?.id ?? null
 
@@ -1221,7 +1466,52 @@ export function BattlePageClient() {
     })
   }, [monsterBattleCropDraft])
 
-  const displayedLandmarkSlug = selectedBattle?.landmarkSlug ?? selectedLandmarkSlug
+  const displayedLandmarkSlug = selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? selectedLandmarkSlug
+  const displayedSceneTarget =
+    selectedBattle
+      ? {
+          sceneType: selectedBattle.sceneType,
+          sceneSlug: selectedBattle.sceneSlug,
+        }
+      : displayedLandmarkSlug
+        ? {
+            sceneType: "landmark" as const,
+            sceneSlug: displayedLandmarkSlug,
+          }
+        : null
+  const displayedSceneBuilding = useMemo(() => {
+    if (!displayedSceneTarget || displayedSceneTarget.sceneType !== "building") {
+      return null
+    }
+
+    return buildings.find((building) => landmarkNameToSlug(building.nombre) === displayedSceneTarget.sceneSlug) ?? null
+  }, [buildings, displayedSceneTarget])
+  const displayedSceneLandmark = useMemo(() => {
+    if (!displayedSceneTarget || displayedSceneTarget.sceneType !== "landmark") {
+      return null
+    }
+
+    return landmarks.find((landmark) => landmarkNameToSlug(landmark.nombre) === displayedSceneTarget.sceneSlug) ?? null
+  }, [displayedSceneTarget, landmarks])
+  const isFogOfWarSupported = useMemo(() => {
+    if (!displayedSceneTarget) {
+      return false
+    }
+
+    if (displayedSceneTarget.sceneType === "building") {
+      if (!haveResolvedBuildings && !displayedSceneBuilding) {
+        return true
+      }
+
+      return isBuildingFogSupported(displayedSceneBuilding)
+    }
+
+    return isLandmarkFogSupported(displayedSceneLandmark)
+  }, [displayedSceneBuilding, displayedSceneLandmark, displayedSceneTarget, haveResolvedBuildings])
+
+  const openSceneInPresentation = useCallback((target: PresentationScreenTarget) => {
+    openPresentationScreen(target)
+  }, [])
   const activeLandmarkBattle = useMemo(
     () => landmarkBattleHistory.find((battle) => battle.status === "active") ?? null,
     [landmarkBattleHistory],
@@ -1233,6 +1523,11 @@ export function BattlePageClient() {
 
     return landmarkBattleHistory.find((battle) => battle.id === selectedBattle.id) ?? null
   }, [landmarkBattleHistory, selectedBattle?.id])
+
+  const selectedLandmarkActiveBattle = useMemo(
+    () => landmarkBattleHistory.find((battle) => battle.status === "active") ?? null,
+    [landmarkBattleHistory],
+  )
 
   const scheduleInputFocus = useCallback((inputRef: { current: HTMLInputElement | null }) => {
     window.requestAnimationFrame(() => {
@@ -1346,19 +1641,66 @@ export function BattlePageClient() {
       if (typeof nextBattle.id === "number") {
         const didBroadcastTurn = broadcastBattleTurn({
           battleId: nextBattle.id,
-          landmarkSlug: nextBattle.landmarkSlug,
+          sceneSlug: nextBattle.sceneSlug,
           currentTurnTokenNumber: nextBattle.currentTurnTokenNumber ?? null,
           roundNumber: nextBattle.roundNumber,
         })
 
-        setBattleScreenState(nextBattle)
+        setBattleScreenState(nextBattle, {
+          presentationFriendlyMode: isPresentationFriendlyMode,
+        })
         setPresentationSyncStatus(didBroadcastTurn ? "broadcast" : "storage")
       }
 
       setActiveBattle((activeCurrent) => (activeCurrent?.id === nextBattle.id ? nextBattle : activeCurrent))
       return nextBattle
     })
-  }, [isSelectedBattleEditable, pushBattleEditHistory])
+  }, [isPresentationFriendlyMode, isSelectedBattleEditable, pushBattleEditHistory])
+
+  const handleResetBattleInitiatives = useCallback(() => {
+    if (!isSelectedBattleEditable) {
+      return
+    }
+
+    updateSelectedBattle((current) => ({
+      ...current,
+      currentTurnTokenNumber: null,
+      tokens: current.tokens.map((token) => ({
+        ...token,
+        initiative: getResetInitiativeForToken(token, charactersById, monsterByNameCacheRef.current),
+      })),
+    }))
+  }, [charactersById, isSelectedBattleEditable, updateSelectedBattle])
+
+  useEffect(() => {
+    const handlePresentationShortcutKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreShortcutTarget(event.target) || event.repeat) {
+        return
+      }
+
+      if (!event.ctrlKey && !event.metaKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "r") {
+        event.preventDefault()
+        handleResetBattleInitiatives()
+        return
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+        return
+      }
+
+      if (event.key.toLowerCase() !== "f") {
+        return
+      }
+
+      event.preventDefault()
+      setIsPresentationFriendlyMode((current) => !current)
+    }
+
+    window.addEventListener("keydown", handlePresentationShortcutKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handlePresentationShortcutKeyDown)
+    }
+  }, [handleResetBattleInitiatives])
 
   const handleUndoBattleEdit = useCallback(() => {
     const currentBattle = selectedBattleRef.current
@@ -1446,13 +1788,6 @@ export function BattlePageClient() {
   }, [handleRedoBattleEdit])
 
   useEffect(() => {
-    const shouldIgnoreShortcutTarget = (target: EventTarget | null) =>
-      target instanceof HTMLElement &&
-      (target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable)
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) {
         return
@@ -1970,7 +2305,7 @@ export function BattlePageClient() {
         return
       }
 
-      const groupedMonsterTokens = selectedBattle?.tokens.filter(
+      const groupedMonsterTokens = (selectedBattle?.tokens ?? []).filter(
         (entry) => getMonsterSourceKeyFromToken(entry) === monsterSourceKey,
       )
       const tokenWithImage = groupedMonsterTokens.find((entry) => {
@@ -2170,6 +2505,100 @@ export function BattlePageClient() {
     [isSelectedBattleEditable, updateSelectedBattle],
   )
 
+  const createFogReveal = useCallback(
+    (draftReveal: Omit<BattleFogReveal, "id">) => {
+      if (!isSelectedBattleEditable || !isFogOfWarSupported) {
+        return
+      }
+
+      updateSelectedBattle((current) => {
+        const nextReveal: BattleFogReveal = {
+          id: current.nextFogRevealId,
+          x: draftReveal.x,
+          y: draftReveal.y,
+          width: draftReveal.width,
+          height: draftReveal.height,
+        }
+
+        return {
+          ...current,
+          fogEnabled: true,
+          nextFogRevealId: current.nextFogRevealId + 1,
+          fogReveals: [...current.fogReveals, nextReveal],
+        }
+      })
+    },
+    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+  )
+
+  const coverFogArea = useCallback(
+    (coveredArea: Omit<BattleFogReveal, "id">) => {
+      if (!isSelectedBattleEditable) {
+        return
+      }
+
+      updateSelectedBattle((current) => {
+        let nextFogRevealId = current.nextFogRevealId
+        const nextFogReveals: BattleFogReveal[] = []
+
+        for (const reveal of current.fogReveals) {
+          const fragments = subtractFogAreaFromReveal(reveal, coveredArea)
+          if (fragments.length === 0) {
+            continue
+          }
+
+          fragments.forEach((fragment, index) => {
+            nextFogReveals.push({
+              id: index === 0 ? reveal.id : nextFogRevealId++,
+              ...fragment,
+            })
+          })
+        }
+
+        return {
+          ...current,
+          nextFogRevealId,
+          fogReveals: nextFogReveals,
+        }
+      })
+    },
+    [isSelectedBattleEditable, updateSelectedBattle],
+  )
+
+  const setFogEnabled = useCallback(
+    (nextEnabled: boolean) => {
+      if (!isSelectedBattleEditable) {
+        return
+      }
+
+      if (!isFogOfWarSupported) {
+        serviceMessage.info({
+          title: "Niebla no disponible",
+          description: "Por ahora la niebla de guerra solo funciona sobre mapas de imagen.",
+        })
+        return
+      }
+
+      updateSelectedBattle((current) => ({
+        ...current,
+        fogEnabled: nextEnabled,
+      }))
+    },
+    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+  )
+
+  const clearFogReveals = useCallback(() => {
+    if (!isSelectedBattleEditable) {
+      return
+    }
+
+    updateSelectedBattle((current) => ({
+      ...current,
+      fogEnabled: true,
+      fogReveals: [],
+    }))
+  }, [isSelectedBattleEditable, updateSelectedBattle])
+
   const handleApplyLifeModifier = useCallback(() => {
     if (!isSelectedBattleEditable) {
       return
@@ -2311,7 +2740,7 @@ export function BattlePageClient() {
   }, [activeBattle, applySelectedBattle])
 
   const handleCreateBattleForSelectedLandmark = useCallback(async () => {
-    if (!selectedLandmarkSlug || !selectedLandmark || isCreatingBattle || activeBattle) {
+    if (!selectedLandmarkSlug || !selectedLandmark || isCreatingBattle || selectedLandmarkActiveBattle) {
       return
     }
 
@@ -2330,7 +2759,14 @@ export function BattlePageClient() {
     } finally {
       setIsCreatingBattle(false)
     }
-  }, [activeBattle, applySelectedBattle, isCreatingBattle, loadLandmarkBattleHistory, selectedLandmark, selectedLandmarkSlug])
+  }, [
+    applySelectedBattle,
+    isCreatingBattle,
+    loadLandmarkBattleHistory,
+    selectedLandmark,
+    selectedLandmarkActiveBattle,
+    selectedLandmarkSlug,
+  ])
 
   const handleReopenBattle = useCallback(async (battleId: number) => {
     setSaveError(null)
@@ -2341,9 +2777,9 @@ export function BattlePageClient() {
       const reopenedBattle = sortBattleState(await reopenBattle(battleId))
       setActiveBattle(reopenedBattle)
       applySelectedBattle(reopenedBattle)
-      setSelectedLandmarkSlug(reopenedBattle.landmarkSlug)
+      setSelectedLandmarkSlug(reopenedBattle.parentLandmarkSlug ?? reopenedBattle.landmarkSlug)
       lastSyncedSnapshotRef.current = JSON.stringify(reopenedBattle)
-      await loadLandmarkBattleHistory(reopenedBattle.landmarkSlug)
+      await loadLandmarkBattleHistory(reopenedBattle.parentLandmarkSlug ?? reopenedBattle.landmarkSlug)
       setIsBattleCenterOpen(false)
     } catch (error) {
       setBattleHistoryError(getBackendErrorMessage(error, "No se pudo reabrir la batalla seleccionada."))
@@ -2351,6 +2787,42 @@ export function BattlePageClient() {
       setReopeningBattleId(null)
     }
   }, [applySelectedBattle, loadLandmarkBattleHistory])
+
+  useEffect(() => {
+    const requestedActionId = requestedReopenBattleId ?? requestedBattleId
+    const requestedActionType = requestedReopenBattleId ? "reopen" : requestedBattleId ? "open" : null
+
+    if (!requestedActionType || !requestedActionId) {
+      handledBattleNavigationRequestRef.current = null
+      return
+    }
+
+    const requestKey = `${requestedActionType}:${requestedActionId}:${requestedBattleLandmarkSlug ?? ""}`
+    if (handledBattleNavigationRequestRef.current === requestKey) {
+      return
+    }
+
+    handledBattleNavigationRequestRef.current = requestKey
+
+    if (requestedBattleLandmarkSlug && selectedLandmarkSlug !== requestedBattleLandmarkSlug) {
+      setSelectedLandmarkSlug(requestedBattleLandmarkSlug)
+    }
+
+    void (requestedActionType === "reopen"
+      ? handleReopenBattle(requestedActionId)
+      : handleOpenBattle(requestedActionId)
+    ).finally(() => {
+      router.replace("/Batalla")
+    })
+  }, [
+    handleOpenBattle,
+    handleReopenBattle,
+    requestedBattleId,
+    requestedBattleLandmarkSlug,
+    requestedReopenBattleId,
+    router,
+    selectedLandmarkSlug,
+  ])
 
   const handleFinishBattle = useCallback(async () => {
     if (!selectedBattle?.id || selectedBattle.status !== "active") {
@@ -2376,93 +2848,119 @@ export function BattlePageClient() {
     }
 
     return (
-      <BattleTokenOverlay
-        tokens={selectedBattle.tokens}
-        statusDefinitions={BATTLE_CONDITIONS}
-        obstacles={selectedBattle.obstacles}
-        characterById={charactersById}
-        currentTurnTokenNumber={selectedBattle.currentTurnTokenNumber ?? null}
-        interactive={isSelectedBattleEditable}
-        enableTokenInspector
-        suppressInspectorOnTokenClick={isLifeModifierDialogOpen || isStatusLoaderDialogOpen}
-        tokenInspectorEditable={isSelectedBattleEditable}
-        ghostHiddenTokens
-        selectedTokenNumber={selectedTokenNumber}
-        selectedObstacleId={selectedObstacleId}
-        onSelectToken={handleSelectToken}
-        onTokenClick={handleTokenPanelPick}
-        onUpdateTokenDetails={(tokenNumber, nextValues) => {
-          updateToken(tokenNumber, (token) => ({
-            ...token,
-            ...nextValues,
-          }))
-        }}
-        onRequestTokenDuplicate={(tokenNumber) => {
-          duplicateToken(tokenNumber)
-        }}
-        onRequestTokenQuickDelete={(tokenNumber) => {
-          removeToken(tokenNumber)
-        }}
-        onRequestTokenDelete={(tokenNumber) => {
-          const token = selectedBattle.tokens.find((candidate) => candidate.number === tokenNumber)
-          if (!token) {
-            return
-          }
-          setPendingDeleteToken(token)
-        }}
-        onRequestTokenCropEdit={(tokenNumber) => {
-          handleRequestTokenCropEdit(tokenNumber)
-        }}
-        onRequestTokenDetail={(tokenNumber) => {
-          void handleRequestTokenDetail(tokenNumber)
-        }}
-        isTokenDetailAvailable={isTokenDetailAvailable}
-        onPreviewTokenMove={(tokenNumber, nextPosition) => {
-          if (!selectedBattle.id) {
-            return
-          }
+      <div className="relative size-full">
+        <BattleTokenOverlay
+          tokens={selectedBattle.tokens}
+          statusDefinitions={BATTLE_CONDITIONS}
+          obstacles={selectedBattle.obstacles}
+          characterById={charactersById}
+          currentTurnTokenNumber={selectedBattle.currentTurnTokenNumber ?? null}
+          interactive={isSelectedBattleEditable && !isFogEditorOpen}
+          enableTokenInspector={!isFogEditorOpen}
+          suppressInspectorOnTokenClick={isLifeModifierDialogOpen || isStatusLoaderDialogOpen}
+          tokenInspectorEditable={isSelectedBattleEditable}
+          ghostHiddenTokens
+          selectedTokenNumber={selectedTokenNumber}
+          selectedObstacleId={selectedObstacleId}
+          onSelectToken={handleSelectToken}
+          onTokenClick={handleTokenPanelPick}
+          onUpdateTokenDetails={(tokenNumber, nextValues) => {
+            updateToken(tokenNumber, (token) => ({
+              ...token,
+              ...nextValues,
+            }))
+          }}
+          onRequestToggleTokenType={(tokenNumber) => {
+            updateToken(tokenNumber, (token) => ({
+              ...token,
+              type: token.type === "enemy" ? "player" : "enemy",
+            }))
+          }}
+          onRequestTokenDuplicate={(tokenNumber) => {
+            duplicateToken(tokenNumber)
+          }}
+          onRequestTokenQuickDelete={(tokenNumber) => {
+            removeToken(tokenNumber)
+          }}
+          onRequestTokenDelete={(tokenNumber) => {
+            const token = selectedBattle.tokens.find((candidate) => candidate.number === tokenNumber)
+            if (!token) {
+              return
+            }
+            setPendingDeleteToken(token)
+          }}
+          onRequestTokenCropEdit={(tokenNumber) => {
+            handleRequestTokenCropEdit(tokenNumber)
+          }}
+          onRequestTokenDetail={(tokenNumber) => {
+            void handleRequestTokenDetail(tokenNumber)
+          }}
+          isTokenDetailAvailable={isTokenDetailAvailable}
+          onPreviewTokenMove={(tokenNumber, nextPosition) => {
+            if (!selectedBattle.id) {
+              return
+            }
 
-          broadcastBattleTokenPreview({
-            battleId: selectedBattle.id,
-            landmarkSlug: selectedBattle.landmarkSlug,
-            tokenNumber,
-            position: nextPosition,
-          })
-        }}
-        onPreviewObstacleMove={(obstacleId, nextPosition) => {
-          if (!selectedBattle.id) {
-            return
-          }
+            broadcastBattleTokenPreview({
+              battleId: selectedBattle.id,
+              sceneSlug: selectedBattle.sceneSlug,
+              tokenNumber,
+              position: nextPosition,
+            })
+          }}
+          onPreviewObstacleMove={(obstacleId, nextPosition) => {
+            if (!selectedBattle.id) {
+              return
+            }
 
-          broadcastBattleObstaclePreview({
-            battleId: selectedBattle.id,
-            landmarkSlug: selectedBattle.landmarkSlug,
-            obstacleId,
-            position: nextPosition,
-          })
-        }}
-        onSelectObstacle={handleSelectObstacle}
-        onMoveToken={(tokenNumber, nextPosition) => {
-          updateToken(tokenNumber, (token) => ({ ...token, ...nextPosition }))
-        }}
-        onResizeToken={(tokenNumber, nextSize) => {
-          updateToken(tokenNumber, (token) => ({ ...token, size: nextSize }))
-        }}
-        onMoveObstacle={(obstacleId, nextPosition) => {
-          updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextPosition }))
-        }}
-        onResizeObstacle={(obstacleId, nextSize) => {
-          updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextSize }))
-        }}
-        onRemoveObstacle={removeObstacle}
-      />
+            broadcastBattleObstaclePreview({
+              battleId: selectedBattle.id,
+              sceneSlug: selectedBattle.sceneSlug,
+              obstacleId,
+              position: nextPosition,
+            })
+          }}
+          onSelectObstacle={handleSelectObstacle}
+          onMoveToken={(tokenNumber, nextPosition) => {
+            updateToken(tokenNumber, (token) => ({ ...token, ...nextPosition }))
+          }}
+          onResizeToken={(tokenNumber, nextSize) => {
+            updateToken(tokenNumber, (token) => ({ ...token, size: nextSize }))
+          }}
+          onMoveObstacle={(obstacleId, nextPosition) => {
+            updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextPosition }))
+          }}
+          onResizeObstacle={(obstacleId, nextSize) => {
+            updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextSize }))
+          }}
+          onRemoveObstacle={removeObstacle}
+        />
+        <BattleFogOverlay
+          fogEnabled={selectedBattle.fogEnabled}
+          fogReveals={selectedBattle.fogReveals}
+          interactive={isSelectedBattleEditable && isFogEditorOpen && isFogOfWarSupported && fogEditorMode !== "idle"}
+          editorMode={fogEditorMode}
+          overlayOpacity={isFogEditorOpen ? 0.56 : 0.68}
+          interactionPaddingPx={72}
+          onCreateReveal={createFogReveal}
+          onCoverArea={coverFogArea}
+        />
+      </div>
     )
   }, [
     charactersById,
+    createFogReveal,
+    coverFogArea,
+    fogEditorMode,
     isSelectedBattleEditable,
+    isFogEditorOpen,
+    isFogOfWarSupported,
     isLifeModifierDialogOpen,
     isStatusLoaderDialogOpen,
     selectedBattle?.id,
+    selectedBattle?.fogEnabled,
+    selectedBattle?.fogReveals,
+    selectedBattle?.sceneSlug,
     selectedBattle?.landmarkSlug,
     selectedBattle?.obstacles,
     selectedBattle?.tokens,
@@ -2481,7 +2979,13 @@ export function BattlePageClient() {
     updateToken,
   ])
 
-  const battleModeLabel = getSelectedBattleModeLabel(selectedBattle, isSelectedBattleEditable)
+  const battleModeLabel = `${getSelectedBattleModeLabel(selectedBattle, isSelectedBattleEditable)}${
+    isPresentationFriendlyMode ? " · Friendly" : ""
+  }`
+  const hiddenBattleTokens = useMemo(
+    () => [...(selectedBattle?.tokens ?? [])].filter((token) => token.hidden).sort((left, right) => left.number - right.number),
+    [selectedBattle?.tokens],
+  )
 
   const handleClearMapSelection = useCallback(() => {
     setSelectedTokenNumber(null)
@@ -2494,7 +2998,7 @@ export function BattlePageClient() {
         <BattleStatusBanner
           battle={selectedBattle}
           characterById={charactersById}
-          landmarkLabel={selectedLandmark?.nombre ?? selectedBattle?.landmarkSlug ?? null}
+          landmarkLabel={selectedLandmark?.nombre ?? selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? null}
           modeLabel={battleModeLabel}
           isSaving={isSaving}
           error={saveError ?? loadError}
@@ -2523,18 +3027,6 @@ export function BattlePageClient() {
             <Layers3 className="size-4" />
           </Button>
         </DelayedControlTooltip>
-        <DelayedControlTooltip label="Ver shortcuts de fichas">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            className="h-10 w-10 rounded-full border border-stone-900/10 bg-white/95 shadow-lg backdrop-blur"
-            aria-label="Ver shortcuts de fichas"
-            onClick={() => setIsShortcutHelpOpen(true)}
-          >
-            <Keyboard className="size-4" />
-          </Button>
-        </DelayedControlTooltip>
       </div>
     ),
     [],
@@ -2542,24 +3034,61 @@ export function BattlePageClient() {
 
   const battleTopRightControls = useMemo(
     () => (
-      <DelayedControlTooltip label="Siguiente turno" side="left">
-        <Button
-          type="button"
-          size="icon-sm"
-          className="h-10 w-10 rounded-full border border-amber-200/30 bg-[linear-gradient(180deg,rgba(217,119,6,0.95),rgba(146,64,14,0.98))] text-amber-50 shadow-[0_0.7rem_1.2rem_rgba(120,53,15,0.35)] hover:bg-[linear-gradient(180deg,rgba(245,158,11,0.96),rgba(180,83,9,0.98))]"
-          aria-label="Siguiente turno"
-          onClick={handleAdvanceTurn}
-          disabled={!isSelectedBattleEditable || selectedBattle?.status !== "active"}
-        >
-          <LoaderCircle className={`size-4 ${isBattleLoading ? "animate-spin" : "hidden"}`} />
-          {!isBattleLoading ? <ArrowRight className="size-4" /> : null}
-        </Button>
-      </DelayedControlTooltip>
+      <div className="flex flex-col items-end gap-2">
+        <DelayedControlTooltip label="Siguiente turno" side="left">
+          <Button
+            type="button"
+            size="icon-sm"
+            className="h-10 w-10 rounded-full border border-amber-200/30 bg-[linear-gradient(180deg,rgba(217,119,6,0.95),rgba(146,64,14,0.98))] text-amber-50 shadow-[0_0.7rem_1.2rem_rgba(120,53,15,0.35)] hover:bg-[linear-gradient(180deg,rgba(245,158,11,0.96),rgba(180,83,9,0.98))]"
+            aria-label="Siguiente turno"
+            onClick={handleAdvanceTurn}
+            disabled={!isSelectedBattleEditable || selectedBattle?.status !== "active"}
+          >
+            <LoaderCircle className={`size-4 ${isBattleLoading ? "animate-spin" : "hidden"}`} />
+            {!isBattleLoading ? <ArrowRight className="size-4" /> : null}
+          </Button>
+        </DelayedControlTooltip>
+        {hiddenBattleTokens.length > 0 ? (
+          <div className="w-[min(14rem,calc(100vw-1.5rem))] rounded-2xl border border-cyan-400/25 bg-stone-950/78 p-2 text-cyan-50 shadow-[0_1rem_2rem_rgba(8,47,73,0.28)] backdrop-blur">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200/90">Ocultas</p>
+              <span className="rounded-full border border-cyan-300/25 bg-cyan-400/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-100">
+                {hiddenBattleTokens.length}
+              </span>
+            </div>
+            <div className="max-h-[11rem] space-y-1 overflow-y-auto pr-1">
+              {hiddenBattleTokens.map((token) => (
+                <button
+                  key={`hidden-token-${token.number}`}
+                  type="button"
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-left text-xs transition ${
+                    selectedTokenNumber === token.number
+                      ? "border-cyan-200/65 bg-cyan-300/18 text-white"
+                      : "border-cyan-500/10 bg-white/5 text-cyan-50 hover:border-cyan-300/40 hover:bg-cyan-300/10"
+                  }`}
+                  onClick={() => {
+                    handleSelectToken(token.number)
+                  }}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{token.nombre}</span>
+                    <span className="block text-[11px] text-cyan-100/70">#{token.number}</span>
+                  </span>
+                  <EyeOff className="size-3.5 shrink-0 text-cyan-200/85" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     ),
     [
       handleAdvanceTurn,
+      handleSelectToken,
+      hiddenBattleTokens,
       isBattleLoading,
       isSelectedBattleEditable,
+      selectedTokenNumber,
       selectedBattle?.status,
     ],
   )
@@ -2626,13 +3155,13 @@ export function BattlePageClient() {
               variant="outline"
               aria-label="Mostrar en presentación"
               onClick={() => {
-                if (!displayedLandmarkSlug) {
+                if (!displayedSceneTarget) {
                   return
                 }
 
-                openPresentationScreen({ landmarkSlug: displayedLandmarkSlug })
+                openSceneInPresentation(displayedSceneTarget)
               }}
-              disabled={!displayedLandmarkSlug}
+              disabled={!displayedSceneTarget}
             >
               <Monitor className="size-4" />
             </Button>
@@ -2656,8 +3185,10 @@ export function BattlePageClient() {
     battleEditHistory.future.length,
     battleEditHistory.past.length,
     displayedLandmarkSlug,
+    displayedSceneTarget,
     handleAdvanceTurn,
     handleFinishBattle,
+    openSceneInPresentation,
     handleRedoBattleEdit,
     handleUndoBattleEdit,
     isPresentationViewVerticallyMirrored,
@@ -2722,6 +3253,110 @@ export function BattlePageClient() {
   const battleMiddleLeftControls = useMemo(
     () => (
       <div className="flex flex-col items-center gap-2 rounded-2xl border border-stone-900/10 bg-white/90 p-2 shadow-lg backdrop-blur">
+        <Popover
+          open={isFogEditorOpen}
+          onOpenChange={(open) => {
+            if (open && !isFogOfWarSupported) {
+              serviceMessage.info({
+                title: "Niebla no disponible",
+                description: "Por ahora la niebla de guerra solo funciona sobre mapas de imagen.",
+              })
+              return
+            }
+
+            setIsFogEditorOpen(open)
+            setFogEditorMode("idle")
+          }}
+        >
+          <DelayedControlTooltip label="Editor de niebla" side="right">
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant={selectedBattle?.fogEnabled ? "default" : "outline"}
+                aria-label="Abrir editor de niebla"
+                className="rounded-xl"
+                disabled={!isSelectedBattleEditable || !displayedSceneTarget}
+              >
+                {selectedBattle?.fogEnabled ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </PopoverTrigger>
+          </DelayedControlTooltip>
+          <PopoverContent
+            side="right"
+            align="center"
+            sideOffset={10}
+            onInteractOutside={(event) => {
+              event.preventDefault()
+            }}
+            className="w-[min(17rem,calc(100vw-1.5rem))] rounded-2xl border-stone-200 bg-white/97 p-3 shadow-xl"
+          >
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-stone-900">Niebla</p>
+                <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-600">
+                  {selectedBattle?.fogEnabled ? `${selectedBattle.fogReveals.length} visibles` : "apagada"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  className="rounded-xl"
+                  variant={selectedBattle?.fogEnabled ? "outline" : "default"}
+                  onClick={() => {
+                    setFogEnabled(!selectedBattle?.fogEnabled)
+                  }}
+                  disabled={!isSelectedBattleEditable}
+                >
+                  {selectedBattle?.fogEnabled ? "Apagar" : "Activar"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={clearFogReveals}
+                  disabled={!isSelectedBattleEditable || !selectedBattle?.fogEnabled}
+                >
+                  <Trash2 className="mr-2 size-4" />
+                  Reset
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={fogEditorMode === "reveal" ? "default" : "outline"}
+                  className="rounded-xl"
+                  onClick={() => setFogEditorMode((current) => (current === "reveal" ? "idle" : "reveal"))}
+                  disabled={!selectedBattle?.fogEnabled}
+                >
+                  Mostrar
+                </Button>
+                <Button
+                  type="button"
+                  variant={fogEditorMode === "erase" ? "default" : "outline"}
+                  className="rounded-xl"
+                  onClick={() => setFogEditorMode((current) => (current === "erase" ? "idle" : "erase"))}
+                  disabled={!selectedBattle?.fogEnabled || selectedBattle.fogReveals.length === 0}
+                >
+                  Tapar
+                </Button>
+              </div>
+
+              <p className="rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2 text-[11px] leading-relaxed text-stone-600">
+                {selectedBattle?.fogEnabled
+                  ? fogEditorMode === "reveal"
+                    ? "Arrastrá sobre el mapa. Ya podés empezar el drag un poco fuera de la imagen para revelar esquinas."
+                    : fogEditorMode === "erase"
+                      ? "Arrastrá el rectángulo a tapar. Con Alt, las esquinas se pegan a la grilla."
+                      : "Elegí Mostrar o Tapar. Con Alt, las esquinas se pegan a la grilla."
+                  : "Activala para empezar."}
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <Popover
           open={isLifeModifierDialogOpen}
           onOpenChange={(open) => {
@@ -2888,9 +3523,14 @@ export function BattlePageClient() {
       </div>
     ),
     [
+      clearFogReveals,
+      displayedSceneTarget,
+      fogEditorMode,
       handleApplyLifeModifier,
       handleApplyTokenStatus,
       handleTokenSelectionPopoverInteractOutside,
+      isFogEditorOpen,
+      isFogOfWarSupported,
       isLifeModifierDialogOpen,
       isSelectedBattleEditable,
       isStatusLoaderDialogOpen,
@@ -2898,9 +3538,12 @@ export function BattlePageClient() {
       lifeModifierTokenNumber,
       lifeModifierValue,
       scheduleInputFocus,
+      selectedBattle?.fogEnabled,
+      selectedBattle?.fogReveals.length,
       statusLoaderError,
       statusLoaderConditionName,
       statusLoaderTokenNumber,
+      setFogEnabled,
     ],
   )
 
@@ -2915,9 +3558,10 @@ export function BattlePageClient() {
   return (
     <main className="min-h-[calc(100dvh-var(--app-nav-height))] bg-[radial-gradient(circle_at_top_left,_rgba(244,223,174,0.45),_rgba(210,186,135,0.7)_40%,_rgba(154,128,88,0.88)_100%)]">
       <section className="relative h-[calc(100dvh-var(--app-nav-height))] min-h-[calc(100dvh-var(--app-nav-height))] overflow-hidden">
-        {displayedLandmarkSlug ? (
+        {displayedSceneTarget ? (
           <LandmarkMapOnlyClient
-            nombreLandmark={displayedLandmarkSlug}
+            sceneType={displayedSceneTarget.sceneType}
+            sceneSlug={displayedSceneTarget.sceneSlug}
             showControls
             fitParentHeight
             onMapBackgroundPointerDown={handleClearMapSelection}
@@ -2965,7 +3609,11 @@ export function BattlePageClient() {
                       onChange={(event) => {
                         const nextSlug = event.target.value || null
                         setSelectedLandmarkSlug(nextSlug)
-                        if (selectedBattle && selectedBattle.landmarkSlug !== nextSlug && !isSelectedBattleEditable) {
+                        if (
+                          selectedBattle &&
+                          (selectedBattle.parentLandmarkSlug ?? selectedBattle.landmarkSlug) !== nextSlug &&
+                          !isSelectedBattleEditable
+                        ) {
                           applySelectedBattle(null)
                         }
                       }}
@@ -2984,17 +3632,17 @@ export function BattlePageClient() {
                     type="button"
                     className="h-11 rounded-xl"
                     onClick={() => void handleCreateBattleForSelectedLandmark()}
-                    disabled={!selectedLandmarkSlug || isCreatingBattle || Boolean(activeBattle)}
+                    disabled={!selectedLandmarkSlug || isCreatingBattle || Boolean(selectedLandmarkActiveBattle)}
                   >
                     {isCreatingBattle ? "Creando..." : "Nueva batalla"}
                   </Button>
                 </div>
 
-                {activeBattle ? (
+                {selectedLandmarkActiveBattle ? (
                   <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                    <p className="font-semibold">Hay una batalla activa global</p>
+                    <p className="font-semibold">Hay una batalla activa para este landmark</p>
                     <p className="mt-1 text-xs text-amber-800">
-                      {activeBattle.title} · {activeBattle.landmarkSlug}
+                      {selectedLandmarkActiveBattle.title} · {selectedLandmarkActiveBattle.sceneSlug}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
@@ -3002,7 +3650,7 @@ export function BattlePageClient() {
                         size="sm"
                         variant="outline"
                         className="rounded-xl"
-                        onClick={() => void handleOpenBattle(activeBattle.id!)}
+                        onClick={() => void handleOpenBattle(selectedLandmarkActiveBattle.id)}
                       >
                         Ir a la activa
                       </Button>
@@ -3011,7 +3659,12 @@ export function BattlePageClient() {
                         size="sm"
                         variant="outline"
                         className="rounded-xl"
-                        onClick={() => openPresentationScreen({ landmarkSlug: activeBattle.landmarkSlug })}
+                        onClick={() =>
+                          openSceneInPresentation({
+                            sceneType: selectedLandmarkActiveBattle.sceneType,
+                            sceneSlug: selectedLandmarkActiveBattle.sceneSlug,
+                          })
+                        }
                       >
                         Presentación
                       </Button>
@@ -3019,7 +3672,7 @@ export function BattlePageClient() {
                   </div>
                 ) : (
                   <p className="mt-3 text-xs text-stone-500">
-                    No hay batalla activa global. Podés crear una nueva para el landmark seleccionado.
+                    No hay batalla activa para el landmark seleccionado. Podés crear una nueva.
                   </p>
                 )}
               </section>
@@ -3111,7 +3764,7 @@ export function BattlePageClient() {
                     <div className="rounded-xl border border-stone-200 bg-stone-50/90 px-3 py-3">
                       <p className="text-sm font-semibold text-stone-900">{selectedBattle.title}</p>
                       <p className="mt-1 text-[11px] text-stone-500">
-                        {selectedBattle.landmarkSlug} · {isSelectedBattleEditable ? "Editable" : "Solo lectura"}
+                        {selectedBattle.sceneSlug} · {isSelectedBattleEditable ? "Editable" : "Solo lectura"}
                       </p>
                     </div>
 
@@ -3129,52 +3782,6 @@ export function BattlePageClient() {
                         }
                       />
                     </label>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Ronda</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Button
-                          type="button"
-                          size="icon-sm"
-                          variant="outline"
-                          disabled={!isSelectedBattleEditable}
-                          onClick={() =>
-                            updateSelectedBattle((current) => ({
-                              ...current,
-                              roundNumber: Math.max(1, current.roundNumber - 1),
-                            }))
-                          }
-                        >
-                          -
-                        </Button>
-                        <Input
-                          value={String(selectedBattle.roundNumber)}
-                          inputMode="numeric"
-                          className="h-10 text-center"
-                          disabled={!isSelectedBattleEditable}
-                          onChange={(event) =>
-                            updateSelectedBattle((current) => ({
-                              ...current,
-                              roundNumber: Math.max(1, parseNumberInput(event.target.value) ?? current.roundNumber),
-                            }))
-                          }
-                        />
-                        <Button
-                          type="button"
-                          size="icon-sm"
-                          variant="outline"
-                          disabled={!isSelectedBattleEditable}
-                          onClick={() =>
-                            updateSelectedBattle((current) => ({
-                              ...current,
-                              roundNumber: current.roundNumber + 1,
-                            }))
-                          }
-                        >
-                          +
-                        </Button>
-                      </div>
-                    </div>
 
                     <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                       Notas DM
@@ -3203,18 +3810,6 @@ export function BattlePageClient() {
                     Elegí una batalla del historial o creá una nueva para editar metadata y operar el combate.
                   </p>
                 )}
-              </section>
-
-              <section className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-stone-900">Mapa actual</h3>
-                <p className="mt-2 text-sm text-stone-600">
-                  {selectedLandmark
-                    ? `${selectedLandmark.nombre} listo para combate.`
-                    : "Seleccioná un landmark elegible para cargar su mapa en /batalla."}
-                </p>
-                <p className="mt-2 text-xs text-stone-500">
-                  El mapa queda siempre a pantalla completa. Este centro sólo aparece cuando lo abrís.
-                </p>
               </section>
             </div>
           </div>
@@ -3983,27 +4578,6 @@ export function BattlePageClient() {
         characterClass={librarySheetCharacter?.clase ?? ""}
         readOnly
       />
-
-      <Dialog open={isShortcutHelpOpen} onOpenChange={setIsShortcutHelpOpen}>
-        <DialogContent className="max-w-sm rounded-3xl border-stone-200 bg-white/95 p-5">
-          <DialogHeader>
-            <DialogTitle>Shortcuts de fichas</DialogTitle>
-            <DialogDescription>Atajos activos dentro de /batalla.</DialogDescription>
-          </DialogHeader>
-          <div className="mt-2 space-y-2 text-sm text-stone-700">
-            <p><span className="font-semibold text-stone-900">Ctrl/Cmd + Z:</span> deshacer cambios de combate.</p>
-            <p><span className="font-semibold text-stone-900">Ctrl/Cmd + Shift + Z</span> o <span className="font-semibold text-stone-900">Ctrl/Cmd + Y:</span> rehacer cambios.</p>
-            <p><span className="font-semibold text-stone-900">Click:</span> abre el diálogo de la ficha.</p>
-            <p><span className="font-semibold text-stone-900">Shift + Click sostenido:</span> mover ficha.</p>
-            <p><span className="font-semibold text-stone-900">Alt (mientras arrastrás):</span> alinear ficha a la grilla.</p>
-            <p><span className="font-semibold text-stone-900">Shift + Click derecho:</span> elimina directo (sin confirmación).</p>
-            <p><span className="font-semibold text-stone-900">Shift + Scroll sobre ficha:</span> cambiar tamaño.</p>
-            <p><span className="font-semibold text-stone-900">Shift + H:</span> ocultar o desocultar ficha.</p>
-            <p><span className="font-semibold text-stone-900">Shift + D:</span> duplicar ficha.</p>
-            <p><span className="font-semibold text-stone-900">Shift + Click en iniciativa:</span> ajustar encuadre del personaje vinculado.</p>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={Boolean(pendingDeleteToken)} onOpenChange={(open) => {
         if (!open) {

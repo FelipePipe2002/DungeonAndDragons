@@ -5,7 +5,9 @@ import java.time.OffsetDateTime;
 public record BattleSummaryDto(
     Long id,
     String slug,
-    String landmarkSlug,
+    String sceneType,
+    String sceneSlug,
+    String parentLandmarkSlug,
     String title,
     String status,
     OffsetDateTime createdAt,

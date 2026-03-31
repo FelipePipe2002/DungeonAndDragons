@@ -1,9 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
+import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchLandmarkReferences } from "@/lib/services/landmark-api.service"
@@ -122,16 +124,16 @@ export default function EdificiosPage() {
                 <h3 className="font-serif text-base text-foreground group-hover:text-primary transition-colors leading-tight">
                   {building.nombre}
                 </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0 text-muted-foreground group-hover:text-primary"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                  }}
-                >
-                  <ArrowRight className="size-4" />
-                  <span className="sr-only">Ir a {building.nombre}</span>
+                <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground group-hover:text-primary" asChild>
+                  <Link
+                    href={`/edificios/${landmarkNameToSlug(building.nombre)}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                    }}
+                  >
+                    <ArrowRight className="size-4" />
+                    <span className="sr-only">Ir a {building.nombre}</span>
+                  </Link>
                 </Button>
               </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   useCallback,
   use,
@@ -440,6 +441,7 @@ function buildScopedLandmarkData(
 
 export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) {
   const resolvedParams = use(params)
+  const router = useRouter()
 
   const slug = useMemo(
     () => decodeSlug(resolvedParams?.nombreLandmark),
@@ -2173,6 +2175,39 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                             <p className="mt-1 text-[10px] text-muted-foreground">
                               {battle.tokenCount} fichas / {battle.obstacleCount} obstáculos
                             </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-[10px]"
+                                onClick={() => {
+                                  const params = new URLSearchParams({
+                                    landmark: slug,
+                                    battleId: String(battle.id),
+                                  })
+                                  router.push(`/Batalla?${params.toString()}`)
+                                }}
+                              >
+                                Abrir en /batalla
+                              </Button>
+                              {battle.status === "finished" ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="h-7 px-2 text-[10px]"
+                                  onClick={() => {
+                                    const params = new URLSearchParams({
+                                      landmark: slug,
+                                      reopenBattleId: String(battle.id),
+                                    })
+                                    router.push(`/Batalla?${params.toString()}`)
+                                  }}
+                                >
+                                  Reabrir en /batalla
+                                </Button>
+                              ) : null}
+                            </div>
                           </div>
                         ))}
                       </div>

@@ -17,10 +17,13 @@ import { Maximize2, RotateCw } from "lucide-react"
 
 import BuildingsMap from "@/components/buildings/BuildingsMap"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { buildBackendApiUrl } from "@/lib/services/backend-api.service"
+import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
 import { fetchLandmarkBySlug, updateLandmark } from "@/lib/services/landmark-api.service"
-import type { Landmark, LandmarkType } from "@/lib/types"
+import type { BattleSceneType, Building, Landmark, LandmarkType } from "@/lib/types"
+import { PresentationCover } from "./PresentationCover"
 import styles from "./LandmarkMapOnlyPage.module.css"
 
 const MIN_SCALE = 0.5
@@ -45,11 +48,24 @@ type DragState = {
   origin: Point
 }
 
+export type PresentationSceneLoadEvent = {
+  sceneType: BattleSceneType
+  sceneSlug: string
+  sceneLabel: string
+  message?: string
+}
+
 interface LandmarkMapOnlyClientProps {
-  nombreLandmark: string
+  nombreLandmark?: string
+  sceneType?: BattleSceneType
+  sceneSlug?: string
   showControls?: boolean
   showPresentationLabel?: boolean
+  emptyFallbackImageSrc?: string
+  onSceneReady?: (payload: PresentationSceneLoadEvent) => void
+  onSceneLoadError?: (payload: PresentationSceneLoadEvent) => void
   flipVertical?: boolean
+  showBattleGrid?: boolean
   onMapBackgroundPointerDown?: () => void
   leftControls?: ReactNode
   middleLeftControls?: ReactNode
@@ -106,6 +122,28 @@ function mapUrlFromReference(landmark: Landmark): string | null {
   return null
 }
 
+function mapUrlFromBuilding(building: Building): string | null {
+  if (typeof building.mapAssetId === "number" && building.mapAssetId > 0) {
+    return buildAssetUrl(building.mapAssetId)
+  }
+
+  const ref = building.mapa
+  if (!ref) return null
+
+  if (ref.kind === "embedded") return ref.dataUrl
+  if (ref.kind === "external") return ref.url
+  if (ref.kind === "asset") return assetFileToPublicUrl(ref.filename)
+
+  if (ref.kind === "stored") {
+    const assetId = Number.parseInt(ref.key, 10)
+    if (Number.isFinite(assetId) && assetId > 0) {
+      return buildAssetUrl(assetId)
+    }
+  }
+
+  return null
+}
+
 function isJsonMapReference(value: string | null | undefined) {
   if (!value) return false
   const normalized = value.trim().toLowerCase()
@@ -156,11 +194,22 @@ function decodeSlug(raw: string | undefined) {
   }
 }
 
+function findBuildingBySlug(buildings: Building[], slug: string) {
+  const normalizedSlug = slug.trim().toLowerCase()
+  return buildings.find((candidate) => landmarkNameToSlug(candidate.nombre) === normalizedSlug) ?? null
+}
+
 export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   nombreLandmark,
+  sceneType,
+  sceneSlug,
   showControls = true,
   showPresentationLabel = false,
+  emptyFallbackImageSrc,
+  onSceneReady,
+  onSceneLoadError,
   flipVertical = false,
+  showBattleGrid = true,
   onMapBackgroundPointerDown,
   leftControls,
   middleLeftControls,
@@ -171,9 +220,11 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   overlay,
   fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
-  const slug = useMemo(() => decodeSlug(nombreLandmark), [nombreLandmark])
+  const slugSource = sceneSlug ?? nombreLandmark ?? ""
+  const slug = useMemo(() => decodeSlug(slugSource), [slugSource])
 
   const [landmark, setLandmark] = useState<Landmark | null>(null)
+  const [building, setBuilding] = useState<Building | null>(null)
   const [hasResolvedLoad, setHasResolvedLoad] = useState(false)
   const [scale, setScale] = useState(INITIAL_SCALE)
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 })
@@ -184,6 +235,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   const [resolvedImageMapUrl, setResolvedImageMapUrl] = useState<string | null>(null)
   const [isResolvingImageFallback, setIsResolvingImageFallback] = useState(false)
   const [isRotatingMap, setIsRotatingMap] = useState(false)
+  const [isSceneReady, setIsSceneReady] = useState(false)
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const mapCanvasRef = useRef<HTMLDivElement | null>(null)
@@ -192,28 +244,104 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   const offsetRef = useRef(offset)
   const fallbackObjectUrlRef = useRef<string | null>(null)
   const panAnimationFrameRef = useRef<number | null>(null)
+  const lastReadyNotificationKeyRef = useRef<string | null>(null)
+  const lastErrorNotificationKeyRef = useRef<string | null>(null)
+
+  const renderState = useCallback(
+    (_message: string) => {
+      if (!emptyFallbackImageSrc) {
+        return <div className={styles.state}>{_message}</div>
+      }
+
+      return (
+        <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
+          <div className={styles.fallbackImageState}>
+            <PresentationCover className="h-full w-full px-[5vw]" />
+          </div>
+        </section>
+      )
+    },
+    [emptyFallbackImageSrc, fitParentHeight],
+  )
 
   useEffect(() => {
     let isActive = true
     setLandmark(null)
+    setBuilding(null)
     setHasResolvedLoad(false)
 
-    void fetchLandmarkBySlug(slug)
-      .then((nextLandmark) => {
+    if (!slug) {
+      setHasResolvedLoad(true)
+      return () => {
+        isActive = false
+      }
+    }
+
+    const resolveScene = async () => {
+      if (sceneType === "landmark") {
+        const nextLandmark = await fetchLandmarkBySlug(slug)
         if (!isActive) return
         setLandmark(nextLandmark)
-        setHasResolvedLoad(true)
-      })
+        setBuilding(null)
+        return
+      }
+
+      if (sceneType === "building") {
+        const storedBuildings = await fetchBuildings(true)
+        if (!isActive) return
+        const nextBuilding = findBuildingBySlug(storedBuildings, slug)
+        if (!nextBuilding) {
+          console.error("[LandmarkMapOnlyClient] Building scene not found", {
+            sceneType,
+            sceneSlug: slug,
+            availableBuildingSlugs: storedBuildings.map((candidate) => landmarkNameToSlug(candidate.nombre)),
+          })
+        }
+        setLandmark(null)
+        setBuilding(nextBuilding)
+        return
+      }
+
+      const [nextLandmark, storedBuildings] = await Promise.all([fetchLandmarkBySlug(slug), fetchBuildings(true)])
+      if (!isActive) return
+
+      if (nextLandmark) {
+        setLandmark(nextLandmark)
+        setBuilding(null)
+        return
+      }
+
+      const nextBuilding = findBuildingBySlug(storedBuildings, slug)
+      if (!nextLandmark && !nextBuilding) {
+        console.error("[LandmarkMapOnlyClient] Scene not found", {
+          sceneType: sceneType ?? "auto",
+          sceneSlug: slug,
+          availableBuildingSlugs: storedBuildings.map((candidate) => landmarkNameToSlug(candidate.nombre)),
+        })
+      }
+      setLandmark(null)
+      setBuilding(nextBuilding)
+    }
+
+    void resolveScene()
       .catch(() => {
         if (!isActive) return
+        console.error("[LandmarkMapOnlyClient] Failed to resolve scene", {
+          sceneType: sceneType ?? "auto",
+          sceneSlug: slug,
+        })
         setLandmark(null)
+        setBuilding(null)
+      })
+      .finally(() => {
+        if (!isActive) return
         setHasResolvedLoad(true)
       })
 
     return () => {
       isActive = false
     }
-  }, [slug])
+  }, [sceneType, slug])
 
   useEffect(() => {
     scaleRef.current = scale
@@ -246,25 +374,46 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [])
 
   const effectiveMapUrl = useMemo(() => {
-    if (!landmark) return null
-    return mapUrlFromReference(landmark)
-  }, [landmark])
-
+    if (landmark) return mapUrlFromReference(landmark)
+    if (building) return mapUrlFromBuilding(building)
+    return null
+  }, [building, landmark])
   const shouldUseBuildingsMap =
-    landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl)
+    Boolean(landmark) &&
+    (landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl))
   const isBackendImageAsset =
     typeof effectiveMapUrl === "string" && !shouldUseBuildingsMap && isBackendAssetUrl(effectiveMapUrl)
   const renderedImageMapUrl = shouldUseBuildingsMap ? null : resolvedImageMapUrl ?? effectiveMapUrl
   const imageMapEffectKey = shouldUseBuildingsMap ? "__buildings__" : effectiveMapUrl ?? "__no-map__"
+  const resolvedSceneType = landmark
+    ? "landmark"
+    : building
+      ? "building"
+      : sceneType === "building"
+        ? "building"
+        : "landmark"
+  const sceneLabel = (landmark?.nombre ?? building?.nombre ?? slugSource.trim()) || "escena"
+  const sceneNotificationPayload = useMemo<PresentationSceneLoadEvent>(
+    () => ({
+      sceneType: resolvedSceneType,
+      sceneSlug: slug,
+      sceneLabel,
+    }),
+    [resolvedSceneType, sceneLabel, slug],
+  )
+  const sceneNotificationKey = useMemo(
+    () => `${resolvedSceneType}:${slug}:${imageMapEffectKey}`,
+    [imageMapEffectKey, resolvedSceneType, slug],
+  )
   const isLoadingImageMap =
     Boolean(effectiveMapUrl) &&
     !shouldUseBuildingsMap &&
     (!mapImageNaturalSize || !mapViewportSize) &&
     !buildingsMapError
-  const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees)
+  const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees ?? building?.mapRotationDegrees)
   const canUseBattleGrid = landmark
     ? Boolean(effectiveMapUrl) && !shouldUseBuildingsMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
-    : false
+    : Boolean(building && effectiveMapUrl && !shouldUseBuildingsMap)
   const shouldRenderPresentationLabel =
     Boolean(showPresentationLabel && landmark && PRESENTATION_LABEL_TYPES.has(landmark.tipo))
   const presentationLabel = shouldRenderPresentationLabel && landmark
@@ -305,16 +454,16 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
       ? rotatedMapRenderSize.imageWidth / mapImageNaturalSize.width
       : 1
   const mapGridCellSize =
-    canUseBattleGrid && landmark?.mapGridEnabled
-      ? normalizeMapGridCellSize(landmark.mapGridCellSize) * mapGridRenderScale
+    showBattleGrid && canUseBattleGrid && (landmark?.mapGridEnabled ?? building?.mapGridEnabled)
+      ? normalizeMapGridCellSize(landmark?.mapGridCellSize ?? building?.mapGridCellSize) * mapGridRenderScale
       : 0
   const mapGridOffsetX =
-    canUseBattleGrid && landmark?.mapGridEnabled
-      ? normalizeMapGridOffset(landmark.mapGridOffsetX) * mapGridRenderScale
+    showBattleGrid && canUseBattleGrid && (landmark?.mapGridEnabled ?? building?.mapGridEnabled)
+      ? normalizeMapGridOffset(landmark?.mapGridOffsetX ?? building?.mapGridOffsetX) * mapGridRenderScale
       : 0
   const mapGridOffsetY =
-    canUseBattleGrid && landmark?.mapGridEnabled
-      ? normalizeMapGridOffset(landmark.mapGridOffsetY) * mapGridRenderScale
+    showBattleGrid && canUseBattleGrid && (landmark?.mapGridEnabled ?? building?.mapGridEnabled)
+      ? normalizeMapGridOffset(landmark?.mapGridOffsetY ?? building?.mapGridOffsetY) * mapGridRenderScale
       : 0
 
   const mapImageLayerStyle = useMemo<CSSProperties>(
@@ -368,6 +517,40 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     [flipVertical],
   )
   const mapMainOverlayClassName = flipVertical ? styles.mapBottomOverlay : styles.mapTopOverlay
+  const shouldShowSilentFallbackCover = Boolean(emptyFallbackImageSrc) && !isSceneReady
+
+  const notifySceneReady = useCallback(() => {
+    setIsSceneReady(true)
+
+    if (!onSceneReady || !slug || lastReadyNotificationKeyRef.current === sceneNotificationKey) {
+      return
+    }
+
+    lastReadyNotificationKeyRef.current = sceneNotificationKey
+    lastErrorNotificationKeyRef.current = null
+    setIsSceneReady(true)
+    onSceneReady(sceneNotificationPayload)
+  }, [onSceneReady, sceneNotificationKey, sceneNotificationPayload, slug])
+
+  const notifySceneError = useCallback(
+    (message: string) => {
+      if (!onSceneLoadError || !slug) {
+        return
+      }
+
+      const errorKey = `${sceneNotificationKey}:${message}`
+      if (lastErrorNotificationKeyRef.current === errorKey) {
+        return
+      }
+
+      lastErrorNotificationKeyRef.current = errorKey
+      onSceneLoadError({
+        ...sceneNotificationPayload,
+        message,
+      })
+    },
+    [onSceneLoadError, sceneNotificationKey, sceneNotificationPayload, slug],
+  )
 
   const handleMapImageLoad = useCallback(
     (event: SyntheticEvent<HTMLImageElement>) => {
@@ -383,8 +566,9 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
         width: naturalWidth,
         height: naturalHeight,
       })
+      notifySceneReady()
     },
-    [],
+    [notifySceneReady],
   )
 
   useEffect(() => {
@@ -393,7 +577,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     offsetRef.current = nextOffset
     setScale(INITIAL_SCALE)
     setOffset(nextOffset)
-  }, [imageMapEffectKey, landmark?.id])
+  }, [building?.id, imageMapEffectKey, landmark?.id])
 
   useEffect(() => {
     if (shouldUseBuildingsMap) {
@@ -433,7 +617,10 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   useEffect(() => {
     setMapImageNaturalSize(null)
     setBuildingsMapError(null)
+    setIsSceneReady(false)
     setIsResolvingImageFallback(false)
+    lastReadyNotificationKeyRef.current = null
+    lastErrorNotificationKeyRef.current = null
     if (fallbackObjectUrlRef.current) {
       URL.revokeObjectURL(fallbackObjectUrlRef.current)
       fallbackObjectUrlRef.current = null
@@ -493,6 +680,22 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
 
     setBuildingsMapError("No se pudo cargar el mapa.")
   }, [isBackendImageAsset, resolveImageFallback, resolvedImageMapUrl])
+
+  const handleBuildingsMapLoadError = useCallback(
+    (message: string | null) => {
+      setBuildingsMapError(message)
+      if (message) {
+        notifySceneError(message)
+      }
+    },
+    [notifySceneError],
+  )
+
+  useEffect(() => {
+    if (buildingsMapError && !shouldUseBuildingsMap) {
+      notifySceneError(buildingsMapError)
+    }
+  }, [buildingsMapError, notifySceneError, shouldUseBuildingsMap])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -602,7 +805,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [applyCanvasTransform])
 
   const handleRotateMap = useCallback(async () => {
-    if (!landmark || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) {
+    if ((!landmark && !building) || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) {
       return
     }
 
@@ -610,29 +813,62 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     setBuildingsMapError(null)
 
     try {
-      const { id: landmarkId, ...payload } = landmark
-      const savedLandmark = await updateLandmark(landmarkId, {
-        ...payload,
-        mapRotationDegrees: normalizeMapRotationDegrees(mapRotationDegrees + 90),
-      })
-      setLandmark(savedLandmark)
+      if (landmark) {
+        const { id: landmarkId, ...payload } = landmark
+        const savedLandmark = await updateLandmark(landmarkId, {
+          ...payload,
+          mapRotationDegrees: normalizeMapRotationDegrees(mapRotationDegrees + 90),
+        })
+        setLandmark(savedLandmark)
+      } else if (building) {
+        const savedBuilding = await updateBuilding(building.id, {
+          ...building,
+          mapRotationDegrees: normalizeMapRotationDegrees(mapRotationDegrees + 90),
+        })
+        setBuilding(savedBuilding)
+      }
     } catch (error) {
       setBuildingsMapError(error instanceof Error ? error.message : "No se pudo rotar el mapa.")
     } finally {
       setIsRotatingMap(false)
     }
-  }, [effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, shouldUseBuildingsMap])
+  }, [building, effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, shouldUseBuildingsMap])
+
+  useEffect(() => {
+    if (!hasResolvedLoad) {
+      return
+    }
+
+    if (!landmark && !building) {
+      notifySceneError("Mapa no encontrado.")
+      return
+    }
+
+    if (!effectiveMapUrl) {
+      notifySceneError("Esta escena no tiene mapa.")
+    }
+  }, [building, effectiveMapUrl, hasResolvedLoad, landmark, notifySceneError])
 
   if (!hasResolvedLoad) {
-    return <div className={styles.state}>Cargando mapa...</div>
+    return renderState("Cargando mapa...")
   }
 
-  if (!landmark) {
-    return <div className={styles.state}>Landmark no encontrado.</div>
+  if (!landmark && !building) {
+    console.error("[LandmarkMapOnlyClient] Render aborted: scene entity not resolved", {
+      sceneType: sceneType ?? "auto",
+      sceneSlug: slugSource,
+    })
+    return renderState("Mapa no encontrado.")
   }
 
   if (!effectiveMapUrl) {
-    return <div className={styles.state}>Este landmark no tiene mapa.</div>
+    console.warn("[LandmarkMapOnlyClient] Scene resolved without map", {
+      sceneType: sceneType ?? (building ? "building" : "landmark"),
+      sceneSlug: slugSource,
+      buildingId: building?.id,
+      landmarkId: landmark?.id,
+    })
+    return renderState("Esta escena no tiene mapa.")
   }
 
   if (shouldUseBuildingsMap) {
@@ -667,8 +903,18 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
             </div>
           ) : null}
           {presentationLabel}
-          <BuildingsMap dataUrl={effectiveMapUrl} onLoadError={setBuildingsMapError} />
-          {buildingsMapError && <div className={styles.stateOverlay}>{buildingsMapError}</div>}
+          <BuildingsMap
+            dataUrl={effectiveMapUrl}
+            onLoadError={handleBuildingsMapLoadError}
+            onLoadComplete={notifySceneReady}
+            showGrid={showBattleGrid}
+          />
+          {shouldShowSilentFallbackCover ? (
+            <div className={styles.fallbackImageOverlay}>
+              <PresentationCover className="absolute inset-0" />
+            </div>
+          ) : null}
+          {buildingsMapError && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>{buildingsMapError}</div> : null}
         </div>
       </section>
     )
@@ -778,7 +1024,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
                     <img
                       key={renderedImageMapUrl}
                       src={renderedImageMapUrl}
-                      alt={`Mapa de ${landmark.nombre}`}
+                      alt={`Mapa de ${landmark?.nombre ?? building?.nombre ?? "escena"}`}
                       className={styles.mapImageAsset}
                       draggable={false}
                       loading="eager"
@@ -804,8 +1050,13 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
             </div>
           </div>
         </div>
-        {isLoadingImageMap && <div className={styles.stateOverlay}>Cargando mapa...</div>}
-        {buildingsMapError && <div className={styles.stateOverlay}>{buildingsMapError}</div>}
+        {shouldShowSilentFallbackCover ? (
+          <div className={styles.fallbackImageOverlay}>
+            <PresentationCover className="absolute inset-0" />
+          </div>
+        ) : null}
+        {isLoadingImageMap && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>Cargando mapa...</div> : null}
+        {buildingsMapError && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>{buildingsMapError}</div> : null}
       </div>
     </section>
   )

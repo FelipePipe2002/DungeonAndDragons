@@ -9,4 +9,6 @@ public interface BuildingRepository extends JpaRepository<BuildingEntity, Long> 
     List<BuildingEntity> findByLandmarkIdOrderByNombreAsc(Long landmarkId);
 
     List<BuildingEntity> findByOrganizationIdOrderByNombreAsc(Long organizationId);
+
+    List<BuildingEntity> findByLandmarkIdAndNombreIgnoreCaseOrderByIdAsc(Long landmarkId, String nombre);
 }

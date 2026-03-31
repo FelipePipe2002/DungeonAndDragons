@@ -14,6 +14,13 @@ public record BuildingUpsertRequest(
     List<String> tags,
     Long duenoId,
     Integer mapBuildingIndex,
-    Long organizationId
+    Long organizationId,
+    Long mapAssetId,
+    Integer mapRotationDegrees,
+    Boolean mapGridEnabled,
+    Double mapGridCellSize,
+    Double mapGridOffsetX,
+    Double mapGridOffsetY,
+    LandmarkMapRequest mapa
 ) {
 }

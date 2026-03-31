@@ -1,12 +1,14 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.BattleObstacleData;
+import com.sistema.dnd.sistema.dto.domain.BattleFogRevealData;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
 import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
 import com.sistema.dnd.sistema.dto.domain.BattleSummaryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleTokenData;
 import com.sistema.dnd.sistema.dto.domain.CreateBattleRequest;
 import com.sistema.dnd.sistema.dto.domain.UpdateBattleStateRequest;
+import com.sistema.dnd.sistema.entity.BattleSceneType;
 import com.sistema.dnd.sistema.entity.BattleStateEntity;
 import com.sistema.dnd.sistema.entity.BattleStatus;
 import com.sistema.dnd.sistema.repository.BattleStateRepository;
@@ -28,15 +30,18 @@ public class BattleStateService {
     private final BattleStateRepository battleStateRepository;
     private final BattleStateJsonCodec battleStateJsonCodec;
     private final BattleObstacleJsonCodec battleObstacleJsonCodec;
+    private final BattleFogRevealJsonCodec battleFogRevealJsonCodec;
 
     public BattleStateService(
         BattleStateRepository battleStateRepository,
         BattleStateJsonCodec battleStateJsonCodec,
-        BattleObstacleJsonCodec battleObstacleJsonCodec
+        BattleObstacleJsonCodec battleObstacleJsonCodec,
+        BattleFogRevealJsonCodec battleFogRevealJsonCodec
     ) {
         this.battleStateRepository = battleStateRepository;
         this.battleStateJsonCodec = battleStateJsonCodec;
         this.battleObstacleJsonCodec = battleObstacleJsonCodec;
+        this.battleFogRevealJsonCodec = battleFogRevealJsonCodec;
     }
 
     public BattleStateDto findCurrent() {
@@ -46,6 +51,7 @@ public class BattleStateService {
             .orElse(null);
     }
 
+    @Deprecated(since = "2026-03", forRemoval = false)
     public BattleStateDto updateCurrent(BattleStateUpsertRequest request) {
         throw new ResponseStatusException(HttpStatus.GONE, "Usa /v1/battles/{id}");
     }
@@ -54,19 +60,34 @@ public class BattleStateService {
         return toDto(requireBattle(id));
     }
 
-    public BattleStateDto findActiveByLandmark(String landmarkSlug) {
-        String normalizedLandmarkSlug = requireLandmarkSlug(landmarkSlug);
+    public BattleStateDto findActiveByScene(String sceneType, String sceneSlug) {
+        BattleSceneType normalizedSceneType = requireSceneType(sceneType);
+        String normalizedSceneSlug = requireSceneSlug(sceneSlug);
 
         return battleStateRepository
-            .findFirstByLandmarkSlugAndStatusOrderByUpdatedAtDesc(normalizedLandmarkSlug, BattleStatus.ACTIVE)
+            .findFirstBySceneTypeAndSceneSlugAndStatusOrderByUpdatedAtDesc(
+                normalizedSceneType,
+                normalizedSceneSlug,
+                BattleStatus.ACTIVE
+            )
             .map(this::toDto)
             .orElse(null);
     }
 
-    public List<BattleSummaryDto> findHistoryByLandmark(String landmarkSlug) {
-        String normalizedLandmarkSlug = requireLandmarkSlug(landmarkSlug);
+    public List<BattleSummaryDto> findHistory(String parentLandmarkSlug, String sceneType, String sceneSlug) {
+        String normalizedParentLandmarkSlug = requireParentLandmarkSlug(parentLandmarkSlug);
+        String normalizedSceneSlug = normalizedOrNull(sceneSlug);
+        BattleSceneType normalizedSceneType = normalizedSceneSlug == null ? null : requireSceneType(sceneType);
 
-        return battleStateRepository.findByLandmarkSlugOrderByUpdatedAtDesc(normalizedLandmarkSlug).stream()
+        List<BattleStateEntity> battles = normalizedSceneSlug == null
+            ? battleStateRepository.findByParentLandmarkSlugOrderByUpdatedAtDesc(normalizedParentLandmarkSlug)
+            : battleStateRepository.findByParentLandmarkSlugAndSceneTypeAndSceneSlugOrderByUpdatedAtDesc(
+                normalizedParentLandmarkSlug,
+                normalizedSceneType,
+                normalizedSceneSlug
+            );
+
+        return battles.stream()
             .sorted(historyComparator())
             .map(this::toSummaryDto)
             .collect(Collectors.toList());
@@ -74,17 +95,22 @@ public class BattleStateService {
 
     @Transactional
     public BattleStateDto create(CreateBattleRequest request) {
-        String landmarkSlug = requireLandmarkSlug(request == null ? null : request.landmarkSlug());
+        BattleSceneType sceneType = requireSceneType(request == null ? null : request.sceneType());
+        String sceneSlug = requireSceneSlug(request == null ? null : request.sceneSlug());
+        String parentLandmarkSlug = normalizeParentLandmarkSlug(
+            request == null ? null : request.parentLandmarkSlug(),
+            sceneType,
+            sceneSlug
+        );
 
-        battleStateRepository.findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
-            .ifPresent(existing -> {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una batalla activa en el juego");
-            });
+        ensureNoOtherActiveBattleForScene(sceneType, sceneSlug, null);
 
         BattleStateEntity entity = new BattleStateEntity();
         entity.setSlug(buildBattleSlug());
-        entity.setLandmarkSlug(landmarkSlug);
-        entity.setTitle(defaultBattleTitle(landmarkSlug));
+        entity.setSceneType(sceneType);
+        entity.setSceneSlug(sceneSlug);
+        entity.setParentLandmarkSlug(parentLandmarkSlug);
+        entity.setTitle(defaultBattleTitle(sceneSlug));
         entity.setStatus(BattleStatus.ACTIVE);
         entity.setEndedAt(null);
         entity.setRoundNumber(1);
@@ -94,6 +120,9 @@ public class BattleStateService {
         entity.setTokensJson("[]");
         entity.setNextObstacleId(1);
         entity.setObstaclesJson("[]");
+        entity.setFogEnabled(false);
+        entity.setNextFogRevealId(1);
+        entity.setFogRevealsJson("[]");
 
         return toDto(battleStateRepository.save(entity));
     }
@@ -105,12 +134,13 @@ public class BattleStateService {
 
         List<BattleTokenData> normalizedTokens = normalizeTokens(request == null ? null : request.tokens());
         List<BattleObstacleData> normalizedObstacles = normalizeObstacles(request == null ? null : request.obstacles());
+        List<BattleFogRevealData> normalizedFogReveals = normalizeFogReveals(request == null ? null : request.fogReveals());
         Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
             request == null ? null : request.currentTurnTokenNumber(),
             normalizedTokens
         );
 
-        entity.setTitle(normalizeBattleTitle(request == null ? null : request.title(), entity.getLandmarkSlug()));
+        entity.setTitle(normalizeBattleTitle(request == null ? null : request.title(), entity.getSceneSlug()));
         entity.setRoundNumber(normalizeRoundNumber(request == null ? null : request.roundNumber()));
         entity.setDmNotes(normalizeBattleNotes(request == null ? null : request.dmNotes()));
         entity.setNextTokenNumber(resolveNextTokenNumber(request == null ? null : request.nextTokenNumber(), normalizedTokens));
@@ -118,6 +148,9 @@ public class BattleStateService {
         entity.setTokensJson(battleStateJsonCodec.write(normalizedTokens));
         entity.setNextObstacleId(resolveNextObstacleId(request == null ? null : request.nextObstacleId(), normalizedObstacles));
         entity.setObstaclesJson(battleObstacleJsonCodec.write(normalizedObstacles));
+        entity.setFogEnabled(request != null && Boolean.TRUE.equals(request.fogEnabled()));
+        entity.setNextFogRevealId(resolveNextFogRevealId(request == null ? null : request.nextFogRevealId(), normalizedFogReveals));
+        entity.setFogRevealsJson(battleFogRevealJsonCodec.write(normalizedFogReveals));
         entity.setEndedAt(null);
 
         return toDto(battleStateRepository.save(entity));
@@ -139,19 +172,11 @@ public class BattleStateService {
     @Transactional
     public BattleStateDto reopen(Long id) {
         BattleStateEntity entity = requireBattle(id);
-
-        battleStateRepository.findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
-            .ifPresent(activeBattle -> {
-                if (!Objects.equals(activeBattle.getId(), entity.getId())) {
-                    activeBattle.setStatus(BattleStatus.FINISHED);
-                    activeBattle.setEndedAt(OffsetDateTime.now());
-                    battleStateRepository.save(activeBattle);
-                }
-            });
+        ensureNoOtherActiveBattleForScene(entity.getSceneType(), entity.getSceneSlug(), entity.getId());
 
         entity.setStatus(BattleStatus.ACTIVE);
         entity.setEndedAt(null);
-        entity.setTitle(normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()));
+        entity.setTitle(normalizeBattleTitle(entity.getTitle(), entity.getSceneSlug()));
         entity.setRoundNumber(normalizeRoundNumber(entity.getRoundNumber()));
         entity.setDmNotes(normalizeBattleNotes(entity.getDmNotes()));
         entity.setCurrentTurnTokenNumber(
@@ -171,6 +196,21 @@ public class BattleStateService {
 
         return battleStateRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batalla no encontrada"));
+    }
+
+    private void ensureNoOtherActiveBattleForScene(BattleSceneType sceneType, String sceneSlug, Long currentBattleId) {
+        battleStateRepository.findFirstBySceneTypeAndSceneSlugAndStatusOrderByUpdatedAtDesc(
+            sceneType,
+            sceneSlug,
+            BattleStatus.ACTIVE
+        ).ifPresent(existing -> {
+            if (!Objects.equals(existing.getId(), currentBattleId)) {
+                throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Ya existe una batalla activa para esta escena"
+                );
+            }
+        });
     }
 
     private void ensureEditable(BattleStateEntity entity) {
@@ -210,8 +250,10 @@ public class BattleStateService {
         return new BattleSummaryDto(
             entity.getId(),
             entity.getSlug(),
-            normalizedOrNull(entity.getLandmarkSlug()),
-            normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()),
+            toSceneTypeValue(entity.getSceneType()),
+            requireSceneSlug(entity.getSceneSlug()),
+            requireParentLandmarkSlug(entity.getParentLandmarkSlug()),
+            normalizeBattleTitle(entity.getTitle(), entity.getSceneSlug()),
             toStatusValue(effectiveStatus(entity)),
             entity.getCreatedAt(),
             entity.getUpdatedAt(),
@@ -224,13 +266,16 @@ public class BattleStateService {
     private BattleStateDto toDto(BattleStateEntity entity) {
         List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
         List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
+        List<BattleFogRevealData> fogReveals = normalizeFogReveals(battleFogRevealJsonCodec.read(entity.getFogRevealsJson()));
         Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(entity.getCurrentTurnTokenNumber(), tokens);
 
         return new BattleStateDto(
             entity.getId(),
             entity.getSlug(),
-            requireLandmarkSlug(entity.getLandmarkSlug()),
-            normalizeBattleTitle(entity.getTitle(), entity.getLandmarkSlug()),
+            toSceneTypeValue(entity.getSceneType()),
+            requireSceneSlug(entity.getSceneSlug()),
+            requireParentLandmarkSlug(entity.getParentLandmarkSlug()),
+            normalizeBattleTitle(entity.getTitle(), entity.getSceneSlug()),
             toStatusValue(effectiveStatus(entity)),
             normalizeRoundNumber(entity.getRoundNumber()),
             normalizeBattleNotes(entity.getDmNotes()),
@@ -239,6 +284,9 @@ public class BattleStateService {
             tokens,
             resolveNextObstacleId(entity.getNextObstacleId(), obstacles),
             obstacles,
+            Boolean.TRUE.equals(entity.getFogEnabled()),
+            resolveNextFogRevealId(entity.getNextFogRevealId(), fogReveals),
+            fogReveals,
             entity.getCreatedAt(),
             entity.getUpdatedAt(),
             entity.getEndedAt()
@@ -266,6 +314,18 @@ public class BattleStateService {
             .filter(Objects::nonNull)
             .map(this::normalizeObstacle)
             .sorted(Comparator.comparing(BattleObstacleData::id))
+            .collect(Collectors.toList());
+    }
+
+    private List<BattleFogRevealData> normalizeFogReveals(List<BattleFogRevealData> fogReveals) {
+        if (fogReveals == null) {
+            return List.of();
+        }
+
+        return fogReveals.stream()
+            .filter(Objects::nonNull)
+            .map(this::normalizeFogReveal)
+            .sorted(Comparator.comparing(BattleFogRevealData::id))
             .collect(Collectors.toList());
     }
 
@@ -377,6 +437,19 @@ public class BattleStateService {
         );
     }
 
+    private BattleFogRevealData normalizeFogReveal(BattleFogRevealData fogReveal) {
+        int id = positiveInt(fogReveal.id(), 1);
+        double width = clampFogRevealDimension(fogReveal.width(), 12);
+        double height = clampFogRevealDimension(fogReveal.height(), 12);
+        double x = clampPercent(fogReveal.x(), 44);
+        double y = clampPercent(fogReveal.y(), 44);
+
+        x = Math.min(x, 100 - width);
+        y = Math.min(y, 100 - height);
+
+        return new BattleFogRevealData(id, x, y, width, height);
+    }
+
     private int resolveNextTokenNumber(Integer requestedNextTokenNumber, List<BattleTokenData> tokens) {
         int maxTokenNumber = tokens.stream()
             .map(BattleTokenData::number)
@@ -399,6 +472,18 @@ public class BattleStateService {
 
         int normalizedRequested = positiveInt(requestedNextObstacleId, 1);
         return Math.max(normalizedRequested, maxObstacleId + 1);
+    }
+
+    private int resolveNextFogRevealId(Integer requestedNextFogRevealId, List<BattleFogRevealData> fogReveals) {
+        int maxFogRevealId = fogReveals.stream()
+            .map(BattleFogRevealData::id)
+            .filter(Objects::nonNull)
+            .mapToInt(Integer::intValue)
+            .max()
+            .orElse(0);
+
+        int normalizedRequested = positiveInt(requestedNextFogRevealId, 1);
+        return Math.max(normalizedRequested, maxFogRevealId + 1);
     }
 
     private String normalizeTokenType(String value) {
@@ -447,13 +532,21 @@ public class BattleStateService {
         return lowered.equals("circle") ? "circle" : "rectangle";
     }
 
-    private String normalizeBattleTitle(String value, String landmarkSlug) {
+    private double clampFogRevealDimension(Double value, double fallback) {
+        if (value == null || !Double.isFinite(value)) {
+            return fallback;
+        }
+
+        return Math.round(Math.max(0.1, Math.min(100, value)) * 100.0) / 100.0;
+    }
+
+    private String normalizeBattleTitle(String value, String sceneSlug) {
         String normalized = trimToLength(normalizedOrNull(value), 255);
         if (normalized != null) {
             return normalized;
         }
 
-        return defaultBattleTitle(landmarkSlug);
+        return defaultBattleTitle(sceneSlug);
     }
 
     private int normalizeRoundNumber(Integer value) {
@@ -464,12 +557,50 @@ public class BattleStateService {
         return trimToLength(normalizedOrNull(value), 8000);
     }
 
-    private String requireLandmarkSlug(String value) {
+    private BattleSceneType requireSceneType(String value) {
         String normalized = normalizedOrNull(value);
         if (normalized == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "landmarkSlug es obligatorio");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sceneType es obligatorio");
+        }
+
+        String lowered = normalized.toLowerCase(Locale.ROOT);
+        if (lowered.equals("building")) {
+            return BattleSceneType.BUILDING;
+        }
+        if (lowered.equals("landmark")) {
+            return BattleSceneType.LANDMARK;
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sceneType invalido");
+    }
+
+    private String requireSceneSlug(String value) {
+        String normalized = normalizedOrNull(value);
+        if (normalized == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sceneSlug es obligatorio");
         }
         return normalized;
+    }
+
+    private String requireParentLandmarkSlug(String value) {
+        String normalized = normalizedOrNull(value);
+        if (normalized == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "parentLandmarkSlug es obligatorio");
+        }
+        return normalized;
+    }
+
+    private String normalizeParentLandmarkSlug(String value, BattleSceneType sceneType, String sceneSlug) {
+        String normalized = normalizedOrNull(value);
+        if (normalized != null) {
+            return normalized;
+        }
+
+        if (sceneType == BattleSceneType.LANDMARK) {
+            return sceneSlug;
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "parentLandmarkSlug es obligatorio");
     }
 
     private String normalizedOrNull(String value) {
@@ -571,13 +702,18 @@ public class BattleStateService {
         return status == BattleStatus.ACTIVE ? "active" : "finished";
     }
 
+    private String toSceneTypeValue(BattleSceneType sceneType) {
+        return sceneType == BattleSceneType.BUILDING ? "building" : "landmark";
+    }
+
     private String buildBattleSlug() {
         return "battle-" + UUID.randomUUID();
     }
 
-    private String defaultBattleTitle(String landmarkSlug) {
-        String normalizedSlug = requireLandmarkSlug(landmarkSlug);
-        String[] parts = normalizedSlug.split("-");
+    private String defaultBattleTitle(String sceneSlug) {
+        String normalizedSlug = requireSceneSlug(sceneSlug)
+            .replace("/edificio/", " / ");
+        String[] parts = normalizedSlug.split("[-/]");
         String label = java.util.Arrays.stream(parts)
             .filter(part -> !part.isBlank())
             .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))

@@ -1,6 +1,8 @@
 package com.sistema.dnd.sistema.dto.domain;
 
 public record CreateBattleRequest(
-    String landmarkSlug
+    String sceneType,
+    String sceneSlug,
+    String parentLandmarkSlug
 ) {
 }

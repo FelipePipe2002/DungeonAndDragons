@@ -4,8 +4,10 @@ import { normalizeBestiaryLocalImagePath } from "@/lib/monster/utils"
 import { backendRequest } from "@/lib/services/backend-api.service"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import type {
+  BattleFogReveal,
   BattleObstacle,
   BattleObstacleShape,
+  BattleSceneType,
   BattleState,
   BattleStatus,
   BattleSummary,
@@ -45,10 +47,21 @@ type BattleObstacleDto = {
   color?: string | null
 }
 
+type BattleFogRevealDto = {
+  id?: number | null
+  x?: number | null
+  y?: number | null
+  width?: number | null
+  height?: number | null
+}
+
 type BattleStateDto = {
   id?: number | null
   slug?: string | null
   landmarkSlug?: string | null
+  sceneType?: string | null
+  sceneSlug?: string | null
+  parentLandmarkSlug?: string | null
   title?: string | null
   status?: string | null
   roundNumber?: number | null
@@ -58,6 +71,9 @@ type BattleStateDto = {
   tokens?: BattleTokenDto[] | null
   nextObstacleId?: number | null
   obstacles?: BattleObstacleDto[] | null
+  fogEnabled?: boolean | null
+  nextFogRevealId?: number | null
+  fogReveals?: BattleFogRevealDto[] | null
   createdAt?: string | null
   updatedAt?: string | null
   endedAt?: string | null
@@ -67,6 +83,9 @@ type BattleSummaryDto = {
   id?: number | null
   slug?: string | null
   landmarkSlug?: string | null
+  sceneType?: string | null
+  sceneSlug?: string | null
+  parentLandmarkSlug?: string | null
   title?: string | null
   status?: string | null
   createdAt?: string | null
@@ -112,7 +131,24 @@ type UpdateBattlePayload = {
     height: number
     color: string | null
   }>
+  fogEnabled: boolean
+  nextFogRevealId: number
+  fogReveals: Array<{
+    id: number
+    x: number
+    y: number
+    width: number
+    height: number
+  }>
 }
+
+type CreateBattleInput =
+  | string
+  | {
+      sceneType: BattleSceneType
+      sceneSlug: string
+      parentLandmarkSlug: string
+    }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -142,6 +178,14 @@ function clampObstacleDimension(value: number | null | undefined, fallback: numb
   return Math.round(clamp(value, 0, 100) * 100) / 100
 }
 
+function clampFogRevealDimension(value: number | null | undefined, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback
+  }
+
+  return Math.round(clamp(value, 0.1, 100) * 100) / 100
+}
+
 function toOptionalText(value: string | null | undefined) {
   if (typeof value !== "string") return undefined
   const trimmed = value.trim()
@@ -152,8 +196,20 @@ function normalizeDateText(value: string | null | undefined) {
   return toOptionalText(value)
 }
 
-function normalizeBattleTitle(value: string | null | undefined, landmarkSlug: string) {
-  return toOptionalText(value) ?? `Batalla en ${landmarkSlug || "mapa"}`
+function normalizeBattleTitle(value: string | null | undefined, sceneSlug: string) {
+  return toOptionalText(value) ?? `Batalla en ${sceneSlug || "mapa"}`
+}
+
+function resolveLegacyBattleSceneSlug(input: { sceneSlug?: string | null; landmarkSlug?: string | null }) {
+  return toOptionalText(input.sceneSlug) ?? toOptionalText(input.landmarkSlug) ?? ""
+}
+
+function resolveLegacyBattleParentLandmarkSlug(input: {
+  parentLandmarkSlug?: string | null
+  landmarkSlug?: string | null
+  sceneSlug?: string | null
+}) {
+  return toOptionalText(input.parentLandmarkSlug) ?? toOptionalText(input.landmarkSlug) ?? resolveLegacyBattleSceneSlug(input)
 }
 
 function normalizeRoundNumber(value: number | null | undefined) {
@@ -166,6 +222,10 @@ function normalizeRoundNumber(value: number | null | undefined) {
 
 function normalizeStatus(value: unknown): BattleStatus {
   return value === "finished" ? "finished" : "active"
+}
+
+function normalizeSceneType(value: unknown): BattleSceneType {
+  return value === "building" ? "building" : "landmark"
 }
 
 function isBattleTokenType(value: unknown): value is BattleTokenType {
@@ -253,6 +313,21 @@ function normalizeObstacle(dto: BattleObstacleDto): BattleObstacle {
   }
 }
 
+function normalizeFogReveal(dto: BattleFogRevealDto): BattleFogReveal {
+  const width = clampFogRevealDimension(dto.width, 12)
+  const height = clampFogRevealDimension(dto.height, 12)
+  const x = typeof dto.x === "number" && Number.isFinite(dto.x) ? clamp(dto.x, 0, 100 - width) : 44
+  const y = typeof dto.y === "number" && Number.isFinite(dto.y) ? clamp(dto.y, 0, 100 - height) : 44
+
+  return {
+    id: typeof dto.id === "number" && Number.isFinite(dto.id) && dto.id > 0 ? Math.trunc(dto.id) : 1,
+    x: Math.round(x * 100) / 100,
+    y: Math.round(y * 100) / 100,
+    width,
+    height,
+  }
+}
+
 function compactBattleTokenNumbers(tokens: BattleToken[], currentTurnTokenNumber?: number | null) {
   const sortedTokens = [...tokens].sort((left, right) => left.number - right.number)
   const normalizedCurrentTurn =
@@ -287,6 +362,9 @@ function normalizeState(dto: BattleStateDto): BattleState {
   const tokens = Array.isArray(dto.tokens) ? dto.tokens.map(normalizeToken) : []
   const compactedTokens = compactBattleTokenNumbers(tokens, dto.currentTurnTokenNumber ?? null)
   const obstacles = Array.isArray(dto.obstacles) ? dto.obstacles.map(normalizeObstacle) : []
+  const fogReveals = Array.isArray(dto.fogReveals) ? dto.fogReveals.map(normalizeFogReveal) : []
+  const sceneSlug = resolveLegacyBattleSceneSlug(dto)
+  const parentLandmarkSlug = resolveLegacyBattleParentLandmarkSlug(dto)
   const sortedObstacles = obstacles.sort((a, b) => a.id - b.id)
   const minNextTokenNumber = compactedTokens.tokens.length + 1
   const nextObstacleId =
@@ -297,23 +375,38 @@ function normalizeState(dto: BattleStateDto): BattleState {
     nextObstacleId,
     obstacles.reduce((max, obstacle) => Math.max(max, obstacle.id + 1), 1),
   )
+  const nextFogRevealId =
+    typeof dto.nextFogRevealId === "number" && Number.isFinite(dto.nextFogRevealId) && dto.nextFogRevealId > 0
+      ? Math.trunc(dto.nextFogRevealId)
+      : 1
+  const sortedFogReveals = fogReveals.sort((a, b) => a.id - b.id)
+  const minNextFogRevealId = Math.max(
+    nextFogRevealId,
+    sortedFogReveals.reduce((max, reveal) => Math.max(max, reveal.id + 1), 1),
+  )
 
   return {
     id: typeof dto.id === "number" && Number.isFinite(dto.id) ? dto.id : undefined,
     slug: toOptionalText(dto.slug) ?? "battle",
-    landmarkSlug: toOptionalText(dto.landmarkSlug) ?? "",
-    title: normalizeBattleTitle(dto.title, toOptionalText(dto.landmarkSlug) ?? ""),
+    landmarkSlug: parentLandmarkSlug,
+    sceneType: normalizeSceneType(dto.sceneType),
+    sceneSlug,
+    parentLandmarkSlug,
+    title: normalizeBattleTitle(dto.title, sceneSlug),
     status: normalizeStatus(dto.status),
     roundNumber: normalizeRoundNumber(dto.roundNumber),
     dmNotes: toOptionalText(dto.dmNotes) ?? "",
     nextTokenNumber: minNextTokenNumber,
     nextObstacleId: minNextObstacleId,
+    fogEnabled: Boolean(dto.fogEnabled),
+    nextFogRevealId: minNextFogRevealId,
     currentTurnTokenNumber: normalizeCurrentTurnTokenNumber(
       compactedTokens.tokens,
       compactedTokens.currentTurnTokenNumber ?? dto.currentTurnTokenNumber ?? null,
     ),
     tokens: compactedTokens.tokens,
     obstacles: sortedObstacles,
+    fogReveals: sortedFogReveals,
     createdAt: normalizeDateText(dto.createdAt),
     updatedAt: normalizeDateText(dto.updatedAt),
     endedAt: normalizeDateText(dto.endedAt),
@@ -321,11 +414,17 @@ function normalizeState(dto: BattleStateDto): BattleState {
 }
 
 function normalizeSummary(dto: BattleSummaryDto): BattleSummary {
+  const sceneSlug = resolveLegacyBattleSceneSlug(dto)
+  const parentLandmarkSlug = resolveLegacyBattleParentLandmarkSlug(dto)
+
   return {
     id: typeof dto.id === "number" && Number.isFinite(dto.id) ? Math.trunc(dto.id) : 0,
     slug: toOptionalText(dto.slug) ?? "battle",
-    landmarkSlug: toOptionalText(dto.landmarkSlug) ?? "",
-    title: normalizeBattleTitle(dto.title, toOptionalText(dto.landmarkSlug) ?? ""),
+    landmarkSlug: parentLandmarkSlug,
+    sceneType: normalizeSceneType(dto.sceneType),
+    sceneSlug,
+    parentLandmarkSlug,
+    title: normalizeBattleTitle(dto.title, sceneSlug),
     status: normalizeStatus(dto.status),
     createdAt: normalizeDateText(dto.createdAt),
     updatedAt: normalizeDateText(dto.updatedAt),
@@ -350,17 +449,18 @@ export function sanitizeBattleState(input: BattleStateDto | Partial<BattleState>
 }
 
 function toPayload(input: BattleState): UpdateBattlePayload {
-  const landmarkSlug = toOptionalText(input.landmarkSlug) ?? ""
+  const titleSceneSlug = toOptionalText(input.sceneSlug) ?? toOptionalText(input.landmarkSlug) ?? ""
   const tokens = Array.isArray(input.tokens) ? input.tokens : []
   const compactedTokens = compactBattleTokenNumbers(tokens, input.currentTurnTokenNumber ?? null)
   const obstacles = Array.isArray(input.obstacles) ? input.obstacles : []
+  const fogReveals = Array.isArray(input.fogReveals) ? input.fogReveals : []
   const normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
     compactedTokens.tokens,
     compactedTokens.currentTurnTokenNumber ?? input.currentTurnTokenNumber ?? null,
   )
 
   return {
-    title: normalizeBattleTitle(input.title, landmarkSlug),
+    title: normalizeBattleTitle(input.title, titleSceneSlug),
     roundNumber: normalizeRoundNumber(input.roundNumber),
     dmNotes: toOptionalText(input.dmNotes) ?? null,
     nextTokenNumber: compactedTokens.tokens.length + 1,
@@ -442,15 +542,30 @@ function toPayload(input: BattleState): UpdateBattlePayload {
         color: normalizeHexColor(obstacle.color, shape === "circle" ? "#f59e0b" : "#0f766e"),
       }
     }),
+    fogEnabled: Boolean(input.fogEnabled),
+    nextFogRevealId: Math.max(
+      1,
+      Math.trunc(input.nextFogRevealId),
+      fogReveals.reduce((max, reveal) => Math.max(max, reveal.id + 1), 1),
+    ),
+    fogReveals: fogReveals.map((reveal, index) => {
+      const width = clampFogRevealDimension(reveal.width, 12)
+      const height = clampFogRevealDimension(reveal.height, 12)
+      const x = clamp(reveal.x, 0, 100 - width)
+      const y = clamp(reveal.y, 0, 100 - height)
+
+      return {
+        id:
+          typeof reveal.id === "number" && Number.isFinite(reveal.id) && reveal.id > 0
+            ? Math.max(1, Math.trunc(reveal.id))
+            : index + 1,
+        x: Math.round(x * 100) / 100,
+        y: Math.round(y * 100) / 100,
+        width,
+        height,
+      }
+    }),
   }
-}
-
-export async function fetchActiveBattleForLandmark(landmarkSlug: string): Promise<BattleState | null> {
-  const response = await backendRequest<BattleStateDto | undefined>(
-    `/v1/battles/active?landmarkSlug=${encodeURIComponent(landmarkSlug)}`,
-  )
-
-  return response ? normalizeState(response) : null
 }
 
 export async function fetchCurrentBattle(): Promise<BattleState | null> {
@@ -458,9 +573,40 @@ export async function fetchCurrentBattle(): Promise<BattleState | null> {
   return response ? normalizeState(response) : null
 }
 
-export async function fetchBattleHistory(landmarkSlug: string): Promise<BattleSummary[]> {
+export async function fetchActiveBattle(
+  sceneType: BattleSceneType,
+  sceneSlug: string,
+): Promise<BattleState | null> {
+  const searchParams = new URLSearchParams({
+    sceneType,
+    sceneSlug,
+  })
+
+  const response = await backendRequest<BattleStateDto | undefined>(
+    `/v1/battles/active?${searchParams.toString()}`,
+  )
+
+  return response ? normalizeState(response) : null
+}
+
+export async function fetchBattleHistory(
+  landmarkSlug: string,
+  options?: {
+    sceneType?: BattleSceneType
+    sceneSlug?: string | null
+  },
+): Promise<BattleSummary[]> {
+  const searchParams = new URLSearchParams({
+    parentLandmarkSlug: landmarkSlug,
+  })
+
+  if (options?.sceneSlug?.trim()) {
+    searchParams.set("sceneSlug", options.sceneSlug.trim())
+    searchParams.set("sceneType", options.sceneType === "building" ? "building" : "landmark")
+  }
+
   const response = await backendRequest<BattleSummaryDto[]>(
-    `/v1/battles?landmarkSlug=${encodeURIComponent(landmarkSlug)}`,
+    `/v1/battles?${searchParams.toString()}`,
   )
 
   return Array.isArray(response) ? response.map(normalizeSummary) : []
@@ -471,10 +617,19 @@ export async function fetchBattleById(id: number): Promise<BattleState> {
   return normalizeState(response)
 }
 
-export async function createBattle(landmarkSlug: string): Promise<BattleState> {
+export async function createBattle(input: CreateBattleInput): Promise<BattleState> {
+  const payload =
+    typeof input === "string"
+      ? {
+          sceneType: "landmark" as const,
+          sceneSlug: input,
+          parentLandmarkSlug: input,
+        }
+      : input
+
   const response = await backendRequest<BattleStateDto>("/v1/battles", {
     method: "POST",
-    body: { landmarkSlug },
+    body: payload,
   })
   return normalizeState(response)
 }

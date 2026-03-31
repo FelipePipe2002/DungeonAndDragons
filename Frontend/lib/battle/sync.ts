@@ -7,6 +7,7 @@ const BATTLE_SCREEN_CHANNEL_NAME = "battle-screen-sync"
 type BattleScreenPayload = {
   revision: number
   battle: BattleState | null
+  presentationFriendlyMode: boolean
 }
 
 type BattlePresentationMirrorPayload = {
@@ -16,7 +17,7 @@ type BattlePresentationMirrorPayload = {
 
 export type BattleTokenPreview = {
   battleId: number
-  landmarkSlug: string
+  sceneSlug: string
   tokenNumber: number
   position: {
     x: number
@@ -26,7 +27,7 @@ export type BattleTokenPreview = {
 
 export type BattleObstaclePreview = {
   battleId: number
-  landmarkSlug: string
+  sceneSlug: string
   obstacleId: number
   position: {
     x: number
@@ -36,7 +37,7 @@ export type BattleObstaclePreview = {
 
 export type BattleTurnUpdate = {
   battleId: number
-  landmarkSlug: string
+  sceneSlug: string
   currentTurnTokenNumber: number | null
   roundNumber: number
 }
@@ -88,7 +89,7 @@ function isBattleTokenPreview(value: unknown): value is BattleTokenPreview {
 
   return (
     isFiniteNumber(value.battleId) &&
-    typeof value.landmarkSlug === "string" &&
+    (typeof value.sceneSlug === "string" || typeof value.landmarkSlug === "string") &&
     isFiniteNumber(value.tokenNumber) &&
     (value.position === null || isTokenPosition(value.position))
   )
@@ -101,10 +102,18 @@ function isBattleObstaclePreview(value: unknown): value is BattleObstaclePreview
 
   return (
     isFiniteNumber(value.battleId) &&
-    typeof value.landmarkSlug === "string" &&
+    (typeof value.sceneSlug === "string" || typeof value.landmarkSlug === "string") &&
     isFiniteNumber(value.obstacleId) &&
     (value.position === null || isTokenPosition(value.position))
   )
+}
+
+function readSceneSlugAlias(value: Record<string, unknown>) {
+  if (typeof value.sceneSlug === "string") {
+    return value.sceneSlug
+  }
+
+  return typeof value.landmarkSlug === "string" ? value.landmarkSlug : null
 }
 
 function getBattleScreenChannel() {
@@ -144,11 +153,12 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
       return null
     }
 
-        return {
+    return {
       type: "battle-state",
       payload: {
         revision: payload.revision,
         battle: payload.battle && isObjectRecord(payload.battle) ? (payload.battle as unknown as BattleState) : null,
+        presentationFriendlyMode: payload.presentationFriendlyMode === true,
       },
     }
   }
@@ -174,9 +184,10 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
 
   if (raw.type === "battle-turn" && "update" in raw && isObjectRecord(raw.update)) {
     const update = raw.update as Record<string, unknown>
+    const sceneSlug = readSceneSlugAlias(update)
     if (
       isFiniteNumber(update.battleId) &&
-      typeof update.landmarkSlug === "string" &&
+      typeof sceneSlug === "string" &&
       (update.currentTurnTokenNumber === null || isFiniteNumber(update.currentTurnTokenNumber)) &&
       isFiniteNumber(update.roundNumber)
     ) {
@@ -184,7 +195,7 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
         type: "battle-turn",
         update: {
           battleId: update.battleId,
-          landmarkSlug: update.landmarkSlug,
+          sceneSlug,
           currentTurnTokenNumber: update.currentTurnTokenNumber ?? null,
           roundNumber: update.roundNumber,
         },
@@ -195,16 +206,36 @@ function parseBattleScreenEvent(raw: unknown): BattleScreenEvent | null {
   }
 
   if (raw.type === "token-preview" && "preview" in raw && isBattleTokenPreview(raw.preview)) {
+    const sceneSlug = readSceneSlugAlias(raw.preview)
+    if (typeof sceneSlug !== "string") {
+      return null
+    }
+
     return {
       type: "token-preview",
-      preview: raw.preview,
+      preview: {
+        battleId: raw.preview.battleId,
+        sceneSlug,
+        tokenNumber: raw.preview.tokenNumber,
+        position: raw.preview.position,
+      },
     }
   }
 
   if (raw.type === "obstacle-preview" && "preview" in raw && isBattleObstaclePreview(raw.preview)) {
+    const sceneSlug = readSceneSlugAlias(raw.preview)
+    if (typeof sceneSlug !== "string") {
+      return null
+    }
+
     return {
       type: "obstacle-preview",
-      preview: raw.preview,
+      preview: {
+        battleId: raw.preview.battleId,
+        sceneSlug,
+        obstacleId: raw.preview.obstacleId,
+        position: raw.preview.position,
+      },
     }
   }
 
@@ -237,6 +268,7 @@ function parsePayload(raw: string | null): BattleScreenPayload | null {
     return {
       revision,
       battle: battle && isObjectRecord(battle) ? (battle as unknown as BattleState) : null,
+      presentationFriendlyMode: parsed.presentationFriendlyMode === true,
     }
   } catch {
     return null
@@ -277,6 +309,10 @@ export function readBattleScreenPayload() {
 
 export function readBattleScreenState() {
   return readBattleScreenPayload()?.battle ?? null
+}
+
+export function readBattleScreenPresentationFriendlyMode() {
+  return readBattleScreenPayload()?.presentationFriendlyMode === true
 }
 
 export function readBattleScreenPresentationVerticalMirror() {
@@ -332,7 +368,12 @@ export function broadcastBattleTurn(update: BattleTurnUpdate) {
   })
 }
 
-export function setBattleScreenState(battle: BattleState | null) {
+export function setBattleScreenState(
+  battle: BattleState | null,
+  options?: {
+    presentationFriendlyMode?: boolean
+  },
+) {
   if (typeof window === "undefined") {
     return
   }
@@ -340,6 +381,7 @@ export function setBattleScreenState(battle: BattleState | null) {
   const payload: BattleScreenPayload = {
     revision: Date.now(),
     battle,
+    presentationFriendlyMode: options?.presentationFriendlyMode === true,
   }
 
   window.localStorage.setItem(BATTLE_SCREEN_STORAGE_KEY, JSON.stringify(payload))
