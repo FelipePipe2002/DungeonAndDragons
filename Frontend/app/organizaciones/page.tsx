@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
+import { ORGANIZATIONS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchCharacterReferences } from "@/lib/services/character-api.service"
@@ -51,6 +52,17 @@ export default function OrganizacionesPage() {
 
   useEffect(() => {
     void loadPageData()
+  }, [loadPageData])
+
+  useEffect(() => {
+    const handleOrganizationsChanged = () => {
+      void loadPageData()
+    }
+
+    window.addEventListener(ORGANIZATIONS_CHANGED_EVENT, handleOrganizationsChanged)
+    return () => {
+      window.removeEventListener(ORGANIZATIONS_CHANGED_EVENT, handleOrganizationsChanged)
+    }
   }, [loadPageData])
 
   const resolveLandmarkName = (landmarkId: number) => landmarkNamesById[landmarkId] ?? "Desconocido"

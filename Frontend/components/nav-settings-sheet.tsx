@@ -34,6 +34,22 @@ export function NavSettingsSheet({ showTrigger = true }: NavSettingsSheetProps) 
     () => [
       ...GLOBAL_NAVIGATION_SHORTCUTS,
       {
+        key: "Alt+P",
+        action: "Crear personaje",
+      },
+      {
+        key: "Alt+B",
+        action: "Crear edificio",
+      },
+      {
+        key: "Alt+O",
+        action: "Crear organizacion",
+      },
+      {
+        key: "Alt+N",
+        action: "Ir a notas",
+      },
+      {
         key: "Alt+C",
         action: "Abrir/cerrar configuracion",
       },

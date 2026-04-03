@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
+import { BUILDINGS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
@@ -37,6 +38,17 @@ export default function EdificiosPage() {
 
   useEffect(() => {
     void loadPageData()
+  }, [loadPageData])
+
+  useEffect(() => {
+    const handleBuildingsChanged = () => {
+      void loadPageData()
+    }
+
+    window.addEventListener(BUILDINGS_CHANGED_EVENT, handleBuildingsChanged)
+    return () => {
+      window.removeEventListener(BUILDINGS_CHANGED_EVENT, handleBuildingsChanged)
+    }
   }, [loadPageData])
 
   const resolveLandmarkName = (landmarkId: number | null) =>

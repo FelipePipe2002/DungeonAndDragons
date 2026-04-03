@@ -6,6 +6,7 @@ import { CharactersPageHeader } from "@/components/characters/CharactersPageHead
 import { CharacterDetailDialog } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
 import { SearchInput } from "@/components/search/SearchInput"
+import { CHARACTERS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchCharacterReferences, fetchCharacters, updateCharacter } from "@/lib/services/character-api.service"
@@ -79,6 +80,17 @@ export function CharactersPageContent({ initialScope = "npcs" }: CharactersPageC
 
   useEffect(() => {
     void loadPageData()
+  }, [loadPageData])
+
+  useEffect(() => {
+    const handleCharactersChanged = () => {
+      void loadPageData()
+    }
+
+    window.addEventListener(CHARACTERS_CHANGED_EVENT, handleCharactersChanged)
+    return () => {
+      window.removeEventListener(CHARACTERS_CHANGED_EVENT, handleCharactersChanged)
+    }
   }, [loadPageData])
 
   const getLandmarkName = (landmarkId: number) =>

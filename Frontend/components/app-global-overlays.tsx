@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 
+import { GlobalCreateDialogs } from "@/components/global-create-dialogs"
 import { Toaster } from "@/components/ui/toaster"
 import {
   readPresentationScreenTarget,
@@ -59,5 +60,10 @@ export function AppGlobalOverlays() {
     return null
   }
 
-  return <Toaster />
+  return (
+    <>
+      <GlobalCreateDialogs />
+      <Toaster />
+    </>
+  )
 }

@@ -3,6 +3,11 @@
 import { useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 
+import {
+  openCreateBuildingDialog,
+  openCreateCharacterDialog,
+  openCreateOrganizationDialog,
+} from "@/lib/navigation/global-create-events"
 import { getMainNavItemByShortcut, normalizeMainNavPath } from "@/lib/navigation/main-nav"
 import { toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
 
@@ -54,6 +59,36 @@ export function GlobalNavigationShortcuts() {
       if (event.key.toLocaleLowerCase("es") === "c") {
         event.preventDefault()
         toggleNavSettingsPanel()
+        return
+      }
+
+      if (event.key.toLocaleLowerCase("es") === "p") {
+        event.preventDefault()
+        openCreateCharacterDialog()
+        return
+      }
+
+      if (event.key.toLocaleLowerCase("es") === "b") {
+        event.preventDefault()
+        openCreateBuildingDialog()
+        return
+      }
+
+      if (event.key.toLocaleLowerCase("es") === "o") {
+        event.preventDefault()
+        openCreateOrganizationDialog()
+        return
+      }
+
+      if (event.key.toLocaleLowerCase("es") === "n") {
+        const notesPath = "/notas"
+        const currentPath = normalizeMainNavPath(pathname)
+        if (currentPath === notesPath) {
+          return
+        }
+
+        event.preventDefault()
+        router.push(notesPath)
         return
       }
 
