@@ -176,6 +176,10 @@ export function getLocalNavigationShortcuts(pathname: string | null | undefined)
         action: "Marcar seleccion en mapa",
       },
       {
+        key: "Shift+Click (edificio)",
+        action: "Ocultar/mostrar edificio en mapa",
+      },
+      {
         key: "Esc",
         action: "Quitar foco del mapa",
       },

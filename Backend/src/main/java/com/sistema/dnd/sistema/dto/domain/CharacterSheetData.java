@@ -13,7 +13,7 @@ public record CharacterSheetData(
     Object speed,
     HitPointsData hit_points,
     Map<String, AbilityScoreEntryData> ability_scores,
-    Map<String, Boolean> skills,
+    Map<String, Object> skills,
     ArmorClassData armor_class,
     List<String> languages,
     DetailsData details,

@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { MentionField } from "@/components/mentionField/MentionField"
+import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { MentionField } from "@/components/mentionField/MentionField"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   fetchCharacterReferences,
   fetchCharacters,
@@ -16,8 +18,9 @@ import {
 import { createBuilding, deleteBuilding, fetchBuildingById, updateBuilding } from "@/lib/services/building-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
+import { parseTagList } from "@/lib/tags"
 import type { Building, Character, Organization } from "@/lib/types"
-import { Building2, MapPin, Pencil, Save, Search, Shield, Trash2, User, X } from "lucide-react"
+import { Building2, MapPin, Pencil, Save, Shield, Trash2, User, X } from "lucide-react"
 
 type BuildingFormState = {
   nombre: string
@@ -59,17 +62,6 @@ function toBuildingFormState(building: Building, characters: Character[]): Build
     tags: building.tags.join(", "),
     landmarkId: building.landmarkId ?? 0,
   }
-}
-
-function toTagList(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-    ),
-  )
 }
 
 function toOptionalText(value: string): string | undefined {
@@ -136,6 +128,7 @@ export function BuildingDetailDialog({
   const [isEditing, setIsEditing] = useState(false)
   const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
   const [ownerSearch, setOwnerSearch] = useState("")
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [formState, setFormState] = useState<BuildingFormState>(() =>
     currentBuilding
@@ -222,7 +215,6 @@ export function BuildingDetailDialog({
   useEffect(() => {
     if (!open) return
 
-    setOwnerSearch("")
     setIsOwnerPickerOpen(false)
     setIsEditing(isCreateMode)
     setSaveError(null)
@@ -256,6 +248,13 @@ export function BuildingDetailDialog({
   const selectedOwnerLabel = selectedOwner
     ? formatOwnerLabel(selectedOwner, landmarkNameById.get(selectedOwner.landmarkId))
     : formState.duenoNombre.trim()
+
+  useEffect(() => {
+    if (!open) return
+    if (!isOwnerPickerOpen) {
+      setOwnerSearch(selectedOwnerLabel)
+    }
+  }, [isOwnerPickerOpen, open, selectedOwnerLabel])
   const ownerOptions = useMemo(() => {
     const query = ownerSearch.trim().toLowerCase()
     const options = storedCharacters
@@ -299,7 +298,11 @@ export function BuildingDetailDialog({
     if (!currentBuilding) return
 
     setFormState(toBuildingFormState(currentBuilding, storedCharacters))
-    setOwnerSearch("")
+    const ownerFromSelection = currentBuilding.duenoId !== undefined ? characterById.get(currentBuilding.duenoId) : undefined
+    const nextOwnerLabel = ownerFromSelection
+      ? formatOwnerLabel(ownerFromSelection, landmarkNameById.get(ownerFromSelection.landmarkId))
+      : currentBuilding.duenoNombre?.trim() ?? ""
+    setOwnerSearch(nextOwnerLabel)
     setIsOwnerPickerOpen(false)
     setIsEditing(true)
     setSaveError(null)
@@ -312,7 +315,11 @@ export function BuildingDetailDialog({
     }
 
     setFormState(toBuildingFormState(currentBuilding, storedCharacters))
-    setOwnerSearch("")
+    const ownerFromSelection = currentBuilding.duenoId !== undefined ? characterById.get(currentBuilding.duenoId) : undefined
+    const nextOwnerLabel = ownerFromSelection
+      ? formatOwnerLabel(ownerFromSelection, landmarkNameById.get(ownerFromSelection.landmarkId))
+      : currentBuilding.duenoNombre?.trim() ?? ""
+    setOwnerSearch(nextOwnerLabel)
     setIsOwnerPickerOpen(false)
     setIsEditing(false)
     setSaveError(null)
@@ -336,7 +343,7 @@ export function BuildingDetailDialog({
             landmarkId: nextLandmarkId,
             nombre: normalizedName,
             descripcion: formState.descripcion.trim(),
-            tags: toTagList(formState.tags),
+            tags: parseTagList(formState.tags),
             duenoId: ownerId,
             duenoNombre: ownerName,
           })
@@ -353,7 +360,7 @@ export function BuildingDetailDialog({
           landmarkId: formState.landmarkId > 0 ? formState.landmarkId : null,
           nombre: normalizedName,
           descripcion: formState.descripcion.trim(),
-          tags: toTagList(formState.tags),
+          tags: parseTagList(formState.tags),
           duenoId: ownerId,
           duenoNombre: ownerName,
           posicion: currentBuilding.posicion,
@@ -374,27 +381,27 @@ export function BuildingDetailDialog({
     })()
   }
 
-  const handleDelete = () => {
+  const handleDeleteRequest = () => {
+    if (!currentBuilding) return
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!currentBuilding) return
 
-    void (async () => {
-      const confirmed = window.confirm(`¿Eliminar ${currentBuilding.nombre}? Esta accion no se puede deshacer.`)
-      if (!confirmed) return
-
-      try {
-        await deleteBuilding(currentBuilding.id)
-        setCurrentBuilding(null)
-        setOwnerSearch("")
-        setIsOwnerPickerOpen(false)
-        setIsEditing(false)
-        setSaveError(null)
-        setFormState(getEmptyBuildingFormState(defaultLandmarkId))
-        onBuildingDeleted?.(currentBuilding.id)
-        onOpenChange(false)
-      } catch (error) {
-        setSaveError(getBackendErrorMessage(error, "No se pudo eliminar el edificio en backend."))
-      }
-    })()
+    try {
+      await deleteBuilding(currentBuilding.id)
+      setCurrentBuilding(null)
+      setOwnerSearch("")
+      setIsOwnerPickerOpen(false)
+      setIsEditing(false)
+      setSaveError(null)
+      setFormState(getEmptyBuildingFormState(defaultLandmarkId))
+      onBuildingDeleted?.(currentBuilding.id)
+      onOpenChange(false)
+    } catch (error) {
+      setSaveError(getBackendErrorMessage(error, "No se pudo eliminar el edificio en backend."))
+    }
   }
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
@@ -414,12 +421,13 @@ export function BuildingDetailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="parchment max-h-[90vh] max-w-3xl overflow-hidden p-0">
+    <>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="parchment max-h-[90vh] max-w-3xl overflow-hidden p-0">
         <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
           {!isEditing && currentBuilding ? (
             <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDelete}>
+              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
                 <Trash2 className="mr-1 size-3" />
                 Eliminar
               </Button>
@@ -562,28 +570,26 @@ export function BuildingDetailDialog({
                     </h4>
                     {isEditing ? (
                       <Popover open={isOwnerPickerOpen} onOpenChange={setIsOwnerPickerOpen}>
-                        <PopoverAnchor asChild>
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              value={isOwnerPickerOpen ? ownerSearch : selectedOwnerLabel}
-                              onFocus={() => {
-                                setOwnerSearch("")
-                                setIsOwnerPickerOpen(true)
-                              }}
-                              onChange={(event) => {
-                                setOwnerSearch(event.target.value)
-                                setIsOwnerPickerOpen(true)
-                              }}
-                              className="h-8 border-border bg-card pl-8 text-xs"
-                              placeholder="Buscar personaje para dueno..."
-                            />
-                          </div>
-                        </PopoverAnchor>
+                        <PopoverTrigger asChild>
+                          <SearchInput
+                            value={ownerSearch}
+                            placeholder="Buscar personaje para dueno..."
+                            onChange={(value) => {
+                              setOwnerSearch(value)
+                              setIsOwnerPickerOpen(true)
+                            }}
+                            inputProps={{
+                              onFocus: (event) => {
+                                event.currentTarget.select()
+                              },
+                            }}
+                          />
+                        </PopoverTrigger>
                         <PopoverContent
                           align="start"
                           sideOffset={6}
                           className="w-[min(90vw,30rem)] border-border/70 p-1"
+                          onOpenAutoFocus={(event) => event.preventDefault()}
                         >
                           <ScrollArea className="max-h-72">
                             <div className="space-y-0.5">
@@ -632,7 +638,22 @@ export function BuildingDetailDialog({
             </div>
           </div>
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Eliminar edificio"
+        description={
+          currentBuilding
+            ? `¿Eliminar ${currentBuilding.nombre}? Esta accion no se puede deshacer.`
+            : "Esta accion no se puede deshacer."
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }

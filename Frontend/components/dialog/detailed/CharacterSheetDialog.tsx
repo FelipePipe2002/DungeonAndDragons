@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import {
   CHARACTER_SHEET_ABILITY_SCORES,
@@ -115,9 +114,14 @@ function getSavingThrowValue(sheet: CharacterSheet, abilityScore: CharacterSheet
 }
 
 function getSkillValue(sheet: CharacterSheet, skill: CharacterSheetSkill) {
+  const override = sheet.skills[skill].bonus_override
+  if (typeof override === "number") {
+    return override
+  }
+
   const abilityScore = CHARACTER_SHEET_SKILL_ABILITY_SCORES[skill]
   const modifier = getAbilityModifier(sheet.ability_scores[abilityScore].score)
-  return modifier + (sheet.skills[skill] ? sheet.competence_bonus : 0)
+  return modifier + (sheet.skills[skill].proficient ? sheet.competence_bonus : 0)
 }
 
 function getInitiativeValue(sheet: CharacterSheet) {
@@ -171,9 +175,22 @@ function buildSeed(characterName: string, characterRace: string, characterClass:
 function SectionTitle({ title, description }: { title: string; description?: string }) {
   return (
     <div className="space-y-1">
-      <h3 className="text-sm font-semibold text-primary">{title}</h3>
-      {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      <div className="flex items-center gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.24em] text-[#6b4a2a]">{title}</h3>
+        <div className="h-px flex-1 bg-[#d3bea3]" />
+      </div>
+      {description ? <p className="text-xs text-[#7f6348]">{description}</p> : null}
     </div>
+  )
+}
+
+function SheetPanel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <section
+      className={`border border-[#c4a27c] bg-[#f5ecde] p-4 ${className}`}
+    >
+      {children}
+    </section>
   )
 }
 
@@ -193,6 +210,8 @@ export function CharacterSheetDialog({
   const [abilityScoreInputs, setAbilityScoreInputs] = useState<Record<CharacterSheetAbilityScore, string>>(() =>
     createAbilityScoreInputs(createEmptyCharacterSheetDraft(buildSeed(characterName, characterRace, characterClass))),
   )
+  const [editingSkillOverride, setEditingSkillOverride] = useState<CharacterSheetSkill | null>(null)
+  const [skillOverrideInput, setSkillOverrideInput] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -201,6 +220,8 @@ export function CharacterSheetDialog({
     const nextDraft = normalizeCharacterSheet(value, seed) ?? createEmptyCharacterSheetDraft(seed)
     setDraft(nextDraft)
     setAbilityScoreInputs(createAbilityScoreInputs(nextDraft))
+    setEditingSkillOverride(null)
+    setSkillOverrideInput("")
   }, [characterClass, characterName, characterRace, open, value])
 
   const handleSave = async () => {
@@ -257,34 +278,63 @@ export function CharacterSheetDialog({
     }))
   }
 
+  const handleStartSkillOverrideEdit = (skill: CharacterSheetSkill) => {
+    setEditingSkillOverride(skill)
+    const override = draft.skills[skill].bonus_override
+    setSkillOverrideInput(typeof override === "number" ? String(override) : String(getSkillValue(draft, skill)))
+  }
+
+  const handleCommitSkillOverride = () => {
+    if (!editingSkillOverride) return
+
+    const trimmed = skillOverrideInput.trim()
+    const nextValue = trimmed.length > 0 ? Number.parseInt(trimmed, 10) : null
+
+    setDraft((prev) => ({
+      ...prev,
+      skills: {
+        ...prev.skills,
+        [editingSkillOverride]: {
+          ...prev.skills[editingSkillOverride],
+          bonus_override: Number.isFinite(nextValue) ? nextValue : null,
+        },
+      },
+    }))
+
+    setEditingSkillOverride(null)
+    setSkillOverrideInput("")
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="parchment w-[min(96vw,72rem)] max-h-[92dvh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="font-serif text-xl text-primary">Hoja de personaje</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
+      <DialogContent className="parchment flex w-[min(97vw,84rem)] max-h-[92dvh] flex-col overflow-hidden border border-[#cdb89a] bg-[#f7efe2] shadow-none">
+        <DialogHeader className="border-b border-[#cdb89a] bg-[#f7efe2] p-4">
+          <DialogTitle className="font-serif text-xl uppercase tracking-[0.14em] text-[#6b3a1f]">
+            Hoja de personaje
+          </DialogTitle>
+          <DialogDescription className="text-xs text-[#7f6348]">
             {readOnly
               ? "Vista de solo lectura de la hoja de personaje."
               : "Edita la hoja del personaje. Nombre, raza y clase principal se sincronizan con el personaje."}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[72vh] pr-4">
-          <fieldset disabled={readOnly} className="space-y-6">
-            <section className="space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-4" style={{ scrollbarGutter: "stable" }}>
+          <fieldset disabled={readOnly} className="space-y-6 pb-6 pt-4 text-[#2f2318]">
+            <SheetPanel className="space-y-4">
               <SectionTitle title="Base" />
               <div className="grid gap-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_10rem_minmax(0,1.5fr)]">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Nombre</label>
-                  <Input value={characterName} readOnly disabled className="h-9" />
+                  <Input value={characterName} readOnly disabled className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2]" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Raza</label>
-                  <Input value={characterRace} readOnly disabled className="h-9" />
+                  <Input value={characterRace} readOnly disabled className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2]" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Clase principal</label>
-                  <Input value={characterClass} readOnly disabled className="h-9" />
+                  <Input value={characterClass} readOnly disabled className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2]" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Alineamiento</label>
@@ -293,7 +343,7 @@ export function CharacterSheetDialog({
                     onChange={(event) =>
                       setDraft((prev) => ({ ...prev, alignment: event.target.value }))
                     }
-                    className="h-9"
+                    className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -303,13 +353,13 @@ export function CharacterSheetDialog({
                     onChange={(event) =>
                       setDraft((prev) => ({ ...prev, background: event.target.value }))
                     }
-                    className="h-9"
+                    className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2]"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     Competencia
                   </label>
                   <Input
@@ -321,27 +371,27 @@ export function CharacterSheetDialog({
                       }))
                     }
                     inputMode="numeric"
-                    className="h-9 text-center font-semibold"
+                    className="h-9 rounded-none border-[#b58a5d] bg-[#fffaf2] text-center font-semibold"
                   />
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     CA
                   </label>
-                  <div className="flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-semibold text-foreground">
+                   <div className="flex h-9 items-center justify-center border border-[#b58a5d] bg-[#fffaf2] px-3 text-sm font-semibold text-foreground">
                     {getArmorClassValue(draft)}
                   </div>
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     Iniciativa
                   </label>
-                  <div className="flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-semibold text-foreground">
+                   <div className="flex h-9 items-center justify-center border border-[#b58a5d] bg-[#fffaf2] px-3 text-sm font-semibold text-foreground">
                     {formatSignedValue(getInitiativeValue(draft))}
                   </div>
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     PG Max
                   </label>
                   <Input
@@ -356,11 +406,11 @@ export function CharacterSheetDialog({
                       }))
                     }
                     inputMode="numeric"
-                    className="h-9 text-center font-semibold"
+                    className="h-9 rounded-none border-[#b58a5d] bg-[#fffaf2] text-center font-semibold"
                   />
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     PG Act
                   </label>
                   <Input
@@ -375,19 +425,19 @@ export function CharacterSheetDialog({
                       }))
                     }
                     inputMode="numeric"
-                    className="h-9 text-center font-semibold"
+                    className="h-9 rounded-none border-[#b58a5d] bg-[#fffaf2] text-center font-semibold"
                   />
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     Percepcion pasiva
                   </label>
-                  <div className="flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-semibold text-foreground">
+                   <div className="flex h-9 items-center justify-center border border-[#b58a5d] bg-[#fffaf2] px-3 text-sm font-semibold text-foreground">
                     {getPassivePerceptionValue(draft)}
                   </div>
                 </div>
-                <div className="rounded-md border border-border/60 bg-background/60 p-2">
-                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="">
+                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#7f6348]">
                     Velocidad
                   </label>
                   <Input
@@ -399,19 +449,143 @@ export function CharacterSheetDialog({
                       }))
                     }
                     inputMode="numeric"
-                    className="h-9 text-center font-semibold"
+                    className="h-9 rounded-none border-[#b58a5d] bg-[#fffaf2] text-center font-semibold"
                   />
                 </div>
               </div>
-            </section>
+            </SheetPanel>
 
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <SectionTitle title="Clases" description="La primera clase usa siempre el campo principal del personaje." />
-                <Button
+            <div className="grid gap-4 xl:grid-cols-[20rem_minmax(0,1.18fr)_minmax(0,0.92fr)] xl:items-start">
+              <div className="space-y-6">
+                <SheetPanel className="space-y-3">
+                  <SectionTitle title="Atributos" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+                    {CHARACTER_SHEET_ABILITY_SCORES.map((abilityScore) => (
+                      <div
+                        key={abilityScore}
+                        className="flex min-h-[6.5rem] flex-col border border-[#be9a70] bg-[#fbf5ea] p-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#934f24]">
+                            {ABILITY_SCORE_LABELS[abilityScore]}
+                          </span>
+                          <Checkbox
+                            checked={draft.ability_scores[abilityScore].saving}
+                            onCheckedChange={(value) =>
+                              setDraft((prev) => ({
+                                ...prev,
+                                ability_scores: {
+                                  ...prev.ability_scores,
+                                  [abilityScore]: {
+                                    ...prev.ability_scores[abilityScore],
+                                    saving: value === true,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="flex flex-1 flex-col items-center justify-center gap-2">
+                          <Input
+                            value={abilityScoreInputs[abilityScore]}
+                            onChange={(event) => handleAbilityScoreChange(abilityScore, event.target.value)}
+                            onBlur={() => handleAbilityScoreBlur(abilityScore)}
+                            inputMode="numeric"
+                            className="h-10 rounded-none border-[#b58a5d] bg-[#fffaf2] px-2 text-center text-base font-semibold"
+                          />
+                          <div className="grid w-full grid-cols-2 gap-2 text-center">
+                            <div className="bg-[#efe5d7] px-1.5 py-1">
+                              <div className="text-[10px] uppercase tracking-wide text-[#7f6348]">Mod.</div>
+                              <div className="text-sm font-medium text-foreground">
+                                {formatAbilityModifier(draft.ability_scores[abilityScore].score)}
+                              </div>
+                            </div>
+                            <div className="bg-[#efe5d7] px-1.5 py-1">
+                              <div className="text-[10px] uppercase tracking-wide text-[#7f6348]">Salv.</div>
+                              <div className="text-sm font-medium text-foreground">
+                                {formatSignedValue(getSavingThrowValue(draft, abilityScore))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SheetPanel>
+
+                <SheetPanel className="space-y-3">
+                  <SectionTitle title="Habilidades" />
+                  <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                    {SORTED_CHARACTER_SHEET_SKILLS.map((skill) => (
+                      <div
+                        key={skill}
+                        className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-[#d7c5af] px-1 py-1.5"
+                      >
+                        <span className="min-w-0" title={SKILL_LABELS[skill]}>
+                          <span className="block truncate text-xs font-medium text-foreground">{SKILL_LABELS[skill]}</span>
+                          <span className="block text-[10px] uppercase tracking-wide text-[#7f6348]">
+                            {ABILITY_SCORE_LABELS[CHARACTER_SHEET_SKILL_ABILITY_SCORES[skill]]}
+                          </span>
+                        </span>
+                        {editingSkillOverride === skill ? (
+                          <Input
+                            value={skillOverrideInput}
+                            onChange={(event) => setSkillOverrideInput(event.target.value)}
+                            onBlur={handleCommitSkillOverride}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault()
+                                handleCommitSkillOverride()
+                              }
+                              if (event.key === "Escape") {
+                                setEditingSkillOverride(null)
+                                setSkillOverrideInput("")
+                              }
+                            }}
+                            inputMode="numeric"
+                            autoFocus
+                            className="h-7 w-[3.25rem] rounded-none border-[#c6aa84] bg-[#fffaf2] px-1 text-right text-sm font-medium"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="min-w-[3.25rem] text-right text-sm font-medium text-foreground"
+                            onDoubleClick={() => handleStartSkillOverrideEdit(skill)}
+                            title="Doble click para ajustar manualmente"
+                          >
+                            {formatSignedValue(getSkillValue(draft, skill))}
+                          </button>
+                        )}
+                        <Checkbox
+                          checked={draft.skills[skill].proficient}
+                          onCheckedChange={(value) =>
+                            setDraft((prev) => ({
+                              ...prev,
+                              skills: {
+                                ...prev.skills,
+                                [skill]: {
+                                  ...prev.skills[skill],
+                                  proficient: value === true,
+                                },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </SheetPanel>
+              </div>
+
+              <div className="space-y-6">
+                <SheetPanel className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <SectionTitle title="Clases" description="La primera clase usa siempre el campo principal del personaje." />
+                    <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="rounded-none border-[#b58a5d] bg-[#fffaf2] text-[#6b3a1f] hover:bg-[#f2e6d4]"
                   onClick={() =>
                     setDraft((prev) => ({
                       ...prev,
@@ -433,11 +607,11 @@ export function CharacterSheetDialog({
               </div>
               <div className="space-y-2">
                 {draft.classes.map((sheetClass, index) => (
-                  <div
-                    key={`class-${index}`}
-                    className="rounded-md border border-border/60 bg-background/60 p-3"
-                  >
-                    <div className="grid gap-2 md:grid-cols-[1.4fr_1.2fr_110px_110px_auto]">
+                   <div
+                     key={`class-${index}`}
+                     className="bg-transparent p-0"
+                   >
+                     <div className="grid gap-2 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_6.5rem_6.5rem_auto]">
                       <Input
                         value={index === 0 ? characterClass : sheetClass.name}
                         readOnly={index === 0}
@@ -450,7 +624,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                          className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                       />
                       <Input
                         value={sheetClass.subtype ?? ""}
@@ -462,7 +636,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                          className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Subclase"
                       />
                       <Input
@@ -478,7 +652,7 @@ export function CharacterSheetDialog({
                           }))
                         }
                         inputMode="numeric"
-                        className="h-9"
+                          className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Nivel"
                       />
                       <Input
@@ -493,7 +667,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                          className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="d8"
                       />
                       {index > 0 ? (
@@ -518,101 +692,11 @@ export function CharacterSheetDialog({
                   </div>
                 ))}
               </div>
-            </section>
+                </SheetPanel>
 
-            <section className="space-y-3">
-              <SectionTitle title="Atributos" />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                {CHARACTER_SHEET_ABILITY_SCORES.map((abilityScore) => (
-                  <div
-                    key={abilityScore}
-                    className="flex aspect-square min-h-[8rem] flex-col rounded-md border border-border/60 bg-background/60 p-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                        {ABILITY_SCORE_LABELS[abilityScore]}
-                      </span>
-                      <Checkbox
-                        checked={draft.ability_scores[abilityScore].saving}
-                        onCheckedChange={(value) =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            ability_scores: {
-                              ...prev.ability_scores,
-                              [abilityScore]: {
-                                ...prev.ability_scores[abilityScore],
-                                saving: value === true,
-                              },
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="flex flex-1 flex-col items-center justify-center gap-2">
-                      <Input
-                        value={abilityScoreInputs[abilityScore]}
-                        onChange={(event) => handleAbilityScoreChange(abilityScore, event.target.value)}
-                        onBlur={() => handleAbilityScoreBlur(abilityScore)}
-                        inputMode="numeric"
-                        className="h-10 text-center text-lg font-semibold"
-                      />
-                      <div className="grid w-full grid-cols-2 gap-2 text-center">
-                        <div className="rounded-sm bg-muted/40 px-2 py-1">
-                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Mod.</div>
-                          <div className="text-sm font-medium text-foreground">
-                            {formatAbilityModifier(draft.ability_scores[abilityScore].score)}
-                          </div>
-                        </div>
-                        <div className="rounded-sm bg-muted/40 px-2 py-1">
-                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Salv.</div>
-                          <div className="text-sm font-medium text-foreground">
-                            {formatSignedValue(getSavingThrowValue(draft, abilityScore))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <SectionTitle title="Habilidades" />
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {SORTED_CHARACTER_SHEET_SKILLS.map((skill) => (
-                  <div
-                    key={skill}
-                    className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-md border border-border/60 bg-background/60 px-2.5 py-2"
-                  >
-                    <span className="min-w-0" title={SKILL_LABELS[skill]}>
-                      <span className="block truncate text-xs font-medium text-foreground">{SKILL_LABELS[skill]}</span>
-                      <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {ABILITY_SCORE_LABELS[CHARACTER_SHEET_SKILL_ABILITY_SCORES[skill]]}
-                      </span>
-                    </span>
-                    <span className="min-w-[2.25rem] text-right text-sm font-medium text-foreground">
-                      {formatSignedValue(getSkillValue(draft, skill))}
-                    </span>
-                    <Checkbox
-                      checked={draft.skills[skill]}
-                      onCheckedChange={(value) =>
-                        setDraft((prev) => ({
-                          ...prev,
-                          skills: {
-                            ...prev.skills,
-                            [skill]: value === true,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <SectionTitle title="Armadura" />
-              <div className="grid gap-3 md:grid-cols-5">
+                <SheetPanel className="space-y-3">
+                  <SectionTitle title="Armadura" />
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.5fr)_7rem_7rem]">
                 <Input
                   value={draft.armor.name}
                   onChange={(event) =>
@@ -624,7 +708,7 @@ export function CharacterSheetDialog({
                       },
                     }))
                   }
-                  className="h-9 md:col-span-2"
+                  className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm md:col-span-1"
                   placeholder="Nombre de armadura"
                 />
                 <Input
@@ -639,7 +723,7 @@ export function CharacterSheetDialog({
                     }))
                   }
                   inputMode="numeric"
-                  className="h-9"
+                  className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                   placeholder="Bono CA"
                 />
                 <Input
@@ -656,12 +740,12 @@ export function CharacterSheetDialog({
                     }))
                   }
                   inputMode="numeric"
-                  className="h-9"
+                  className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                   placeholder="Tope DES"
                 />
-                <div className="flex items-center gap-4 rounded-md border border-border/60 bg-background/60 px-3">
-                  <label className="flex items-center gap-2 text-xs text-foreground">
-                    <Checkbox
+                 <div className="flex flex-wrap items-center gap-3 px-1 py-1 md:col-span-3">
+                   <label className="flex items-center gap-2 text-xs text-foreground">
+                     <Checkbox
                       checked={draft.armor.dex_bonus}
                       onCheckedChange={(value) =>
                         setDraft((prev) => ({
@@ -673,9 +757,9 @@ export function CharacterSheetDialog({
                         }))
                       }
                     />
-                    Bono DES
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-foreground">
+                     Bono DES
+                   </label>
+                   <label className="flex items-center gap-2 text-xs text-foreground">
                     <Checkbox
                       checked={draft.armor.stealth_disadvantage}
                       onCheckedChange={(value) =>
@@ -688,19 +772,20 @@ export function CharacterSheetDialog({
                         }))
                       }
                     />
-                    Desv. Sigilo
-                  </label>
-                </div>
-              </div>
-            </section>
+                     Desv. Sigilo
+                   </label>
+                 </div>
+               </div>
+                </SheetPanel>
 
-            <section className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <SectionTitle title="Armas" />
-                <Button
+                <SheetPanel className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <SectionTitle title="Armas" />
+                    <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="rounded-none border-[#b58a5d] bg-[#fffaf2] text-[#6b3a1f] hover:bg-[#f2e6d4]"
                   onClick={() =>
                     setDraft((prev) => ({
                       ...prev,
@@ -724,14 +809,14 @@ export function CharacterSheetDialog({
               </div>
               <div className="space-y-3">
                 {draft.weapons.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Sin armas cargadas.</p>
+                  <p className="text-xs text-[#7f6348]">Sin armas cargadas.</p>
                 ) : null}
                 {draft.weapons.map((weapon, index) => (
-                  <div
-                    key={`weapon-${index}`}
-                    className="space-y-2 rounded-md border border-border/60 bg-background/60 p-3"
-                  >
-                    <div className="grid gap-2 md:grid-cols-[1.2fr_120px_140px_auto]">
+                   <div
+                     key={`weapon-${index}`}
+                     className="space-y-2 border-t border-[#d7c5af] pt-2"
+                   >
+                     <div className="grid gap-2 md:grid-cols-[minmax(0,1.15fr)_7rem_8rem_auto]">
                       <Input
                         value={weapon.name}
                         onChange={(event) =>
@@ -742,7 +827,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                        className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Nombre"
                       />
                       <Input
@@ -755,7 +840,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                        className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Danio"
                       />
                       <Input
@@ -770,7 +855,7 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                        className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Tipo"
                       />
                       <Button
@@ -788,7 +873,7 @@ export function CharacterSheetDialog({
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
-                    <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
                       <Input
                         value={weapon.properties.join(",")}
                         onChange={(event) =>
@@ -804,10 +889,10 @@ export function CharacterSheetDialog({
                             ),
                           }))
                         }
-                        className="h-9"
+                        className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                         placeholder="Propiedades (separadas por coma)"
                       />
-                      <label className="flex items-center gap-2 rounded-md border border-border/60 bg-background/60 px-3 text-xs text-foreground">
+                        <label className="flex items-center gap-2 px-3 text-xs text-foreground">
                         <Checkbox
                           checked={weapon.mastery}
                           onCheckedChange={(value) =>
@@ -836,17 +921,19 @@ export function CharacterSheetDialog({
                           ),
                         }))
                       }
-                      className="h-9"
+                      className="h-9 rounded-none border-[#c6aa84] bg-[#fffaf2] px-2.5 text-sm"
                       placeholder="Descripcion de maestria"
                     />
                   </div>
                 ))}
               </div>
-            </section>
+                </SheetPanel>
+              </div>
 
-            <section className="space-y-3">
-              <SectionTitle title="Detalles" />
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-6">
+                <SheetPanel className="space-y-3">
+                  <SectionTitle title="Detalles" />
+                  <div className="grid gap-3 xl:grid-cols-1">
                 <Textarea
                   value={draft.details.personality}
                   onChange={(event) =>
@@ -860,6 +947,7 @@ export function CharacterSheetDialog({
                   }
                   placeholder="Personalidad"
                   rows={3}
+                   className="rounded-none border-[#c6aa84] bg-[#fffaf2] text-[#2f2318]"
                 />
                 <Textarea
                   value={draft.details.ideal}
@@ -874,6 +962,7 @@ export function CharacterSheetDialog({
                   }
                   placeholder="Ideal"
                   rows={3}
+                   className="rounded-none border-[#c6aa84] bg-[#fffaf2] text-[#2f2318]"
                 />
                 <Textarea
                   value={draft.details.bond}
@@ -888,6 +977,7 @@ export function CharacterSheetDialog({
                   }
                   placeholder="Vinculo"
                   rows={3}
+                   className="rounded-none border-[#c6aa84] bg-[#fffaf2] text-[#2f2318]"
                 />
                 <Textarea
                   value={draft.details.flaw}
@@ -902,13 +992,14 @@ export function CharacterSheetDialog({
                   }
                   placeholder="Defecto"
                   rows={3}
+                   className="rounded-none border-[#c6aa84] bg-[#fffaf2] text-[#2f2318]"
                 />
               </div>
-            </section>
+                </SheetPanel>
 
-            <section className="space-y-3">
-              <SectionTitle title="Listas" description="Una entrada por linea." />
-              <div className="grid gap-3 md:grid-cols-3">
+                <SheetPanel className="space-y-3">
+                  <SectionTitle title="Listas" description="Una entrada por linea." />
+                  <div className="grid gap-3 xl:grid-cols-1">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Idiomas</label>
                   <Textarea
@@ -920,6 +1011,7 @@ export function CharacterSheetDialog({
                       }))
                     }
                     rows={6}
+                     className="rounded-none border-[#cdb89a] bg-[#fffaf2] text-[#2f2318]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -933,6 +1025,7 @@ export function CharacterSheetDialog({
                       }))
                     }
                     rows={6}
+                     className="rounded-none border-[#cdb89a] bg-[#fffaf2] text-[#2f2318]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -946,25 +1039,33 @@ export function CharacterSheetDialog({
                       }))
                     }
                     rows={6}
+                     className="rounded-none border-[#cdb89a] bg-[#fffaf2] text-[#2f2318]"
                   />
                 </div>
               </div>
-            </section>
+                </SheetPanel>
+              </div>
+            </div>
           </fieldset>
-        </ScrollArea>
+        </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border pt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[#c6aa84] px-1 pb-1 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-none border-[#b58a5d] bg-[#fffaf2] text-[#6b3a1f] hover:bg-[#f2e6d4]"
+              onClick={() => onOpenChange(false)}
+            >
             {readOnly ? "Cerrar" : "Cancelar"}
           </Button>
           {!readOnly ? (
             <div className="flex items-center gap-2">
               {value ? (
-                <Button type="button" variant="destructive" onClick={handleClear}>
+                <Button type="button" variant="destructive" className="rounded-none bg-[#9b4d32] hover:bg-[#843f28]" onClick={handleClear}>
                   Quitar hoja
                 </Button>
               ) : null}
-              <Button type="button" onClick={handleSave}>
+              <Button type="button" className="rounded-none bg-[#6b3a1f] text-[#fff7ec] hover:bg-[#552d18]" onClick={handleSave}>
                 Guardar hoja
               </Button>
             </div>

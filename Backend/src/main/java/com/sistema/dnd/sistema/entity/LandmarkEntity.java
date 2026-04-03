@@ -76,4 +76,10 @@ public class LandmarkEntity extends AuditableEntity {
     @Column(name = "map_grid_offset_y", nullable = false)
     private Double mapGridOffsetY = 0.0;
 
+    @Column(name = "organization_map_links", columnDefinition = "TEXT")
+    private String organizationMapLinks;
+
+    @Column(name = "hidden_map_buildings", columnDefinition = "TEXT")
+    private String hiddenMapBuildings;
+
 }

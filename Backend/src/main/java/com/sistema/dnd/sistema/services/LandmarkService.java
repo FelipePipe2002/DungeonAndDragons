@@ -120,6 +120,8 @@ public class LandmarkService {
         entity.setMapGridCellSize(normalizeMapGridCellSize(request.mapGridCellSize()));
         entity.setMapGridOffsetX(normalizeMapGridOffset(request.mapGridOffsetX()));
         entity.setMapGridOffsetY(normalizeMapGridOffset(request.mapGridOffsetY()));
+        entity.setOrganizationMapLinks(optionalTrimmed(request.organizationMapLinks()));
+        entity.setHiddenMapBuildings(optionalTrimmed(request.hiddenMapBuildings()));
     }
 
     private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request) {

@@ -25,6 +25,7 @@ import com.sistema.dnd.sistema.repository.CharacterRepository;
 import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
 import com.sistema.dnd.sistema.repository.OrganizationCategoryRepository;
+import com.sistema.dnd.sistema.repository.OrganizationLandmarkRepository;
 import com.sistema.dnd.sistema.repository.OrganizationMembershipRepository;
 import com.sistema.dnd.sistema.repository.OrganizationRepository;
 import java.util.ArrayList;
@@ -47,6 +48,7 @@ public class DomainMapper {
     private final CharacterBuildingRepository characterBuildingRepository;
     private final OrganizationRepository organizationRepository;
     private final OrganizationCategoryRepository organizationCategoryRepository;
+    private final OrganizationLandmarkRepository organizationLandmarkRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
     private final TaggingService taggingService;
     private final CharacterSheetJsonCodec characterSheetJsonCodec;
@@ -61,6 +63,7 @@ public class DomainMapper {
         CharacterBuildingRepository characterBuildingRepository,
         OrganizationRepository organizationRepository,
         OrganizationCategoryRepository organizationCategoryRepository,
+        OrganizationLandmarkRepository organizationLandmarkRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
         TaggingService taggingService,
         CharacterSheetJsonCodec characterSheetJsonCodec
@@ -74,6 +77,7 @@ public class DomainMapper {
         this.characterBuildingRepository = characterBuildingRepository;
         this.organizationRepository = organizationRepository;
         this.organizationCategoryRepository = organizationCategoryRepository;
+        this.organizationLandmarkRepository = organizationLandmarkRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
         this.taggingService = taggingService;
         this.characterSheetJsonCodec = characterSheetJsonCodec;
@@ -151,6 +155,8 @@ public class DomainMapper {
             landmark.getMapGridCellSize(),
             landmark.getMapGridOffsetX(),
             landmark.getMapGridOffsetY(),
+            landmark.getOrganizationMapLinks(),
+            landmark.getHiddenMapBuildings(),
             mapa,
             edificios,
             personajes,
@@ -241,6 +247,10 @@ public class DomainMapper {
             .toList();
 
         Set<Long> landmarks = new LinkedHashSet<>();
+        organizationLandmarkRepository.findByOrganizationId(organization.getId()).stream()
+            .map(item -> item.getLandmarkId())
+            .filter(id -> id != null && id > 0)
+            .forEach(landmarks::add);
         buildingRepository.findByOrganizationIdOrderByNombreAsc(organization.getId()).stream()
             .map(BuildingEntity::getLandmark)
             .filter(item -> item != null && item.getId() != null && item.getId() > 0)

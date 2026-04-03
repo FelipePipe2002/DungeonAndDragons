@@ -477,7 +477,9 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [selectedBuildingDetailId, setSelectedBuildingDetailId] = useState<number | null>(null)
   const [isBuildingDialogOpen, setIsBuildingDialogOpen] = useState(false)
   const [activeMapLinkBuildingId, setActiveMapLinkBuildingId] = useState<number | null>(null)
+  const [activeMapLinkOrganizationId, setActiveMapLinkOrganizationId] = useState<number | null>(null)
   const [focusedMapBuildingIndex, setFocusedMapBuildingIndex] = useState<number | null>(null)
+  const [focusedMapOrganizationIndices, setFocusedMapOrganizationIndices] = useState<number[] | null>(null)
   const [focusedMapRequestId, setFocusedMapRequestId] = useState(0)
   const [selectedCharacterDetail, setSelectedCharacterDetail] = useState<CharacterDetailData | null>(null)
   const [isCharacterDialogOpen, setIsCharacterDialogOpen] = useState(false)
@@ -499,8 +501,10 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [isBattleHistoryLoading, setIsBattleHistoryLoading] = useState(false)
   const [isCreatingBattle, setIsCreatingBattle] = useState(false)
   const [battleHistoryError, setBattleHistoryError] = useState<string | null>(null)
+  const [organizationMapLinks, setOrganizationMapLinks] = useState<Record<number, number[]>>({})
 
   const battleHistoryRequestRef = useRef(0)
+  const organizationMapStorageKey = null
 
   useEffect(() => {
     let isActive = true
@@ -698,7 +702,9 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     setSelectedBuildingDetailId(null)
     setIsBuildingDialogOpen(false)
     setActiveMapLinkBuildingId(null)
+    setActiveMapLinkOrganizationId(null)
     setFocusedMapBuildingIndex(null)
+    setFocusedMapOrganizationIndices(null)
     setFocusedMapRequestId(0)
     setSelectedCharacterDetail(null)
     setIsCharacterDialogOpen(false)
@@ -710,7 +716,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     setIsCreateEventDialogOpen(false)
     setEditingEventIndex(null)
     setEventSaveError(null)
+    setOrganizationMapLinks({})
   }, [landmark?.id])
+
+  useEffect(() => {
+    if (!landmark) return
+    setOrganizationMapLinks(landmark.organizationMapLinks ?? {})
+  }, [landmark])
 
   useEffect(() => {
     if (landmark?.mapAssetId || !mapUrlByReference || mapUrlByReference.startsWith("data:")) {
@@ -1372,6 +1384,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return scopedData.buildings.find((building) => building.id === activeMapLinkBuildingId) ?? null
   }, [activeMapLinkBuildingId, scopedData])
 
+  const activeMapLinkOrganization = useMemo(() => {
+    if (activeMapLinkOrganizationId === null || !scopedData) return null
+    return scopedData.organizations.find((organization) => organization.id === activeMapLinkOrganizationId) ?? null
+  }, [activeMapLinkOrganizationId, scopedData])
+
   const buildingLinksByMapIndex = useMemo<Record<number, number>>(() => {
     if (!scopedData) return {}
     const links: Record<number, number> = {}
@@ -1388,8 +1405,19 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return Object.fromEntries(scopedData.buildings.map((building) => [building.id, building.nombre]))
   }, [scopedData])
 
+  const organizationLinkCounts = useMemo(() => {
+    const counts = new Map<number, number>()
+    for (const [key, indices] of Object.entries(organizationMapLinks)) {
+      const id = Number(key)
+      if (!Number.isFinite(id)) continue
+      counts.set(id, indices?.length ?? 0)
+    }
+    return counts
+  }, [organizationMapLinks])
+
   const highlightMapBuilding = useCallback((mapBuildingIndex: number) => {
     setFocusedMapBuildingIndex(mapBuildingIndex)
+    setFocusedMapOrganizationIndices(null)
     setFocusedMapRequestId((current) => current + 1)
   }, [])
 
@@ -1399,6 +1427,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     }
 
     setActiveTab("edificios")
+    setFocusedMapOrganizationIndices(null)
     setFocusedMapBuildingIndex((current) => {
       if (current === mapBuildingIndex) {
         return null
@@ -1417,7 +1446,69 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       if (current !== null) return null
       return filteredScopedBuildings[0]?.id ?? null
     })
+    setActiveMapLinkOrganizationId(null)
   }, [filteredScopedBuildings])
+
+  const handleToggleOrganizationMapLinkMode = useCallback(() => {
+    setActiveMapLinkOrganizationId((current) => {
+      if (current !== null) return null
+      return filteredScopedOrganizations[0]?.id ?? null
+    })
+    setActiveMapLinkBuildingId(null)
+  }, [filteredScopedOrganizations])
+
+  const handleAssignMapOrganizationLink = useCallback(
+    (mapBuildingIndex: number) => {
+      if (activeMapLinkOrganizationId === null || !landmark) return
+
+      const current = organizationMapLinks[activeMapLinkOrganizationId] ?? []
+      const hasIndex = current.includes(mapBuildingIndex)
+      const next = hasIndex
+        ? current.filter((index) => index !== mapBuildingIndex)
+        : [...current, mapBuildingIndex]
+
+      const nextLinks = {
+        ...organizationMapLinks,
+        [activeMapLinkOrganizationId]: next,
+      }
+
+      setOrganizationMapLinks(nextLinks)
+      setFocusedMapOrganizationIndices(next.length > 0 ? next : null)
+      setFocusedMapBuildingIndex(null)
+      setFocusedMapRequestId((current) => current + 1)
+
+      void (async () => {
+        try {
+          await persistLandmark({
+            ...landmark,
+            organizationMapLinks: nextLinks,
+          })
+        } catch (error) {
+          setBuildingsMapError(
+            getBackendErrorMessage(error, "No se pudo guardar la asociacion de organizaciones en backend."),
+          )
+        }
+      })()
+    },
+    [activeMapLinkOrganizationId, landmark, organizationMapLinks, persistLandmark],
+  )
+
+  const handleFocusOrganizationMapLinks = useCallback((organizationId: number) => {
+    const indices = organizationMapLinks[organizationId] ?? []
+    const sortedIndices = [...indices].sort((a, b) => a - b)
+    const current = focusedMapOrganizationIndices
+      ? [...focusedMapOrganizationIndices].sort((a, b) => a - b)
+      : null
+    const isSameSelection =
+      current !== null &&
+      current.length === sortedIndices.length &&
+      current.every((value, index) => value === sortedIndices[index])
+
+    setActiveTab("organizaciones")
+    setFocusedMapOrganizationIndices(isSameSelection ? null : sortedIndices)
+    setFocusedMapBuildingIndex(null)
+    setFocusedMapRequestId((currentRequest) => currentRequest + 1)
+  }, [focusedMapOrganizationIndices, organizationMapLinks])
 
   const handleAssignMapBuildingLink = useCallback(
     (mapBuildingIndex: number) => {
@@ -1762,17 +1853,42 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
         {shouldUseBuildingsMap && effectiveMapUrl ? (
           <div className={styles.mapViewport}>
-            <BuildingsMap
-              dataUrl={effectiveMapUrl}
-              onLoadError={setBuildingsMapError}
-              buildingLinks={buildingLinksByMapIndex}
-              buildingNames={buildingNamesById}
-              activeLinkBuildingId={activeMapLinkBuildingId}
-              onAssignBuildingLink={handleAssignMapBuildingLink}
-              onOpenBuilding={handleOpenBuildingFromMap}
-              focusBuildingIndex={focusedMapBuildingIndex}
-              focusRequestId={focusedMapRequestId}
-            />
+          <BuildingsMap
+            dataUrl={effectiveMapUrl}
+            onLoadError={setBuildingsMapError}
+            buildingLinks={buildingLinksByMapIndex}
+            buildingNames={buildingNamesById}
+            activeLinkBuildingId={activeMapLinkBuildingId}
+            activeLinkOrganizationId={activeMapLinkOrganizationId}
+            onAssignBuildingLink={handleAssignMapBuildingLink}
+            onAssignOrganizationLink={handleAssignMapOrganizationLink}
+            onOpenBuilding={handleOpenBuildingFromMap}
+            focusBuildingIndex={focusedMapBuildingIndex}
+            focusBuildingIndices={focusedMapOrganizationIndices}
+            highlightBuildingIndices={
+              activeMapLinkOrganizationId !== null
+                ? organizationMapLinks[activeMapLinkOrganizationId] ?? []
+                : null
+            }
+            hiddenBuildingIndices={landmark.hiddenMapBuildings ?? []}
+            onHiddenBuildingsChange={(hidden) => {
+              if (!landmark) return
+              setLandmark((prev) => (prev ? { ...prev, hiddenMapBuildings: hidden } : prev))
+              void (async () => {
+                try {
+                  await persistLandmark({
+                    ...landmark,
+                    hiddenMapBuildings: hidden,
+                  })
+                } catch (error) {
+                  setBuildingsMapError(
+                    getBackendErrorMessage(error, "No se pudo guardar el estado de edificios ocultos."),
+                  )
+                }
+              })()
+            }}
+            focusRequestId={focusedMapRequestId}
+          />
             {buildingsMapError && (
               <div className={styles.mapErrorPrompt}>
                 <div className={styles.mapErrorTitle}>No se pudo cargar el mapa</div>
@@ -2401,18 +2517,32 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           <TabsContent value="organizaciones" className="m-0 flex-1">
             <ScrollArea className="h-full">
               <div className="space-y-2 p-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full text-xs"
-                  onClick={() => {
-                    setSelectedOrganizationDetail(null)
-                    setIsOrganizationDialogOpen(true)
-                  }}
-                >
-                  <Plus className="mr-1.5 size-3" />
-                  Crear Organizacion
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 text-xs"
+                    onClick={() => {
+                      setSelectedOrganizationDetail(null)
+                      setIsOrganizationDialogOpen(true)
+                    }}
+                  >
+                    <Plus className="mr-1.5 size-3" />
+                    Crear Organizacion
+                  </Button>
+                  {shouldUseBuildingsMap && (
+                    <Button
+                      size="sm"
+                      variant={activeMapLinkOrganizationId !== null ? "default" : "outline"}
+                      className="h-8 flex-1 text-xs"
+                      disabled={filteredScopedOrganizations.length === 0}
+                      onClick={handleToggleOrganizationMapLinkMode}
+                    >
+                      <Link2 className="mr-1.5 size-3" />
+                      {activeMapLinkOrganizationId !== null ? "Cancelar asociacion" : "Asociar en mapa"}
+                    </Button>
+                  )}
+                </div>
                 <SearchInput
                   value={organizationsSearchQuery}
                   onChange={setOrganizationsSearchQuery}
@@ -2422,23 +2552,54 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                   {filteredScopedOrganizations.length} de {scopedData?.organizations.length ?? 0} organizaciones
                 </p>
 
+                {shouldUseBuildingsMap && activeMapLinkOrganizationId !== null && (
+                  <div className="rounded-sm border border-primary/30 bg-primary/8 px-2 py-1.5 text-[11px] text-primary">
+                    Click en el mapa para asociar o quitar bloques a {activeMapLinkOrganization?.nombre ?? "la organizacion"}.
+                  </div>
+                )}
+
                 {filteredScopedOrganizations.length === 0 ? (
                   <div className="py-8 text-center">
                     <Shield className="mx-auto mb-2 size-8 text-muted-foreground/30" />
                     <p className="text-xs text-muted-foreground">Sin organizaciones que coincidan</p>
                   </div>
                 ) : (
-                  filteredScopedOrganizations.map((organizacion) => (
-                    <OrganizationResumeDialog
-                      key={organizacion.id}
-                      organizationId={organizacion.id}
-                      className="w-full border-border/70 bg-card/70 p-3 shadow-none"
-                      onClick={() => {
-                        setSelectedOrganizationDetail(organizacion)
-                        setIsOrganizationDialogOpen(true)
-                      }}
-                    />
-                  ))
+                  filteredScopedOrganizations.map((organizacion) => {
+                    const linkCount = organizationLinkCounts.get(organizacion.id) ?? 0
+                    return (
+                      <div
+                        key={organizacion.id}
+                        className="space-y-1.5"
+                        onContextMenu={(event) => {
+                          if (!shouldUseBuildingsMap) return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          handleFocusOrganizationMapLinks(organizacion.id)
+                        }}
+                      >
+                        <OrganizationResumeDialog
+                          organizationId={organizacion.id}
+                          className="w-full border-border/70 bg-card/70 p-3 shadow-none"
+                          onClick={() => {
+                            if (activeMapLinkOrganizationId !== null) {
+                              setActiveMapLinkOrganizationId(organizacion.id)
+                              setFocusedMapOrganizationIndices(organizationMapLinks[organizacion.id] ?? null)
+                              setFocusedMapBuildingIndex(null)
+                              setFocusedMapRequestId((current) => current + 1)
+                              return
+                            }
+                            setSelectedOrganizationDetail(organizacion)
+                            setIsOrganizationDialogOpen(true)
+                          }}
+                        />
+                        {shouldUseBuildingsMap && linkCount > 0 ? (
+                          <p className="text-[10px] text-muted-foreground">
+                            {linkCount} bloque{linkCount !== 1 ? "s" : ""} asociado{linkCount !== 1 ? "s" : ""}
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  })
                 )}
               </div>
             </ScrollArea>

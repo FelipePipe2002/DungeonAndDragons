@@ -5,10 +5,12 @@ import com.sistema.dnd.sistema.dto.domain.OrganizationMemberRequest;
 import com.sistema.dnd.sistema.dto.domain.OrganizationUpsertRequest;
 import com.sistema.dnd.sistema.entity.BuildingEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
+import com.sistema.dnd.sistema.entity.LandmarkEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.OrganizationCategoryEntity;
 import com.sistema.dnd.sistema.entity.OrganizationEntity;
+import com.sistema.dnd.sistema.entity.OrganizationLandmarkEntity;
 import com.sistema.dnd.sistema.entity.OrganizationMembershipEntity;
 import com.sistema.dnd.sistema.entity.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
@@ -16,6 +18,8 @@ import com.sistema.dnd.sistema.repository.CharacterRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import com.sistema.dnd.sistema.repository.OrganizationCategoryRepository;
 import com.sistema.dnd.sistema.repository.OrganizationMembershipRepository;
+import com.sistema.dnd.sistema.repository.OrganizationLandmarkRepository;
+import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.OrganizationRepository;
 import jakarta.transaction.Transactional;
 import java.util.LinkedHashMap;
@@ -34,8 +38,10 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationCategoryRepository organizationCategoryRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
+    private final OrganizationLandmarkRepository organizationLandmarkRepository;
     private final BuildingRepository buildingRepository;
     private final CharacterRepository characterRepository;
+    private final LandmarkRepository landmarkRepository;
     private final MediaAssetRepository mediaAssetRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
@@ -44,8 +50,10 @@ public class OrganizationService {
         OrganizationRepository organizationRepository,
         OrganizationCategoryRepository organizationCategoryRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
+        OrganizationLandmarkRepository organizationLandmarkRepository,
         BuildingRepository buildingRepository,
         CharacterRepository characterRepository,
+        LandmarkRepository landmarkRepository,
         MediaAssetRepository mediaAssetRepository,
         TaggingService taggingService,
         DomainMapper domainMapper
@@ -53,8 +61,10 @@ public class OrganizationService {
         this.organizationRepository = organizationRepository;
         this.organizationCategoryRepository = organizationCategoryRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
+        this.organizationLandmarkRepository = organizationLandmarkRepository;
         this.buildingRepository = buildingRepository;
         this.characterRepository = characterRepository;
+        this.landmarkRepository = landmarkRepository;
         this.mediaAssetRepository = mediaAssetRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
@@ -128,6 +138,7 @@ public class OrganizationService {
 
         organizationCategoryRepository.deleteByOrganizationId(organization.getId());
         organizationMembershipRepository.deleteByOrganizationId(organization.getId());
+        organizationLandmarkRepository.deleteByOrganizationId(organization.getId());
         organizationCategoryRepository.flush();
         organizationMembershipRepository.flush();
 
@@ -146,6 +157,20 @@ public class OrganizationService {
             item.setCharacter(charactersById.get(entry.getKey()));
             item.setCategoria(entry.getValue());
             organizationMembershipRepository.save(item);
+        }
+
+        List<Long> landmarkIds = dedupeLongs(request.landmarks());
+        Map<Long, LandmarkEntity> landmarksById = landmarkRepository.findAllById(landmarkIds)
+            .stream().collect(Collectors.toMap(LandmarkEntity::getId, value -> value));
+        if (landmarksById.size() != landmarkIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "landmarks contiene ids invalidos");
+        }
+
+        for (Long landmarkId : landmarkIds) {
+            OrganizationLandmarkEntity item = new OrganizationLandmarkEntity();
+            item.setOrganization(organization);
+            item.setLandmark(landmarksById.get(landmarkId));
+            organizationLandmarkRepository.save(item);
         }
 
         List<BuildingEntity> currentlyLinked = buildingRepository.findByOrganizationIdOrderByNombreAsc(organization.getId());

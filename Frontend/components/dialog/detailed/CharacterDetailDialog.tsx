@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
 import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
 import { CreateCharacterEventDialog } from "@/components/dialog/detailed/CreateCharacterEventDialog"
+import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
@@ -13,6 +15,7 @@ import { MentionField } from "@/components/mentionField/MentionField"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { normalizeCharacterSheet } from "@/lib/character-sheet"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
+import { parseTagList } from "@/lib/tags"
 import {
   createCharacter,
   deleteCharacter,
@@ -24,7 +27,7 @@ import {
   type CharacterOrganizationReference,
 } from "@/lib/services/character-api.service"
 import type { Character, CharacterEvent } from "@/lib/types"
-import { BookOpen, Building2, MapPin, Pencil, Plus, Save, Search, Shield, Trash2, X } from "lucide-react"
+import { BookOpen, Building2, MapPin, Pencil, Plus, Save, Shield, Trash2, X } from "lucide-react"
 
 export interface CharacterDetailData {
   character: Character
@@ -115,17 +118,6 @@ function toCharacterFormState(character: Character): CharacterFormState {
     buildingIds: [...character.buildingIds],
     organizationIds: [...character.organizationIds],
   }
-}
-
-function toTagList(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-    ),
-  )
 }
 
 function toOptionalText(value: string): string | undefined {
@@ -254,6 +246,7 @@ export function CharacterDetailDialog({
   const [isCharacterSheetDialogOpen, setIsCharacterSheetDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
   const [formState, setFormState] = useState<CharacterFormState>(
@@ -334,7 +327,7 @@ export function CharacterDetailDialog({
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
   }, [storedOrganizations])
 
-  const previewTags = isEditing ? toTagList(formState.tags) : character.tags
+  const previewTags = isEditing ? parseTagList(formState.tags) : character.tags
   const previewImage = isEditing ? toOptionalText(formState.imagen) : character.imagen
   const previewIsPlayer = isEditing ? formState.isPlayer : character.isPlayer
   const previewHasCharacterSheet = character.characterSheet !== null
@@ -550,7 +543,7 @@ export function CharacterDetailDialog({
       characterSheet: currentCharacterData?.character.characterSheet ?? normalizedCharacterSheet,
       imagen: formState.imagenAssetId ? undefined : toOptionalText(formState.imagen),
       imagenAssetId: formState.imagenAssetId ?? undefined,
-      tags: toTagList(formState.tags),
+      tags: parseTagList(formState.tags),
       landmarkId: nextLandmarkId,
       buildingIds: Array.from(new Set(formState.buildingIds)),
       organizationIds: Array.from(new Set(formState.organizationIds)),
@@ -649,12 +642,15 @@ export function CharacterDetailDialog({
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeleteRequest = () => {
+    if (!currentCharacterData) return
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!currentCharacterData) return
 
     const targetCharacter = currentCharacterData.character
-    const confirmed = window.confirm(`¿Eliminar a ${targetCharacter.nombre}? Esta accion no se puede deshacer.`)
-    if (!confirmed) return
 
     try {
       await deleteCharacter(targetCharacter.id)
@@ -697,13 +693,13 @@ export function CharacterDetailDialog({
         <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
           {!isEditing && currentCharacterData ? (
             <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDelete}>
+              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
                 <Trash2 className="mr-1 size-3" />
                 Eliminar
               </Button>
               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleOpenCharacterSheetDialog}>
                 <BookOpen className="mr-1 size-3" />
-                Hoja
+                {previewHasCharacterSheet ? "Hoja" : "Crear hoja"}
               </Button>
               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
                 <Pencil className="mr-1 size-3" />
@@ -1041,15 +1037,11 @@ export function CharacterDetailDialog({
                   {filteredEvents.length} de {character.eventos.length}
                 </span>
               </div>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar eventos..."
-                  value={eventSearch}
-                  onChange={(event) => setEventSearch(event.target.value)}
-                  className="h-8 border-border bg-card pl-8 text-xs"
-                />
-              </div>
+              <SearchInput
+                placeholder="Buscar eventos..."
+                value={eventSearch}
+                onChange={setEventSearch}
+              />
               {eventSaveError && <p className="text-xs text-destructive">{eventSaveError}</p>}
             </div>
             <ScrollArea className="min-h-0 flex-1">
@@ -1107,15 +1099,12 @@ export function CharacterDetailDialog({
               {filteredEvents.length} de {character.eventos.length}
             </span>
           </div>
-          <div className="relative mb-3">
-            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar eventos..."
-              value={eventSearch}
-              onChange={(event) => setEventSearch(event.target.value)}
-              className="h-8 border-border bg-card pl-8 text-xs"
-            />
-          </div>
+          <SearchInput
+            className="mb-3"
+            placeholder="Buscar eventos..."
+            value={eventSearch}
+            onChange={setEventSearch}
+          />
           {eventSaveError && <p className="mb-3 text-xs text-destructive">{eventSaveError}</p>}
           <ScrollArea className="max-h-[55vh]">
             <div className="flex flex-col gap-2">
@@ -1155,6 +1144,21 @@ export function CharacterDetailDialog({
         </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Eliminar personaje"
+        description={
+          currentCharacterData
+            ? `¿Eliminar a ${currentCharacterData.character.nombre}? Esta accion no se puede deshacer.`
+            : "Esta accion no se puede deshacer."
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
 
       <CreateCharacterEventDialog
         open={isCreateEventDialogOpen}

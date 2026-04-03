@@ -23,6 +23,8 @@ public record LandmarkDto(
     Double mapGridCellSize,
     Double mapGridOffsetX,
     Double mapGridOffsetY,
+    String organizationMapLinks,
+    String hiddenMapBuildings,
     LandmarkMapDto mapa,
     List<BuildingDto> edificios,
     List<CharacterDto> personajes,

@@ -1,14 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
+import { SearchInput } from "@/components/search/SearchInput"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   fetchCharacterReferences,
   fetchCharacters,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/services/character-api.service"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
+import { parseTagList } from "@/lib/tags"
 import {
   createOrganization,
   deleteOrganization,
@@ -23,7 +26,7 @@ import {
   updateOrganization,
 } from "@/lib/services/organization-api.service"
 import type { Building, Character, Organization, OrganizationMember } from "@/lib/types"
-import { Building2, Crown, MapPin, Pencil, Save, Search, Trash2, Users, X } from "lucide-react"
+import { Building2, Crown, MapPin, Pencil, Save, Trash2, Users, X } from "lucide-react"
 
 interface OrganizationDetailDialogProps {
   organizationId?: number | null
@@ -75,17 +78,6 @@ function toOrganizationFormState(organization: Organization): OrganizationFormSt
     edificios: [...organization.edificios],
     miembros: organization.miembros.map((member) => ({ ...member })),
   }
-}
-
-function toList(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0),
-    ),
-  )
 }
 
 function toOptionalText(value: string): string | undefined {
@@ -193,6 +185,7 @@ export function OrganizationDetailDialog({
   const [viewBuildingsPage, setViewBuildingsPage] = useState(1)
   const [viewMembersPage, setViewMembersPage] = useState(1)
   const [isEditing, setIsEditing] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [formState, setFormState] = useState<OrganizationFormState>(() =>
     getEmptyOrganizationFormState(defaultLandmarkId),
@@ -336,7 +329,7 @@ export function OrganizationDetailDialog({
     landmarks: defaultLandmarkId > 0 ? [defaultLandmarkId] : [],
   }
 
-  const formRoleOrder = useMemo(() => toList(formState.categorias), [formState.categorias])
+  const formRoleOrder = useMemo(() => parseTagList(formState.categorias), [formState.categorias])
   const filteredMembers = useMemo(() => {
     const query = memberSearch.trim().toLowerCase()
     const baseMembers =
@@ -353,8 +346,8 @@ export function OrganizationDetailDialog({
     return sortMembersByRoleOrder(baseMembers, organizationView.categorias, { emptyRoleLast: true })
   }, [memberSearch, organizationView.categorias, organizationView.miembros])
 
-  const previewCategories = isEditing ? toList(formState.categorias) : organizationView.categorias
-  const previewTags = isEditing ? toList(formState.tags) : organizationView.tags
+  const previewCategories = isEditing ? parseTagList(formState.categorias) : organizationView.categorias
+  const previewTags = isEditing ? parseTagList(formState.tags) : organizationView.tags
   const previewImage = isEditing ? toOptionalText(formState.imagen) : organizationView.imagen
   const previewLandmarks = isEditing ? formState.landmarks : organizationView.landmarks
   const previewBuildings = isEditing ? formState.edificios : organizationView.edificios
@@ -592,8 +585,8 @@ export function OrganizationDetailDialog({
             descripcion: formState.descripcion.trim(),
             imagen: formState.imagenAssetId ? undefined : toOptionalText(formState.imagen),
             imagenAssetId: formState.imagenAssetId ?? undefined,
-            categorias: toList(formState.categorias),
-            tags: toList(formState.tags),
+            categorias: parseTagList(formState.categorias),
+            tags: parseTagList(formState.tags),
             edificios: nextBuildings,
             miembros: nextMembers,
             landmarks: nextLandmarks,
@@ -615,8 +608,8 @@ export function OrganizationDetailDialog({
           descripcion: formState.descripcion.trim(),
           imagen: formState.imagenAssetId ? undefined : toOptionalText(formState.imagen),
           imagenAssetId: formState.imagenAssetId ?? undefined,
-          categorias: toList(formState.categorias),
-          tags: toList(formState.tags),
+          categorias: parseTagList(formState.categorias),
+          tags: parseTagList(formState.tags),
           edificios: nextBuildings,
           miembros: nextMembers,
           landmarks: nextLandmarks,
@@ -636,41 +629,39 @@ export function OrganizationDetailDialog({
     })()
   }
 
-  const handleDelete = () => {
+  const handleDeleteRequest = () => {
+    if (!currentOrganization) return
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!currentOrganization) return
 
-    void (async () => {
-      const confirmed = window.confirm(
-        `¿Eliminar la organizacion ${currentOrganization.nombre}? Esta accion no se puede deshacer.`,
-      )
-      if (!confirmed) return
-
-      try {
-        await deleteOrganization(currentOrganization.id)
-        setCurrentOrganization(null)
-        setMemberSearch("")
-        setLandmarkSearch("")
-        setBuildingSearch("")
-        setMemberAddSearch("")
-        setIsLandmarkPickerOpen(false)
-        setIsBuildingPickerOpen(false)
-        setIsMemberPickerOpen(false)
-        setLandmarksPage(1)
-        setBuildingsPage(1)
-        setMembersPage(1)
-        setViewLandmarksPage(1)
-        setViewBuildingsPage(1)
-        setViewMembersPage(1)
-        setIsEditing(false)
-        setSaveError(null)
-        setLoadError(null)
-        setFormState(getEmptyOrganizationFormState(defaultLandmarkId))
-        onOrganizationDeleted?.(currentOrganization.id)
-        onOpenChange(false)
-      } catch (error) {
-        setSaveError(getBackendErrorMessage(error, "No se pudo eliminar la organizacion en backend."))
-      }
-    })()
+    try {
+      await deleteOrganization(currentOrganization.id)
+      setCurrentOrganization(null)
+      setMemberSearch("")
+      setLandmarkSearch("")
+      setBuildingSearch("")
+      setMemberAddSearch("")
+      setIsLandmarkPickerOpen(false)
+      setIsBuildingPickerOpen(false)
+      setIsMemberPickerOpen(false)
+      setLandmarksPage(1)
+      setBuildingsPage(1)
+      setMembersPage(1)
+      setViewLandmarksPage(1)
+      setViewBuildingsPage(1)
+      setViewMembersPage(1)
+      setIsEditing(false)
+      setSaveError(null)
+      setLoadError(null)
+      setFormState(getEmptyOrganizationFormState(defaultLandmarkId))
+      onOrganizationDeleted?.(currentOrganization.id)
+      onOpenChange(false)
+    } catch (error) {
+      setSaveError(getBackendErrorMessage(error, "No se pudo eliminar la organizacion en backend."))
+    }
   }
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
@@ -701,12 +692,13 @@ export function OrganizationDetailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="parchment flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0">
+    <>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="parchment flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0">
         <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
           {!isEditing && currentOrganization ? (
             <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDelete}>
+              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
                 <Trash2 className="mr-1 size-3" />
                 Eliminar
               </Button>
@@ -932,25 +924,26 @@ export function OrganizationDetailDialog({
                       <p className="text-xs text-muted-foreground">No hay landmarks disponibles para agregar.</p>
                     ) : (
                       <Popover open={isLandmarkPickerOpen} onOpenChange={setIsLandmarkPickerOpen}>
-                        <PopoverAnchor asChild>
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              value={landmarkSearch}
-                              onFocus={() => setIsLandmarkPickerOpen(true)}
-                              onChange={(event) => {
-                                setLandmarkSearch(event.target.value)
-                                setIsLandmarkPickerOpen(true)
-                              }}
-                              placeholder="Buscar landmark para agregar..."
-                              className="h-8 border-border bg-card pl-8 text-xs"
-                            />
-                          </div>
-                        </PopoverAnchor>
+                        <PopoverTrigger asChild>
+                          <SearchInput
+                            value={landmarkSearch}
+                            placeholder="Buscar landmark para agregar..."
+                            onChange={(value) => {
+                              setLandmarkSearch(value)
+                              setIsLandmarkPickerOpen(true)
+                            }}
+                            inputProps={{
+                              onFocus: (event) => {
+                                event.currentTarget.select()
+                              },
+                            }}
+                          />
+                        </PopoverTrigger>
                         <PopoverContent
                           align="start"
                           sideOffset={6}
                           className="w-[min(90vw,24rem)] border-border/70 p-1"
+                          onOpenAutoFocus={(event) => event.preventDefault()}
                         >
                           <ScrollArea className="max-h-72">
                             {availableLandmarksToAdd.length === 0 ? (
@@ -1039,31 +1032,32 @@ export function OrganizationDetailDialog({
                         </div>
                       )}
                       <Popover open={isBuildingPickerOpen} onOpenChange={setIsBuildingPickerOpen}>
-                        <PopoverAnchor asChild>
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              value={buildingSearch}
-                              disabled={isLoadingReferences}
-                              onFocus={() => setIsBuildingPickerOpen(true)}
-                              onChange={(event) => {
-                                setBuildingSearch(event.target.value)
-                                setIsBuildingPickerOpen(true)
-                              }}
-                              placeholder={
-                                isLoadingReferences
-                                  ? "Cargando edificios..."
-                                  : "Buscar edificio para agregar..."
-                              }
-                              className="h-8 border-border bg-card pl-8 text-xs"
-                            />
-                          </div>
-                        </PopoverAnchor>
-                        <PopoverContent
-                          align="start"
-                          sideOffset={6}
-                          className="w-[min(90vw,24rem)] border-border/70 p-1"
-                        >
+                      <PopoverTrigger asChild>
+                        <SearchInput
+                          value={buildingSearch}
+                          placeholder={
+                            isLoadingReferences
+                              ? "Cargando edificios..."
+                              : "Buscar edificio para agregar..."
+                          }
+                          onChange={(value) => {
+                            setBuildingSearch(value)
+                            setIsBuildingPickerOpen(true)
+                          }}
+                          inputProps={{
+                            disabled: isLoadingReferences,
+                            onFocus: (event) => {
+                              event.currentTarget.select()
+                            },
+                          }}
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        sideOffset={6}
+                        className="w-[min(90vw,24rem)] border-border/70 p-1"
+                        onOpenAutoFocus={(event) => event.preventDefault()}
+                      >
                           <ScrollArea className="max-h-72">
                             {isLoadingReferences ? (
                               <p className="px-2.5 py-2 text-xs text-muted-foreground">
@@ -1171,31 +1165,32 @@ export function OrganizationDetailDialog({
                         </div>
                       )}
                       <Popover open={isMemberPickerOpen} onOpenChange={setIsMemberPickerOpen}>
-                        <PopoverAnchor asChild>
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              value={memberAddSearch}
-                              disabled={isLoadingReferences}
-                              onFocus={() => setIsMemberPickerOpen(true)}
-                              onChange={(event) => {
-                                setMemberAddSearch(event.target.value)
-                                setIsMemberPickerOpen(true)
-                              }}
-                              placeholder={
-                                isLoadingReferences
-                                  ? "Cargando personajes..."
-                                  : "Buscar personaje para agregar..."
-                              }
-                              className="h-8 border-border bg-card pl-8 text-xs"
-                            />
-                          </div>
-                        </PopoverAnchor>
-                        <PopoverContent
-                          align="start"
-                          sideOffset={6}
-                          className="w-[min(90vw,24rem)] border-border/70 p-1"
-                        >
+                      <PopoverTrigger asChild>
+                        <SearchInput
+                          value={memberAddSearch}
+                          placeholder={
+                            isLoadingReferences
+                              ? "Cargando personajes..."
+                              : "Buscar personaje para agregar..."
+                          }
+                          onChange={(value) => {
+                            setMemberAddSearch(value)
+                            setIsMemberPickerOpen(true)
+                          }}
+                          inputProps={{
+                            disabled: isLoadingReferences,
+                            onFocus: (event) => {
+                              event.currentTarget.select()
+                            },
+                          }}
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        sideOffset={6}
+                        className="w-[min(90vw,24rem)] border-border/70 p-1"
+                        onOpenAutoFocus={(event) => event.preventDefault()}
+                      >
                           <ScrollArea className="max-h-72">
                             {isLoadingReferences ? (
                               <p className="px-2.5 py-2 text-xs text-muted-foreground">
@@ -1244,18 +1239,15 @@ export function OrganizationDetailDialog({
                         ({filteredMembers.length} de {organizationView.miembros.length})
                       </span>
                     </div>
-                    <div className="relative w-48">
-                      <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar miembros..."
-                        value={memberSearch}
-                        onChange={(event) => {
-                          setMemberSearch(event.target.value)
-                          setViewMembersPage(1)
-                        }}
-                        className="h-8 border-border bg-card pl-8 text-xs"
-                      />
-                    </div>
+                    <SearchInput
+                      className="w-48"
+                      placeholder="Buscar miembros..."
+                      value={memberSearch}
+                      onChange={(value) => {
+                        setMemberSearch(value)
+                        setViewMembersPage(1)
+                      }}
+                    />
                   </div>
 
                   <div className="overflow-hidden rounded-sm border border-border">
@@ -1436,7 +1428,22 @@ export function OrganizationDetailDialog({
             </div>
           </ScrollArea>
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Eliminar organizacion"
+        description={
+          currentOrganization
+            ? `¿Eliminar la organizacion ${currentOrganization.nombre}? Esta accion no se puede deshacer.`
+            : "Esta accion no se puede deshacer."
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
+    </>
   )
 }

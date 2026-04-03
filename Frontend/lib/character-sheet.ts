@@ -80,7 +80,7 @@ function createDefaultAbilityScores(): CharacterSheet["ability_scores"] {
 function createDefaultSkills(): CharacterSheet["skills"] {
   const result = {} as CharacterSheet["skills"]
   for (const skill of CHARACTER_SHEET_SKILLS) {
-    result[skill] = false
+    result[skill] = { proficient: false, bonus_override: null }
   }
   return result
 }
@@ -127,7 +127,26 @@ function normalizeSkills(value: unknown): CharacterSheet["skills"] {
   const result = createDefaultSkills()
 
   for (const skill of CHARACTER_SHEET_SKILLS) {
-    result[skill] = input[skill] === true
+    const nextValue = input[skill]
+
+    if (nextValue === true || nextValue === false) {
+      result[skill] = {
+        proficient: nextValue,
+        bonus_override: null,
+      }
+      continue
+    }
+
+    if (nextValue && typeof nextValue === "object" && !Array.isArray(nextValue)) {
+      const parsed = nextValue as Partial<{ proficient: unknown; bonus_override: unknown }>
+      result[skill] = {
+        proficient: parsed.proficient === true,
+        bonus_override:
+          typeof parsed.bonus_override === "number" && Number.isFinite(parsed.bonus_override)
+            ? parsed.bonus_override
+            : null,
+      }
+    }
   }
 
   return result

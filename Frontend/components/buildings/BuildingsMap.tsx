@@ -40,11 +40,15 @@ type BuildingsMapProps = {
   buildingLinks?: Record<number, number>;
   buildingNames?: Record<number, string>;
   activeLinkBuildingId?: number | null;
+  activeLinkOrganizationId?: number | null;
   onAssignBuildingLink?: (mapBuildingIndex: number) => void;
+  onAssignOrganizationLink?: (mapBuildingIndex: number) => void;
   onOpenBuilding?: (buildingId: number) => void;
   focusPosition?: { x: number; y: number } | null;
   focusScale?: number | null;
   focusBuildingIndex?: number | null;
+  focusBuildingIndices?: number[] | null;
+  highlightBuildingIndices?: number[] | null;
   focusRequestId?: number;
   showGrid?: boolean;
 };
@@ -631,11 +635,15 @@ export default function BuildingsMap({
   buildingLinks,
   buildingNames,
   activeLinkBuildingId = null,
+  activeLinkOrganizationId = null,
   onAssignBuildingLink,
+  onAssignOrganizationLink,
   onOpenBuilding,
   focusPosition,
   focusScale,
   focusBuildingIndex,
+  focusBuildingIndices,
+  highlightBuildingIndices,
   focusRequestId = 0,
   showGrid = true,
 }: BuildingsMapProps): ReactElement {
@@ -870,9 +878,11 @@ export default function BuildingsMap({
         const initialGateCorners = stored?.gateCorners
           ? new Set<string>(stored.gateCorners)
           : new Set<string>();
-        const initialHiddenBuildings = stored?.hiddenBuildings
-          ? new Set<number>(stored.hiddenBuildings)
-          : new Set<number>();
+        const initialHiddenBuildings = hiddenBuildingIndices
+          ? new Set<number>(hiddenBuildingIndices)
+          : stored?.hiddenBuildings
+            ? new Set<number>(stored.hiddenBuildings)
+            : new Set<number>();
         const initialBuildingOverrides = new Map<number, string>();
         if (stored?.buildingOverrides) {
           Object.entries(stored.buildingOverrides).forEach(([key, value]) => {
@@ -1038,6 +1048,13 @@ export default function BuildingsMap({
   }, [bounds, scale, zoomScale]);
 
   useEffect(() => {
+    if (normalizedFocusBuildingIndices.length > 0) {
+      const ring = rings[normalizedFocusBuildingIndices[0]];
+      if (ring && ring.length > 0) {
+        setViewCenter(ringCentroid(ring));
+      }
+      return;
+    }
     if (typeof focusBuildingIndex === "number" && Number.isFinite(focusBuildingIndex)) {
       const ring = rings[focusBuildingIndex];
       if (ring && ring.length > 0) {
@@ -1065,13 +1082,44 @@ export default function BuildingsMap({
       scale: viewScale,
     };
   }, [bounds, scale, viewCenter, zoomScale]);
+  const normalizedFocusBuildingIndices = useMemo(() => {
+    if (!focusBuildingIndices || focusBuildingIndices.length === 0) return [];
+    return focusBuildingIndices.filter(
+      (index) =>
+        typeof index === "number" &&
+        Number.isFinite(index) &&
+        index >= 0 &&
+        index < rings.length
+    );
+  }, [focusBuildingIndices, rings.length]);
+  const normalizedHighlightBuildingIndices = useMemo(() => {
+    if (!highlightBuildingIndices || highlightBuildingIndices.length === 0) return [];
+    return highlightBuildingIndices.filter(
+      (index) =>
+        typeof index === "number" &&
+        Number.isFinite(index) &&
+        index >= 0 &&
+        index < rings.length
+    );
+  }, [highlightBuildingIndices, rings.length]);
+  const focusedBuildingSet = useMemo(
+    () => new Set(normalizedFocusBuildingIndices),
+    [normalizedFocusBuildingIndices]
+  );
+  const highlightBuildingSet = useMemo(
+    () => new Set(normalizedHighlightBuildingIndices),
+    [normalizedHighlightBuildingIndices]
+  );
+  const hasFocusedBuildingGroup = normalizedFocusBuildingIndices.length > 0;
   const hasFocusedBuilding =
     typeof focusBuildingIndex === "number" &&
     Number.isFinite(focusBuildingIndex) &&
     focusBuildingIndex >= 0 &&
     focusBuildingIndex < rings.length;
   const hasActiveCategoryHighlight = highlightCategoryId !== null;
-  const hasEffectiveFocusedBuilding = hasFocusedBuilding && !hasActiveCategoryHighlight;
+  const shouldDimForFocus = activeLinkOrganizationId === null && activeLinkBuildingId === null;
+  const hasEffectiveFocusedBuilding =
+    shouldDimForFocus && (hasFocusedBuilding || hasFocusedBuildingGroup) && !hasActiveCategoryHighlight;
   const focusViewportToRings = (targetRings: Ring[]) => {
     if (targetRings.length === 0) return;
 
@@ -1091,7 +1139,9 @@ export default function BuildingsMap({
     const matchesCategory =
       highlightCategoryId === null || highlightCategoryId === categoryId;
     const matchesFocus =
-      !hasEffectiveFocusedBuilding || focusBuildingIndex === buildingIndex;
+      !hasEffectiveFocusedBuilding ||
+      focusBuildingIndex === buildingIndex ||
+      focusedBuildingSet.has(buildingIndex);
     return matchesCategory && matchesFocus;
   };
   const handleToggleCategoryHighlight = (categoryId: string) => {
@@ -1166,10 +1216,9 @@ export default function BuildingsMap({
 
   useEffect(() => {
     if (!hasLoaded) return;
-    writeStoredStatePartial(storageKey, {
+    const payload: StoredState = {
       hiddenWalls: Array.from(hiddenWalls),
       gateCorners: Array.from(gateCorners),
-      hiddenBuildings: Array.from(hiddenBuildings),
       buildingOverrides: Object.fromEntries(
         Array.from(buildingOverrides.entries()).map(([key, value]) => [
           String(key),
@@ -1180,7 +1229,11 @@ export default function BuildingsMap({
         selectionPoints.length === 2
           ? { a: selectionPoints[0], b: selectionPoints[1] }
           : undefined,
-    });
+    };
+    if (!hiddenBuildingIndices) {
+      payload.hiddenBuildings = Array.from(hiddenBuildings);
+    }
+    writeStoredStatePartial(storageKey, payload);
   }, [
     hasLoaded,
     hiddenWalls,
@@ -1189,6 +1242,7 @@ export default function BuildingsMap({
     buildingOverrides,
     selectionPoints,
     storageKey,
+    hiddenBuildingIndices,
   ]);
 
   useEffect(() => {
@@ -1212,6 +1266,11 @@ export default function BuildingsMap({
   }, [hasLoaded, storageKey, viewCenter, zoomScale]);
 
   useEffect(() => {
+    if (!hiddenBuildingIndices) return;
+    setHiddenBuildings(new Set(hiddenBuildingIndices));
+  }, [hiddenBuildingIndices]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       if (event.ctrlKey && event.shiftKey && key === "r") {
@@ -1223,6 +1282,9 @@ export default function BuildingsMap({
         setHiddenBuildings(new Set(defaults.hiddenBuildings));
         setBuildingOverrides(new Map(defaults.buildingOverrides));
         setSelectionPoints([...defaults.selectionPoints]);
+        if (onHiddenBuildingsChange) {
+          onHiddenBuildingsChange(Array.from(defaults.hiddenBuildings));
+        }
         try {
           localStorage.removeItem(storageKey);
         } catch {
@@ -1962,7 +2024,9 @@ export default function BuildingsMap({
                 const derived = buildingCategories[index]?.id ?? "normal";
                 const categoryId = override ?? derived;
                 const isFocusedBuilding =
-                  hasEffectiveFocusedBuilding && focusBuildingIndex === index;
+                  hasEffectiveFocusedBuilding &&
+                  (focusBuildingIndex === index || focusedBuildingSet.has(index));
+                const isHighlightedBuilding = highlightBuildingSet.has(index);
                 const isVisible = !isHidden && isBuildingVisible(index, categoryId);
                 const baseColor =
                   categoryId === "normal"
@@ -1979,20 +2043,64 @@ export default function BuildingsMap({
                     key={`building-${index}`}
                     points={toSvgPoints(ring, view)}
                     fill={fillColor}
-                    opacity={isVisible ? 1 : 0}
-                    stroke={isVisible ? (isFocusedBuilding ? "#2f2517" : "#606661") : "transparent"}
-                    strokeWidth={isFocusedBuilding ? "1.8" : "0.75"}
+                    opacity={isVisible ? 1 : isHidden ? 0.15 : 0}
+                    stroke={
+                      isVisible
+                        ? isFocusedBuilding
+                          ? "#2f2517"
+                          : isHighlightedBuilding
+                            ? "#3f2a18"
+                            : "#606661"
+                        : isHidden
+                          ? "#9c8b77"
+                          : "transparent"
+                    }
+                    strokeWidth={
+                      isFocusedBuilding
+                        ? "1.8"
+                        : isHighlightedBuilding
+                          ? "1.5"
+                          : "0.75"
+                    }
                     style={{ cursor: "pointer" }}
-                    pointerEvents={isVisible ? "all" : "none"}
+                    pointerEvents={isHidden || isVisible ? "all" : "none"}
                     onPointerDown={(event) => {
-                      if (activeLinkBuildingId !== null) {
+                      if (event.altKey || event.shiftKey) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        suppressHiddenClickRef.current = true;
+                        setHiddenBuildings((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(index)) {
+                            next.delete(index);
+                          } else {
+                            next.add(index);
+                          }
+                          if (onHiddenBuildingsChange) {
+                            onHiddenBuildingsChange(Array.from(next));
+                          }
+                          return next;
+                        });
+                        return;
+                      }
+                      if (activeLinkBuildingId !== null || activeLinkOrganizationId !== null) {
                         event.stopPropagation();
                       }
                     }}
                     onClick={(event) => {
+                      if (suppressHiddenClickRef.current) {
+                        suppressHiddenClickRef.current = false;
+                        return;
+                      }
                       if (event.ctrlKey) return;
+                      if (event.altKey || event.shiftKey) return;
+
                       if (activeLinkBuildingId !== null && onAssignBuildingLink) {
                         onAssignBuildingLink(index);
+                        return;
+                      }
+                      if (activeLinkOrganizationId !== null && onAssignOrganizationLink) {
+                        onAssignOrganizationLink(index);
                         return;
                       }
                       if (linkedBuildingId !== undefined && onOpenBuilding) {

@@ -123,6 +123,8 @@ type LandmarkApiDto = {
   mapGridCellSize?: number | null
   mapGridOffsetX?: number | null
   mapGridOffsetY?: number | null
+  organizationMapLinks?: string | null
+  hiddenMapBuildings?: string | null
   mapa?: LandmarkApiMapDto | null
   edificios?: BuildingApiDto[] | null
   personajes?: CharacterApiDto[] | null
@@ -136,6 +138,8 @@ type LandmarkMapUpsertPayload =
   | { kind: "stored"; key: string }
   | { kind: "buildings"; source: "asset"; filename: string }
   | { kind: "buildings"; source: "external"; url: string }
+
+type OrganizationMapLinksPayload = Record<number, number[]>
 
 type LandmarkEventUpsertPayload = {
   nombre: string
@@ -162,6 +166,8 @@ type LandmarkUpsertPayload = {
   mapGridCellSize: number
   mapGridOffsetX: number
   mapGridOffsetY: number
+  organizationMapLinks: string | null
+  hiddenMapBuildings: string | null
   mapAssetId: number | null
   mapa: LandmarkMapUpsertPayload | null
 }
@@ -380,6 +386,32 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
       ? dto.mapAssetId
       : undefined
 
+  let organizationMapLinks: Record<number, number[]> | undefined
+  if (dto.organizationMapLinks) {
+    try {
+      const parsed = JSON.parse(dto.organizationMapLinks)
+      if (parsed && typeof parsed === "object") {
+        organizationMapLinks = parsed as Record<number, number[]>
+      }
+    } catch {
+      organizationMapLinks = undefined
+    }
+  }
+
+  let hiddenMapBuildings: number[] | undefined
+  if (dto.hiddenMapBuildings) {
+    try {
+      const parsed = JSON.parse(dto.hiddenMapBuildings)
+      if (Array.isArray(parsed)) {
+        hiddenMapBuildings = parsed.filter(
+          (value): value is number => typeof value === "number" && Number.isFinite(value),
+        )
+      }
+    } catch {
+      hiddenMapBuildings = undefined
+    }
+  }
+
   return {
     id: dto.id,
     icono: dto.icono ?? "",
@@ -416,6 +448,8 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
       typeof dto.mapGridOffsetY === "number" && Number.isFinite(dto.mapGridOffsetY)
         ? normalizeMapGridOffset(dto.mapGridOffsetY)
         : 0,
+    organizationMapLinks,
+    hiddenMapBuildings,
     mapa: toLandmarkMapReference(dto.mapa),
     edificios: Array.isArray(dto.edificios) ? dto.edificios.map(toBuilding) : [],
     personajes: Array.isArray(dto.personajes) ? dto.personajes.map(toCharacter) : [],
@@ -485,6 +519,14 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
     mapGridCellSize: normalizeMapGridCellSize(input.mapGridCellSize),
     mapGridOffsetX: normalizeMapGridOffset(input.mapGridOffsetX),
     mapGridOffsetY: normalizeMapGridOffset(input.mapGridOffsetY),
+    organizationMapLinks:
+      input.organizationMapLinks && Object.keys(input.organizationMapLinks).length > 0
+        ? JSON.stringify(input.organizationMapLinks)
+        : null,
+    hiddenMapBuildings:
+      input.hiddenMapBuildings && input.hiddenMapBuildings.length > 0
+        ? JSON.stringify(input.hiddenMapBuildings)
+        : null,
     mapAssetId,
     mapa: mapAssetId ? null : toLandmarkMapPayload(input.mapa),
   }

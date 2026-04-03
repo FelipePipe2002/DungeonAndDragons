@@ -4,13 +4,16 @@ import { useEffect, useMemo, useState } from "react"
 
 import { CreateLandmarkEventDialog } from "@/components/dialog/detailed/CreateLandmarkEventDialog"
 import { MentionField } from "@/components/mentionField/MentionField"
+import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { deleteLandmark, fetchLandmarkById, updateLandmark } from "@/lib/services/landmark-api.service"
+import { parseTagList } from "@/lib/tags"
 import type { Landmark, LandmarkEvent } from "@/lib/types"
 import {
   BookOpenText,
@@ -20,7 +23,6 @@ import {
   Pencil,
   Plus,
   Save,
-  Search,
   Shield,
   Trash2,
   Users,
@@ -94,17 +96,6 @@ function toLandmarkFormState(landmark: Landmark): LandmarkFormState {
   }
 }
 
-function toList(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0),
-    ),
-  )
-}
-
 function toOptionalText(value: string): string | undefined {
   const normalized = value.trim()
   return normalized.length > 0 ? normalized : undefined
@@ -123,6 +114,7 @@ export function LandmarkDetailDialog({
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
   const [formState, setFormState] = useState<LandmarkFormState>(EMPTY_LANDMARK_FORM_STATE)
@@ -202,7 +194,7 @@ export function LandmarkDetailDialog({
 
   if (!currentLandmark) return null
 
-  const previewTags = isEditing ? toList(formState.tags) : currentLandmark.tags
+  const previewTags = isEditing ? parseTagList(formState.tags) : currentLandmark.tags
   const previewName = isEditing ? formState.nombre.trim() || currentLandmark.nombre : currentLandmark.nombre
   const previewPopulation =
     isEditing && formState.poblacion.trim().length > 0
@@ -254,7 +246,7 @@ export function LandmarkDetailDialog({
       poblacion: parsedPopulation,
       descripcionCorta: toOptionalText(formState.descripcionCorta),
       historia: toOptionalText(formState.historia),
-      tags: toList(formState.tags),
+      tags: parseTagList(formState.tags),
     }
 
     try {
@@ -301,11 +293,13 @@ export function LandmarkDetailDialog({
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeleteRequest = () => {
     if (!currentLandmark) return
+    setIsDeleteDialogOpen(true)
+  }
 
-    const confirmed = window.confirm(`¿Eliminar ${currentLandmark.nombre}? Esta accion no se puede deshacer.`)
-    if (!confirmed) return
+  const handleConfirmDelete = async () => {
+    if (!currentLandmark) return
 
     try {
       await deleteLandmark(currentLandmark.id)
@@ -346,7 +340,7 @@ export function LandmarkDetailDialog({
           <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
             {!isEditing && currentLandmark ? (
               <>
-                <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDelete}>
+                <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
                   <Trash2 className="mr-1 size-3" />
                   Eliminar
                 </Button>
@@ -560,18 +554,14 @@ export function LandmarkDetailDialog({
                   </Button>
 
                   {currentLandmark.eventos.length > 3 && (
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar eventos..."
-                        value={eventSearch}
-                        onChange={(event) => {
-                          setEventSearch(event.target.value)
-                          setEventsPage(1)
-                        }}
-                        className="h-8 border-border bg-card pl-8 text-xs"
-                      />
-                    </div>
+                    <SearchInput
+                      placeholder="Buscar eventos..."
+                      value={eventSearch}
+                      onChange={(value) => {
+                        setEventSearch(value)
+                        setEventsPage(1)
+                      }}
+                    />
                   )}
 
                   {eventSaveError && <p className="text-xs text-destructive">{eventSaveError}</p>}
@@ -647,6 +637,21 @@ export function LandmarkDetailDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Eliminar landmark"
+        description={
+          currentLandmark
+            ? `¿Eliminar ${currentLandmark.nombre}? Esta accion no se puede deshacer.`
+            : "Esta accion no se puede deshacer."
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
 
       <CreateLandmarkEventDialog
         open={isCreateEventDialogOpen}

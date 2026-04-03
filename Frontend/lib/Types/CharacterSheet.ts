@@ -52,7 +52,13 @@ export interface CharacterSheetAbilityScoreEntry {
 }
 
 export type CharacterSheetAbilityScores = Record<CharacterSheetAbilityScore, CharacterSheetAbilityScoreEntry>
-export type CharacterSheetSkills = Record<CharacterSheetSkill, boolean>
+
+export interface CharacterSheetSkillEntry {
+  proficient: boolean
+  bonus_override: number | null
+}
+
+export type CharacterSheetSkills = Record<CharacterSheetSkill, CharacterSheetSkillEntry>
 
 export interface CharacterSheetClass {
   name: string

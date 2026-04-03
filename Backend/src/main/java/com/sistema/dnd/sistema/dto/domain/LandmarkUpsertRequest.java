@@ -42,6 +42,8 @@ public record LandmarkUpsertRequest(
     Double mapGridCellSize,
     Double mapGridOffsetX,
     Double mapGridOffsetY,
+    String organizationMapLinks,
+    String hiddenMapBuildings,
     @Valid LandmarkMapRequest mapa,
     Long mapAssetId
 ) {

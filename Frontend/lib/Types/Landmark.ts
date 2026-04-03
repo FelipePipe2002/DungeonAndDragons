@@ -51,6 +51,8 @@ export interface Landmark {
   mapGridCellSize?: number
   mapGridOffsetX?: number
   mapGridOffsetY?: number
+  organizationMapLinks?: Record<number, number[]>
+  hiddenMapBuildings?: number[]
   mapa?: LandmarkMapReference
   edificios: Building[]
   personajes: Character[]
