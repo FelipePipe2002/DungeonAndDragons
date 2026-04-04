@@ -680,7 +680,7 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
           landmark: parentLandmarkSlug,
           battleId: String(currentBattle.id),
         })
-        router.push(`/Batalla?${params.toString()}`)
+        router.push(`/batalla?${params.toString()}`)
         return
       }
 
@@ -693,7 +693,7 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
         landmark: parentLandmarkSlug,
         battleId: String(createdBattle.id),
       })
-      router.push(`/Batalla?${params.toString()}`)
+      router.push(`/batalla?${params.toString()}`)
     } catch (error) {
       setSaveError(getBackendErrorMessage(error, "No se pudo iniciar la batalla para este building."))
     } finally {
@@ -784,10 +784,10 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
           <p className="text-sm text-stone-300">{loadError ?? "No existe un building con ese slug."}</p>
           <div className="flex justify-center gap-3">
             <Button asChild variant="outline">
-              <Link href="/edificios">Volver a edificios</Link>
+              <Link href="/entidades?section=edificios">Volver a edificios</Link>
             </Button>
             <Button asChild>
-              <Link href="/Batalla">Ir a batalla</Link>
+              <Link href="/batalla">Ir a batalla</Link>
             </Button>
           </div>
         </div>
@@ -1095,7 +1095,7 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
               <div className={styles.panelHeaderRow}>
                 <h1 className={styles.panelTitle}>{building.nombre}</h1>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/edificios">
+                  <Link href="/entidades?section=edificios">
                     <ArrowLeft className="mr-2 size-4" />
                     Edificios
                   </Link>
@@ -1273,7 +1273,7 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
                               landmark: parentLandmarkSlug ?? "",
                               battleId: String(battle.id),
                             })
-                            router.push(`/Batalla?${params.toString()}`)
+                            router.push(`/batalla?${params.toString()}`)
                           }}
                         >
                           Abrir en /batalla
@@ -1288,7 +1288,7 @@ export default function BuildingBattlePage({ params }: BuildingBattlePageProps) 
                                 landmark: parentLandmarkSlug ?? "",
                                 reopenBattleId: String(battle.id),
                               })
-                              router.push(`/Batalla?${params.toString()}`)
+                              router.push(`/batalla?${params.toString()}`)
                             }}
                           >
                             Reabrir en /batalla

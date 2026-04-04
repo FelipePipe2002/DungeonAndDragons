@@ -3113,7 +3113,7 @@ export function BattlePageClient() {
       ? handleReopenBattle(requestedActionId)
       : handleOpenBattle(requestedActionId)
     ).finally(() => {
-      router.replace("/Batalla")
+      router.replace("/batalla")
     })
   }, [
     handleOpenBattle,

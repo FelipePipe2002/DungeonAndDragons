@@ -151,7 +151,7 @@ export function BuildingsPageContent({ showHeader = true }: BuildingsPageContent
                 <h3 className="font-serif text-base text-foreground group-hover:text-primary transition-colors leading-tight">{building.nombre}</h3>
                 <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground group-hover:text-primary" asChild>
                   <Link
-                    href={`/edificios/${landmarkNameToSlug(building.nombre)}`}
+                    href={`/batalla/${landmarkNameToSlug(building.nombre)}`}
                     onClick={(e) => {
                       e.stopPropagation()
                     }}

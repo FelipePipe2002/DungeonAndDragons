@@ -1690,7 +1690,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           </p>
           <div className="mt-4">
             <Link
-              href="/landmarks"
+              href="/entidades?section=landmarks"
               className="inline-flex rounded-sm border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/70"
             >
               Volver a landmarks
@@ -2057,7 +2057,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                   {LANDMARK_TYPE_LABELS[landmark.tipo] ?? landmark.tipo}
                 </Badge>
                 <Link
-                  href="/landmarks"
+                  href="/entidades?section=landmarks"
                   className="text-[10px] font-medium text-muted-foreground hover:text-primary"
                 >
                   Ver todos
@@ -2302,7 +2302,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                                     landmark: slug,
                                     battleId: String(battle.id),
                                   })
-                                  router.push(`/Batalla?${params.toString()}`)
+                                  router.push(`/batalla?${params.toString()}`)
                                 }}
                               >
                                 Abrir en /batalla
@@ -2317,7 +2317,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                                       landmark: slug,
                                       reopenBattleId: String(battle.id),
                                     })
-                                    router.push(`/Batalla?${params.toString()}`)
+                                    router.push(`/batalla?${params.toString()}`)
                                   }}
                                 >
                                   Reabrir en /batalla

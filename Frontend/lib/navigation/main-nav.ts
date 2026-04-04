@@ -29,12 +29,6 @@ export const MAIN_NAV_ITEMS: MainNavItem[] = [
 ]
 
 const NAV_PATH_ALIASES: Record<string, string> = {
-  "/personajes": "/entidades",
-  "/characters": "/entidades",
-  "/Jugadores": "/entidades",
-  "/organizaciones": "/entidades",
-  "/landmarks": "/entidades",
-  "/edificios": "/entidades",
   "/Batalla": "/batalla",
 }
 
@@ -58,12 +52,7 @@ export function getMainNavItemByPath(pathname: string | null | undefined): MainN
   const normalizedPath = normalizeMainNavPath(pathname)
 
   if (
-    normalizedPath.startsWith("/landmarks/") ||
-    normalizedPath.startsWith("/edificios/") ||
-    normalizedPath.startsWith("/organizaciones/") ||
-    normalizedPath.startsWith("/personajes/") ||
-    normalizedPath.startsWith("/characters/") ||
-    normalizedPath.startsWith("/Jugadores/")
+    normalizedPath.startsWith("/landmarks/") || normalizedPath.startsWith("/edificios/")
   ) {
     return MAIN_NAV_ITEMS.find((item) => item.href === "/entidades") ?? null
   }
