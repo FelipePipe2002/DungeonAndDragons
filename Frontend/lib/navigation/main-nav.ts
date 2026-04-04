@@ -1,9 +1,6 @@
 export type MainNavItemId =
   | "mapa"
-  | "personajes"
-  | "organizaciones"
-  | "landmarks"
-  | "edificios"
+  | "entidades"
   | "notas"
   | "informacion"
   | "batalla"
@@ -25,17 +22,19 @@ export type NavigationShortcut = {
 export const MAIN_NAV_ITEMS: MainNavItem[] = [
   { id: "mapa", href: "/mapa", label: "Mapa", shortcutIndex: 1 },
   { id: "informacion", href: "/informacion", label: "Informacion", shortcutIndex: 7 },
-  { id: "personajes", href: "/personajes", label: "Personajes", shortcutIndex: 2 },
-  { id: "organizaciones", href: "/organizaciones", label: "Organizaciones", shortcutIndex: 3 },
-  { id: "landmarks", href: "/landmarks", label: "Landmarks", shortcutIndex: 4 },
-  { id: "edificios", href: "/edificios", label: "Edificios", shortcutIndex: 5 },
+  { id: "entidades", href: "/entidades", label: "Entidades", shortcutIndex: 2 },
   { id: "notas", href: "/notas", label: "Notas", shortcutIndex: 6 },
   { id: "batalla", href: "/batalla", label: "Batalla", shortcutIndex: 8 },
   { id: "presentacion", href: "/presentacion", label: "Presentacion", opensInPresentationWindow: true },
 ]
 
 const NAV_PATH_ALIASES: Record<string, string> = {
-  "/Jugadores": "/personajes",
+  "/personajes": "/entidades",
+  "/characters": "/entidades",
+  "/Jugadores": "/entidades",
+  "/organizaciones": "/entidades",
+  "/landmarks": "/entidades",
+  "/edificios": "/entidades",
   "/Batalla": "/batalla",
 }
 
@@ -57,6 +56,18 @@ export function getMainNavItemByShortcut(shortcutIndex: number): MainNavItem | n
 
 export function getMainNavItemByPath(pathname: string | null | undefined): MainNavItem | null {
   const normalizedPath = normalizeMainNavPath(pathname)
+
+  if (
+    normalizedPath.startsWith("/landmarks/") ||
+    normalizedPath.startsWith("/edificios/") ||
+    normalizedPath.startsWith("/organizaciones/") ||
+    normalizedPath.startsWith("/personajes/") ||
+    normalizedPath.startsWith("/characters/") ||
+    normalizedPath.startsWith("/Jugadores/")
+  ) {
+    return MAIN_NAV_ITEMS.find((item) => item.href === "/entidades") ?? null
+  }
+
   const exactMatch = MAIN_NAV_ITEMS.find((item) => item.href === normalizedPath)
   if (exactMatch) {
     return exactMatch
@@ -88,10 +99,7 @@ export const GLOBAL_NAVIGATION_SHORTCUTS: NavigationShortcut[] = MAIN_NAV_SHORTC
 
 // Atajos locales por pantalla. La vista detalle de landmarks agrega shortcuts propios.
 const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
-  "/personajes": [],
-  "/organizaciones": [],
-  "/landmarks": [],
-  "/edificios": [],
+  "/entidades": [],
   "/informacion": [],
   "/presentacion": [
     {

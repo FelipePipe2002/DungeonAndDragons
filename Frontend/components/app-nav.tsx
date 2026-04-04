@@ -3,18 +3,15 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { type LucideIcon, Users, Building2, Shield, Map, Scroll, BookOpen, Monitor, Swords, FileText, Settings2 } from "lucide-react"
+import { type LucideIcon, Boxes, Scroll, BookOpen, Monitor, Swords, FileText, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { type MainNavItemId, MAIN_NAV_ITEMS, normalizeMainNavPath } from "@/lib/navigation/main-nav"
+import { getMainNavItemByPath, type MainNavItemId, MAIN_NAV_ITEMS } from "@/lib/navigation/main-nav"
 import { toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const NAV_ITEM_ICONS: Record<MainNavItemId, LucideIcon> = {
   mapa: Scroll,
-  personajes: Users,
-  organizaciones: Shield,
-  landmarks: Map,
-  edificios: Building2,
+  entidades: Boxes,
   notas: BookOpen,
   informacion: FileText,
   batalla: Swords,
@@ -24,7 +21,7 @@ const NAV_ITEM_ICONS: Record<MainNavItemId, LucideIcon> = {
 export function AppNav() {
   const pathname = usePathname()
   const isPresentationScreenPage = pathname === "/presentacion"
-  const normalizedPathname = normalizeMainNavPath(pathname)
+  const activeItem = getMainNavItemByPath(pathname)
 
   if (pathname === "/login" || isPresentationScreenPage) {
     return null
@@ -45,7 +42,7 @@ export function AppNav() {
           </Link>
           <div className="flex items-center">
             {MAIN_NAV_ITEMS.map((item) => {
-              const isActive = normalizedPathname === item.href
+              const isActive = activeItem?.id === item.id
               const Icon = NAV_ITEM_ICONS[item.id]
               if (item.opensInPresentationWindow) {
                 return (

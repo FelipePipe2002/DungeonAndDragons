@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { BookMarked, BookOpen, Link2, ScrollText, Star, Swords, WandSparkles } from "lucide-react"
+import { BookMarked, BookOpen, Building2, Link2, MapPin, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
 
 import { normalizeMainNavPath } from "@/lib/navigation/main-nav"
 
@@ -30,6 +30,18 @@ export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
       { id: "rules", value: "rules", label: "Reglas", icon: BookOpen },
       { id: "books", value: "books", label: "Libros", icon: BookMarked },
       { id: "pages", value: "pages", label: "Paginas", icon: Link2 },
+    ],
+  },
+  {
+    basePath: "/entidades",
+    queryKey: "section",
+    defaultValue: "personajes",
+    items: [
+      { id: "personajes", value: "personajes", label: "Personajes", icon: Users },
+      { id: "jugadores", value: "jugadores", label: "Jugadores", icon: UserRound },
+      { id: "edificios", value: "edificios", label: "Edificios", icon: Building2 },
+      { id: "organizaciones", value: "organizaciones", label: "Organizaciones", icon: Shield },
+      { id: "landmarks", value: "landmarks", label: "Landmarks", icon: MapPin },
     ],
   },
 ]

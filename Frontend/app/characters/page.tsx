@@ -1,3 +1,5 @@
-import PersonajesPage from "@/app/personajes/page"
+import { redirect } from "next/navigation"
 
-export default PersonajesPage
+export default function CharactersAliasPage() {
+  redirect("/entidades?section=personajes")
+}

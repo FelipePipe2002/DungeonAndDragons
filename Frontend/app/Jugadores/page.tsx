@@ -1,5 +1,5 @@
-import { CharactersPageContent } from "@/components/characters/CharactersPageContent"
+import { redirect } from "next/navigation"
 
 export default function JugadoresPage() {
-  return <CharactersPageContent initialScope="players" />
+  redirect("/entidades?section=jugadores")
 }

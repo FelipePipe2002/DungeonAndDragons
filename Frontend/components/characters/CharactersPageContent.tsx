@@ -6,6 +6,7 @@ import { CharactersPageHeader } from "@/components/characters/CharactersPageHead
 import { CharacterDetailDialog } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
 import { SearchInput } from "@/components/search/SearchInput"
+import { Button } from "@/components/ui/button"
 import { CHARACTERS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
@@ -15,6 +16,7 @@ import { Plus, Swords } from "lucide-react"
 
 type CharactersPageContentProps = {
   initialScope?: "players" | "npcs"
+  showHeader?: boolean
 }
 
 const CHARACTER_SCOPE_LABELS = {
@@ -34,7 +36,7 @@ const CHARACTER_SCOPE_LABELS = {
   },
 } as const
 
-export function CharactersPageContent({ initialScope = "npcs" }: CharactersPageContentProps) {
+export function CharactersPageContent({ initialScope = "npcs", showHeader = true }: CharactersPageContentProps) {
   const [charactersData, setCharactersData] = useState<Character[]>([])
   const [landmarkNamesById, setLandmarkNamesById] = useState<Record<number, string>>({})
   const [buildingNamesById, setBuildingNamesById] = useState<Record<number, string>>({})
@@ -47,6 +49,10 @@ export function CharactersPageContent({ initialScope = "npcs" }: CharactersPageC
   const [selectedSheetCharacter, setSelectedSheetCharacter] = useState<Character | null>(null)
   const [characterSheetDialogOpen, setCharacterSheetDialogOpen] = useState(false)
   const [scope, setScope] = useState<"players" | "npcs">(initialScope)
+
+  useEffect(() => {
+    setScope(initialScope)
+  }, [initialScope])
 
   const loadPageData = useCallback(async () => {
     setIsLoading(true)
@@ -161,19 +167,34 @@ export function CharactersPageContent({ initialScope = "npcs" }: CharactersPageC
 
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-8">
-      <CharactersPageHeader
-        title="Personajes"
-        subtitle={`${filteredCharacters.length} de ${scopedCharacters.length} ${scopeLabels.emptyLabel}`}
-        scope={scope}
-        onScopeChange={setScope}
-        onCreate={() => {
-          setSelectedCharacter(null)
-          setDialogOpen(true)
-        }}
-        createLabel={scopeLabels.creationLabel}
-        icon={Swords}
-        createIcon={Plus}
-      />
+      {showHeader ? (
+        <CharactersPageHeader
+          title="Personajes"
+          subtitle={`${filteredCharacters.length} de ${scopedCharacters.length} ${scopeLabels.emptyLabel}`}
+          scope={scope}
+          onScopeChange={setScope}
+          onCreate={() => {
+            setSelectedCharacter(null)
+            setDialogOpen(true)
+          }}
+          createLabel={scopeLabels.creationLabel}
+          icon={Swords}
+          createIcon={Plus}
+        />
+      ) : (
+        <div className="mb-4 flex justify-end">
+          <Button
+            onClick={() => {
+              setSelectedCharacter(null)
+              setDialogOpen(true)
+            }}
+            className="gap-2"
+          >
+            <Plus className="size-4" />
+            {scopeLabels.creationLabel}
+          </Button>
+        </div>
+      )}
 
       <SearchInput
         value={searchQuery}
