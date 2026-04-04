@@ -1,6 +1,7 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.BattleObstacleData;
+import com.sistema.dnd.sistema.dto.domain.BattleCenterHistoryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleFogRevealData;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
 import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
@@ -20,6 +21,10 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -91,6 +96,49 @@ public class BattleStateService {
             .sorted(historyComparator())
             .map(this::toSummaryDto)
             .collect(Collectors.toList());
+    }
+
+    public BattleCenterHistoryDto findCenterHistory(String sceneType, Integer page, Integer pageSize) {
+        BattleSceneType normalizedSceneType = normalizedOrNull(sceneType) == null ? null : requireSceneType(sceneType);
+        int normalizedPage = Math.max(page == null ? 0 : page, 0);
+        int normalizedPageSize = Math.max(1, Math.min(pageSize == null ? 12 : pageSize, 50));
+        Pageable finishedPageable = PageRequest.of(
+            normalizedPage,
+            normalizedPageSize,
+            Sort.by(
+                Sort.Order.desc("endedAt"),
+                Sort.Order.desc("updatedAt"),
+                Sort.Order.desc("createdAt")
+            )
+        );
+
+        List<BattleSummaryDto> activeBattles = (normalizedSceneType == null
+            ? battleStateRepository.findByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
+            : battleStateRepository.findBySceneTypeAndStatusOrderByUpdatedAtDesc(normalizedSceneType, BattleStatus.ACTIVE))
+            .stream()
+            .sorted(activeHistoryComparator())
+            .map(this::toSummaryDto)
+            .collect(Collectors.toList());
+
+        Page<BattleStateEntity> finishedBattlePage = normalizedSceneType == null
+            ? battleStateRepository.findByStatus(BattleStatus.FINISHED, finishedPageable)
+            : battleStateRepository.findBySceneTypeAndStatus(normalizedSceneType, BattleStatus.FINISHED, finishedPageable);
+
+        List<BattleSummaryDto> finishedBattles = finishedBattlePage.getContent().stream()
+            .sorted(finishedHistoryComparator())
+            .map(this::toSummaryDto)
+            .collect(Collectors.toList());
+
+        return new BattleCenterHistoryDto(
+            activeBattles,
+            finishedBattles,
+            finishedBattlePage.getNumber(),
+            finishedBattlePage.getSize(),
+            finishedBattlePage.getTotalElements(),
+            finishedBattlePage.getTotalPages(),
+            finishedBattlePage.hasPrevious(),
+            finishedBattlePage.hasNext()
+        );
     }
 
     @Transactional
@@ -189,6 +237,12 @@ public class BattleStateService {
         return toDto(battleStateRepository.save(entity));
     }
 
+    @Transactional
+    public void delete(Long id) {
+        BattleStateEntity entity = requireBattle(id);
+        battleStateRepository.delete(entity);
+    }
+
     private BattleStateEntity requireBattle(Long id) {
         if (id == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id invalido");
@@ -241,6 +295,19 @@ public class BattleStateService {
 
             return rightUpdatedAt.compareTo(leftUpdatedAt);
         };
+    }
+
+    private Comparator<BattleStateEntity> activeHistoryComparator() {
+        return Comparator
+            .comparing(BattleStateEntity::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(BattleStateEntity::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+    }
+
+    private Comparator<BattleStateEntity> finishedHistoryComparator() {
+        return Comparator
+            .comparing(BattleStateEntity::getEndedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(BattleStateEntity::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(BattleStateEntity::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
     }
 
     private BattleSummaryDto toSummaryDto(BattleStateEntity entity) {

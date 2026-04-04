@@ -4,6 +4,7 @@ import { normalizeBestiaryLocalImagePath } from "@/lib/monster/utils"
 import { backendRequest } from "@/lib/services/backend-api.service"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import type {
+  BattleCenterHistory,
   BattleFogReveal,
   BattleObstacle,
   BattleObstacleShape,
@@ -93,6 +94,17 @@ type BattleSummaryDto = {
   endedAt?: string | null
   tokenCount?: number | null
   obstacleCount?: number | null
+}
+
+type BattleCenterHistoryDto = {
+  activeBattles?: BattleSummaryDto[] | null
+  finishedBattles?: BattleSummaryDto[] | null
+  page?: number | null
+  pageSize?: number | null
+  totalFinishedBattles?: number | null
+  totalFinishedPages?: number | null
+  hasPreviousPage?: boolean | null
+  hasNextPage?: boolean | null
 }
 
 type UpdateBattlePayload = {
@@ -568,6 +580,25 @@ function toPayload(input: BattleState): UpdateBattlePayload {
   }
 }
 
+function normalizeCenterHistory(dto: BattleCenterHistoryDto | null | undefined): BattleCenterHistory {
+  return {
+    activeBattles: Array.isArray(dto?.activeBattles) ? dto.activeBattles.map(normalizeSummary) : [],
+    finishedBattles: Array.isArray(dto?.finishedBattles) ? dto.finishedBattles.map(normalizeSummary) : [],
+    page: typeof dto?.page === "number" && Number.isFinite(dto.page) && dto.page >= 0 ? Math.trunc(dto.page) : 0,
+    pageSize: typeof dto?.pageSize === "number" && Number.isFinite(dto.pageSize) && dto.pageSize > 0 ? Math.trunc(dto.pageSize) : 12,
+    totalFinishedBattles:
+      typeof dto?.totalFinishedBattles === "number" && Number.isFinite(dto.totalFinishedBattles) && dto.totalFinishedBattles >= 0
+        ? Math.trunc(dto.totalFinishedBattles)
+        : 0,
+    totalFinishedPages:
+      typeof dto?.totalFinishedPages === "number" && Number.isFinite(dto.totalFinishedPages) && dto.totalFinishedPages >= 0
+        ? Math.trunc(dto.totalFinishedPages)
+        : 0,
+    hasPreviousPage: Boolean(dto?.hasPreviousPage),
+    hasNextPage: Boolean(dto?.hasNextPage),
+  }
+}
+
 export async function fetchCurrentBattle(): Promise<BattleState | null> {
   const response = await backendRequest<BattleStateDto | undefined>("/v1/battles/active/current")
   return response ? normalizeState(response) : null
@@ -612,6 +643,32 @@ export async function fetchBattleHistory(
   return Array.isArray(response) ? response.map(normalizeSummary) : []
 }
 
+export async function fetchBattleCenterHistory(options?: {
+  sceneType?: BattleSceneType | null
+  page?: number
+  pageSize?: number
+}): Promise<BattleCenterHistory> {
+  const searchParams = new URLSearchParams()
+
+  if (options?.sceneType) {
+    searchParams.set("sceneType", options.sceneType)
+  }
+
+  if (typeof options?.page === "number" && Number.isFinite(options.page) && options.page >= 0) {
+    searchParams.set("page", String(Math.trunc(options.page)))
+  }
+
+  if (typeof options?.pageSize === "number" && Number.isFinite(options.pageSize) && options.pageSize > 0) {
+    searchParams.set("pageSize", String(Math.trunc(options.pageSize)))
+  }
+
+  const response = await backendRequest<BattleCenterHistoryDto>(
+    `/v1/battles/center-history${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+  )
+
+  return normalizeCenterHistory(response)
+}
+
 export async function fetchBattleById(id: number): Promise<BattleState> {
   const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}`)
   return normalizeState(response)
@@ -640,6 +697,12 @@ export async function updateBattle(id: number, input: BattleState): Promise<Batt
     body: toPayload(input),
   })
   return normalizeState(response)
+}
+
+export async function deleteBattle(id: number): Promise<void> {
+  await backendRequest<void>(`/v1/battles/${id}`, {
+    method: "DELETE",
+  })
 }
 
 export async function finishBattle(id: number): Promise<BattleState> {

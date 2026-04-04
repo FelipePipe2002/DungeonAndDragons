@@ -60,6 +60,17 @@ export interface BattleSummary {
   obstacleCount: number
 }
 
+export interface BattleCenterHistory {
+  activeBattles: BattleSummary[]
+  finishedBattles: BattleSummary[]
+  page: number
+  pageSize: number
+  totalFinishedBattles: number
+  totalFinishedPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
 export interface BattleState {
   id?: number
   slug: string

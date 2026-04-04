@@ -1,11 +1,13 @@
 package com.sistema.dnd.sistema.controllers;
 
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
+import com.sistema.dnd.sistema.dto.domain.BattleCenterHistoryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleSummaryDto;
 import com.sistema.dnd.sistema.dto.domain.CreateBattleRequest;
 import com.sistema.dnd.sistema.dto.domain.UpdateBattleStateRequest;
 import com.sistema.dnd.sistema.services.BattleStateService;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,6 +61,15 @@ public class BattleController {
         return battleStateService.findHistory(parentLandmarkSlug, sceneType, sceneSlug);
     }
 
+    @GetMapping("/center-history")
+    public BattleCenterHistoryDto findCenterHistory(
+        @RequestParam(required = false) String sceneType,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer pageSize
+    ) {
+        return battleStateService.findCenterHistory(sceneType, page, pageSize);
+    }
+
     @GetMapping("/{id}")
     public BattleStateDto findById(@PathVariable Long id) {
         return battleStateService.findById(id);
@@ -82,5 +93,11 @@ public class BattleController {
     @PostMapping("/{id}/reopen")
     public BattleStateDto reopen(@PathVariable Long id) {
         return battleStateService.reopen(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        battleStateService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

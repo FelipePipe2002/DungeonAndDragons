@@ -8,12 +8,14 @@ import {
   ArrowUp,
   Circle,
   Eye,
+  FolderOpen,
   EyeOff,
   Flag,
   ImagePlus,
   Keyboard,
   Layers3,
   LoaderCircle,
+  Info,
   Monitor,
   Redo2,
   Search,
@@ -63,8 +65,10 @@ import {
 } from "@/lib/presentation/screen"
 import {
   createBattle,
+  deleteBattle,
+  fetchActiveBattle,
   fetchBattleById,
-  fetchBattleHistory,
+  fetchBattleCenterHistory,
   finishBattle,
   reopenBattle,
   sanitizeBattleState,
@@ -78,6 +82,7 @@ import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { serviceMessage } from "@/lib/service-message"
 import { fetchLandmarks } from "@/lib/services/landmark-api.service"
 import type {
+  BattleCenterHistory,
   BattleFogReveal,
   BattleObstacle,
   BattleObstacleShape,
@@ -288,6 +293,41 @@ function isLandmarkEligibleForBattle(landmark: Landmark) {
   return Boolean(persistedMapReference) && !usesBuildingsMap && Boolean(landmark.mapGridEnabled)
 }
 
+function getBuildingMapReference(building: Building) {
+  if (typeof building.mapAssetId === "number" && building.mapAssetId > 0) {
+    return "__asset__"
+  }
+
+  const ref = building.mapa
+  if (!ref) {
+    return null
+  }
+
+  if (ref.kind === "embedded") return ref.dataUrl
+  if (ref.kind === "external") return ref.url
+  if (ref.kind === "asset") return ref.filename
+  if (ref.kind === "stored") return ref.key
+
+  return null
+}
+
+function isBuildingEligibleForBattle(building: Building) {
+  const persistedMapReference = getBuildingMapReference(building)
+  const usesUnsupportedMap = building.mapAssetKind === "json" || isJsonMapReference(persistedMapReference)
+
+  return Boolean(persistedMapReference) && !usesUnsupportedMap
+}
+
+type BattleCenterSceneEntry = {
+  key: string
+  sceneType: "landmark" | "building"
+  sceneSlug: string
+  parentLandmarkSlug: string
+  label: string
+}
+
+const BATTLE_CENTER_HISTORY_PAGE_SIZE = 12
+
 function getSelectedBattleModeLabel(selectedBattle: BattleState | null, isEditable: boolean) {
   if (!selectedBattle) {
     return "Mapa"
@@ -311,7 +351,7 @@ function shouldIgnoreShortcutTarget(target: EventTarget | null) {
 }
 
 function formatBattleSummaryTimestamp(battle: BattleSummary) {
-  const rawValue = battle.updatedAt ?? battle.endedAt ?? battle.createdAt
+  const rawValue = battle.status === "finished" ? battle.endedAt ?? battle.updatedAt ?? battle.createdAt : battle.updatedAt ?? battle.createdAt
   if (!rawValue) {
     return "Sin fecha"
   }
@@ -324,6 +364,25 @@ function formatBattleSummaryTimestamp(battle: BattleSummary) {
   return new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed)
+}
+
+function formatBattleDateTime(rawValue: string | null | undefined) {
+  if (!rawValue) {
+    return "-"
+  }
+
+  const parsed = new Date(rawValue)
+  if (Number.isNaN(parsed.getTime())) {
+    return rawValue
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(parsed)
@@ -581,7 +640,7 @@ export function BattlePageClient() {
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [activeBattle, setActiveBattle] = useState<BattleState | null>(null)
   const [selectedBattle, setSelectedBattle] = useState<BattleState | null>(null)
-  const [selectedLandmarkSlug, setSelectedLandmarkSlug] = useState<string | null>(null)
+  const [selectedSceneKey, setSelectedSceneKey] = useState<string | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [isBattleLoading, setIsBattleLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -622,11 +681,25 @@ export function BattlePageClient() {
   const [isSavingCharacterCrop, setIsSavingCharacterCrop] = useState(false)
   const [monsterBattleCropDraft, setMonsterBattleCropDraft] = useState<MonsterBattleCropDraft | null>(null)
   const [isBattleCenterOpen, setIsBattleCenterOpen] = useState(false)
-  const [landmarkBattleHistory, setLandmarkBattleHistory] = useState<BattleSummary[]>([])
+  const [isBattleInfoOpen, setIsBattleInfoOpen] = useState(false)
+  const [battleCenterHistory, setBattleCenterHistory] = useState<BattleCenterHistory>({
+    activeBattles: [],
+    finishedBattles: [],
+    page: 0,
+    pageSize: BATTLE_CENTER_HISTORY_PAGE_SIZE,
+    totalFinishedBattles: 0,
+    totalFinishedPages: 0,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  })
   const [battleHistoryError, setBattleHistoryError] = useState<string | null>(null)
   const [isBattleHistoryLoading, setIsBattleHistoryLoading] = useState(false)
+  const [battleHistoryPage, setBattleHistoryPage] = useState(0)
   const [isCreatingBattle, setIsCreatingBattle] = useState(false)
   const [isOpeningBattle, setIsOpeningBattle] = useState(false)
+  const [deletingBattleId, setDeletingBattleId] = useState<number | null>(null)
+  const [selectedSceneActiveBattle, setSelectedSceneActiveBattle] = useState<BattleState | null>(null)
+  const [isSelectedSceneActiveBattleLoading, setIsSelectedSceneActiveBattleLoading] = useState(false)
   const [isPresentationViewVerticallyMirrored, setIsPresentationViewVerticallyMirrored] = useState(
     () => readBattleScreenPresentationVerticalMirror(),
   )
@@ -651,6 +724,7 @@ export function BattlePageClient() {
   const [isFogEditorOpen, setIsFogEditorOpen] = useState(false)
   const [fogEditorMode, setFogEditorMode] = useState<"idle" | "reveal" | "erase">("idle")
   const [haveResolvedBuildings, setHaveResolvedBuildings] = useState(false)
+  const battleCenterDialogRef = useRef<HTMLDivElement | null>(null)
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tokenLibraryDialogFrameRef = useRef<number | null>(null)
@@ -1009,58 +1083,98 @@ export function BattlePageClient() {
     void getMonsterByExactNameCached(monsterSourceRef).catch(() => {})
   }, [getMonsterByExactNameCached, selectedBattle?.tokens, selectedTokenNumber])
 
-  const eligibleLandmarks = useMemo(
-    () =>
-      landmarks
-        .filter(isLandmarkEligibleForBattle)
-        .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"))
-        .map((landmark) => ({
-          landmark,
-          slug: landmarkNameToSlug(landmark.nombre),
-        })),
-    [landmarks],
-  )
+  const eligibleBattleScenes = useMemo<BattleCenterSceneEntry[]>(() => {
+    const landmarkNameById = new Map(landmarks.map((landmark) => [landmark.id, landmark.nombre]))
+    const landmarkEntries = landmarks
+      .filter(isLandmarkEligibleForBattle)
+      .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"))
+      .map((landmark) => {
+        const slug = landmarkNameToSlug(landmark.nombre)
+        return {
+          key: `landmark:${slug}`,
+          sceneType: "landmark" as const,
+          sceneSlug: slug,
+          parentLandmarkSlug: slug,
+          label: landmark.nombre,
+        }
+      })
+    const buildingEntries: BattleCenterSceneEntry[] = []
 
-  const selectedLandmark = useMemo(
-    () => eligibleLandmarks.find((entry) => entry.slug === selectedLandmarkSlug)?.landmark ?? null,
-    [eligibleLandmarks, selectedLandmarkSlug],
+    for (const building of buildings) {
+      if (typeof building.landmarkId !== "number" || !isBuildingEligibleForBattle(building)) {
+        continue
+      }
+
+        const parentLandmarkName = landmarkNameById.get(building.landmarkId ?? -1)
+        if (!parentLandmarkName) {
+          continue
+        }
+
+        buildingEntries.push({
+          key: `building:${landmarkNameToSlug(building.nombre)}`,
+          sceneType: "building" as const,
+          sceneSlug: landmarkNameToSlug(building.nombre),
+          parentLandmarkSlug: landmarkNameToSlug(parentLandmarkName),
+          label: `${building.nombre} · ${parentLandmarkName}`,
+        })
+    }
+
+    buildingEntries.sort((left, right) => left.label.localeCompare(right.label, "es"))
+
+    return [...landmarkEntries, ...buildingEntries]
+  }, [buildings, landmarks])
+
+  const selectedScene = useMemo(
+    () => eligibleBattleScenes.find((entry) => entry.key === selectedSceneKey) ?? null,
+    [eligibleBattleScenes, selectedSceneKey],
   )
 
   useEffect(() => {
-    const nextLandmarkSlug = selectedBattle?.parentLandmarkSlug ?? selectedBattle?.landmarkSlug
-    if (nextLandmarkSlug) {
-      setSelectedLandmarkSlug(nextLandmarkSlug)
+    if (selectedBattle?.sceneSlug) {
+      setSelectedSceneKey(`${selectedBattle.sceneType}:${selectedBattle.sceneSlug}`)
     }
-  }, [selectedBattle?.landmarkSlug, selectedBattle?.parentLandmarkSlug])
+  }, [selectedBattle?.sceneSlug, selectedBattle?.sceneType])
 
   useEffect(() => {
-    if (!selectedLandmarkSlug && eligibleLandmarks.length > 0) {
-      setSelectedLandmarkSlug(eligibleLandmarks[0]?.slug ?? null)
+    if (!selectedSceneKey && eligibleBattleScenes.length > 0) {
+      setSelectedSceneKey(eligibleBattleScenes[0]?.key ?? null)
     }
-  }, [eligibleLandmarks, selectedLandmarkSlug])
+  }, [eligibleBattleScenes, selectedSceneKey])
 
   useEffect(() => {
     void loadCurrentBattle(true)
   }, [loadCurrentBattle])
 
-  const loadLandmarkBattleHistory = useCallback(async (landmarkSlug: string) => {
+  const loadBattleCenterHistory = useCallback(async (page: number) => {
     const requestId = ++battleHistoryRequestRef.current
     setIsBattleHistoryLoading(true)
     setBattleHistoryError(null)
 
     try {
-      const history = await fetchBattleHistory(landmarkSlug)
+      const history = await fetchBattleCenterHistory({
+        page,
+        pageSize: BATTLE_CENTER_HISTORY_PAGE_SIZE,
+      })
       if (requestId !== battleHistoryRequestRef.current) {
         return
       }
 
-      setLandmarkBattleHistory(history)
+      setBattleCenterHistory(history)
     } catch (error) {
       if (requestId !== battleHistoryRequestRef.current) {
         return
       }
 
-      setLandmarkBattleHistory([])
+      setBattleCenterHistory({
+        activeBattles: [],
+        finishedBattles: [],
+        page,
+        pageSize: BATTLE_CENTER_HISTORY_PAGE_SIZE,
+        totalFinishedBattles: 0,
+        totalFinishedPages: 0,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      })
       setBattleHistoryError(getBackendErrorMessage(error, "No se pudo cargar el historial de batallas."))
     } finally {
       if (requestId === battleHistoryRequestRef.current) {
@@ -1070,16 +1184,84 @@ export function BattlePageClient() {
   }, [])
 
   useEffect(() => {
-    if (!selectedLandmarkSlug) {
-      battleHistoryRequestRef.current += 1
-      setLandmarkBattleHistory([])
-      setBattleHistoryError(null)
-      setIsBattleHistoryLoading(false)
+    void loadBattleCenterHistory(battleHistoryPage)
+  }, [battleHistoryPage, loadBattleCenterHistory])
+
+  useEffect(() => {
+    if (!isBattleCenterOpen) {
       return
     }
 
-    void loadLandmarkBattleHistory(selectedLandmarkSlug)
-  }, [loadLandmarkBattleHistory, selectedLandmarkSlug])
+    void loadBattleCenterHistory(battleHistoryPage)
+  }, [battleHistoryPage, isBattleCenterOpen, loadBattleCenterHistory])
+
+  useEffect(() => {
+    if (!selectedScene) {
+      setSelectedSceneActiveBattle(null)
+      setIsSelectedSceneActiveBattleLoading(false)
+      return
+    }
+
+    let isMounted = true
+    setIsSelectedSceneActiveBattleLoading(true)
+    void fetchActiveBattle(selectedScene.sceneType, selectedScene.sceneSlug)
+      .then((battle) => {
+        if (!isMounted) {
+          return
+        }
+
+        setSelectedSceneActiveBattle(battle)
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setSelectedSceneActiveBattle(null)
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSelectedSceneActiveBattleLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedScene])
+
+  useEffect(() => {
+    if (!isBattleCenterOpen || !selectedScene) {
+      return
+    }
+
+    let isMounted = true
+    setIsSelectedSceneActiveBattleLoading(true)
+    void fetchActiveBattle(selectedScene.sceneType, selectedScene.sceneSlug)
+      .then((battle) => {
+        if (!isMounted) {
+          return
+        }
+
+        setSelectedSceneActiveBattle(battle)
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setSelectedSceneActiveBattle(null)
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSelectedSceneActiveBattleLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [isBattleCenterOpen, selectedScene])
 
   useEffect(() => {
     if (isTurnOnlyBattleChange(lastBroadcastBattleRef.current, activeBattle)) {
@@ -1123,8 +1305,7 @@ export function BattlePageClient() {
 
   const selectedBattleId = selectedBattle?.id ?? null
 
-  const isSelectedBattleEditable =
-    selectedBattle?.status === "active" && typeof selectedBattle.id === "number" && selectedBattle.id === activeBattle?.id
+  const isSelectedBattleEditable = selectedBattle?.status === "active" && typeof selectedBattle.id === "number"
 
   useEffect(() => {
     updateBattleEditHistoryState(() => ({
@@ -1466,17 +1647,17 @@ export function BattlePageClient() {
     })
   }, [monsterBattleCropDraft])
 
-  const displayedLandmarkSlug = selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? selectedLandmarkSlug
+  const displayedSceneSlug = selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? selectedScene?.sceneSlug
   const displayedSceneTarget =
     selectedBattle
       ? {
           sceneType: selectedBattle.sceneType,
           sceneSlug: selectedBattle.sceneSlug,
         }
-      : displayedLandmarkSlug
+      : selectedScene
         ? {
-            sceneType: "landmark" as const,
-            sceneSlug: displayedLandmarkSlug,
+            sceneType: selectedScene.sceneType,
+            sceneSlug: selectedScene.sceneSlug,
           }
         : null
   const displayedSceneBuilding = useMemo(() => {
@@ -1512,22 +1693,59 @@ export function BattlePageClient() {
   const openSceneInPresentation = useCallback((target: PresentationScreenTarget) => {
     openPresentationScreen(target)
   }, [])
-  const activeLandmarkBattle = useMemo(
-    () => landmarkBattleHistory.find((battle) => battle.status === "active") ?? null,
-    [landmarkBattleHistory],
+  const battleSceneLabelByKey = useMemo(() => {
+    const nextMap = new Map<string, string>()
+
+    for (const landmark of landmarks) {
+      nextMap.set(`landmark:${landmarkNameToSlug(landmark.nombre)}`, landmark.nombre)
+    }
+
+    for (const building of buildings) {
+      const parentLandmark = typeof building.landmarkId === "number" ? landmarks.find((item) => item.id === building.landmarkId) : null
+      const key = `building:${landmarkNameToSlug(building.nombre)}`
+      nextMap.set(key, parentLandmark ? `${building.nombre} · ${parentLandmark.nombre}` : building.nombre)
+    }
+
+    return nextMap
+  }, [buildings, landmarks])
+  const getBattleSceneLabel = useCallback(
+    (battle: BattleSummary | BattleState) =>
+      battleSceneLabelByKey.get(`${battle.sceneType}:${battle.sceneSlug}`) ??
+      (battle.sceneType === "building" ? `${battle.sceneSlug} · ${battle.parentLandmarkSlug}` : battle.sceneSlug),
+    [battleSceneLabelByKey],
   )
-  const selectedBattleSummary = useMemo(() => {
-    if (!selectedBattle?.id) {
+  const battleInfoSummary = useMemo(() => {
+    if (!selectedBattle) {
       return null
     }
 
-    return landmarkBattleHistory.find((battle) => battle.id === selectedBattle.id) ?? null
-  }, [landmarkBattleHistory, selectedBattle?.id])
+    const playerCount = selectedBattle.tokens.filter((token) => token.type === "player").length
+    const enemyCount = selectedBattle.tokens.filter((token) => token.type === "enemy").length
+    const hiddenTokenCount = selectedBattle.tokens.filter((token) => token.hidden).length
+    const currentTurnToken =
+      selectedBattle.currentTurnTokenNumber == null
+        ? null
+        : selectedBattle.tokens.find((token) => token.number === selectedBattle.currentTurnTokenNumber) ?? null
 
-  const selectedLandmarkActiveBattle = useMemo(
-    () => landmarkBattleHistory.find((battle) => battle.status === "active") ?? null,
-    [landmarkBattleHistory],
-  )
+    return {
+      statusLabel: selectedBattle.status === "active" ? "Activa" : "Terminada",
+      sceneTypeLabel: selectedBattle.sceneType === "building" ? "Building" : "Landmark",
+      playerCount,
+      enemyCount,
+      hiddenTokenCount,
+      currentTurnLabel:
+        selectedBattle.currentTurnTokenNumber == null
+          ? "Sin turno"
+          : currentTurnToken
+            ? `#${currentTurnToken.number} · ${currentTurnToken.nombre}`
+            : `#${selectedBattle.currentTurnTokenNumber}`,
+      createdAtLabel: formatBattleDateTime(selectedBattle.createdAt),
+      updatedAtLabel: formatBattleDateTime(selectedBattle.updatedAt),
+      endedAtLabel: formatBattleDateTime(selectedBattle.endedAt),
+    }
+  }, [selectedBattle])
+  const visibleActiveBattles = battleCenterHistory.activeBattles
+  const visibleFinishedBattles = battleCenterHistory.finishedBattles
 
   const scheduleInputFocus = useCallback((inputRef: { current: HTMLInputElement | null }) => {
     window.requestAnimationFrame(() => {
@@ -2739,8 +2957,8 @@ export function BattlePageClient() {
     }
   }, [activeBattle, applySelectedBattle])
 
-  const handleCreateBattleForSelectedLandmark = useCallback(async () => {
-    if (!selectedLandmarkSlug || !selectedLandmark || isCreatingBattle || selectedLandmarkActiveBattle) {
+  const handleCreateBattleForSelectedScene = useCallback(async () => {
+    if (!selectedScene || isCreatingBattle || selectedSceneActiveBattle) {
       return
     }
 
@@ -2748,24 +2966,35 @@ export function BattlePageClient() {
     setIsCreatingBattle(true)
 
     try {
-      const createdBattle = sortBattleState(await createBattle(selectedLandmarkSlug))
+      const createdBattle = sortBattleState(
+        await createBattle(
+          selectedScene.sceneType === "building"
+            ? {
+                sceneType: "building",
+                sceneSlug: selectedScene.sceneSlug,
+                parentLandmarkSlug: selectedScene.parentLandmarkSlug,
+              }
+            : selectedScene.sceneSlug,
+        ),
+      )
       setActiveBattle(createdBattle)
       applySelectedBattle(createdBattle)
+      setSelectedSceneActiveBattle(createdBattle)
       lastSyncedSnapshotRef.current = JSON.stringify(createdBattle)
-      await loadLandmarkBattleHistory(selectedLandmarkSlug)
+      await loadBattleCenterHistory(battleHistoryPage)
       setIsBattleCenterOpen(false)
     } catch (error) {
-      setBattleHistoryError(getBackendErrorMessage(error, "No se pudo crear la batalla para este landmark."))
+      setBattleHistoryError(getBackendErrorMessage(error, "No se pudo crear la batalla para esta escena."))
     } finally {
       setIsCreatingBattle(false)
     }
   }, [
     applySelectedBattle,
+    battleHistoryPage,
     isCreatingBattle,
-    loadLandmarkBattleHistory,
-    selectedLandmark,
-    selectedLandmarkActiveBattle,
-    selectedLandmarkSlug,
+    loadBattleCenterHistory,
+    selectedScene,
+    selectedSceneActiveBattle,
   ])
 
   const handleReopenBattle = useCallback(async (battleId: number) => {
@@ -2777,16 +3006,88 @@ export function BattlePageClient() {
       const reopenedBattle = sortBattleState(await reopenBattle(battleId))
       setActiveBattle(reopenedBattle)
       applySelectedBattle(reopenedBattle)
-      setSelectedLandmarkSlug(reopenedBattle.parentLandmarkSlug ?? reopenedBattle.landmarkSlug)
+      if (`${reopenedBattle.sceneType}:${reopenedBattle.sceneSlug}` === selectedSceneKey) {
+        setSelectedSceneActiveBattle(reopenedBattle)
+      }
+      setSelectedSceneKey(`${reopenedBattle.sceneType}:${reopenedBattle.sceneSlug}`)
       lastSyncedSnapshotRef.current = JSON.stringify(reopenedBattle)
-      await loadLandmarkBattleHistory(reopenedBattle.parentLandmarkSlug ?? reopenedBattle.landmarkSlug)
+      await loadBattleCenterHistory(battleHistoryPage)
       setIsBattleCenterOpen(false)
     } catch (error) {
       setBattleHistoryError(getBackendErrorMessage(error, "No se pudo reabrir la batalla seleccionada."))
     } finally {
       setReopeningBattleId(null)
     }
-  }, [applySelectedBattle, loadLandmarkBattleHistory])
+  }, [applySelectedBattle, battleHistoryPage, loadBattleCenterHistory, selectedSceneKey])
+
+  const handleDeleteBattle = useCallback(
+    async (battle: BattleSummary) => {
+      if (deletingBattleId || isOpeningBattle || reopeningBattleId === battle.id) {
+        return
+      }
+
+      const confirmed = window.confirm(
+        `Vas a borrar la batalla "${battle.title}". Esta acción no se puede deshacer.`,
+      )
+      if (!confirmed) {
+        return
+      }
+
+      setBattleHistoryError(null)
+      setSaveError(null)
+      setDeletingBattleId(battle.id)
+
+      try {
+        await deleteBattle(battle.id)
+
+        if (selectedBattle?.id === battle.id) {
+          applySelectedBattle(null)
+          lastSyncedSnapshotRef.current = null
+        }
+
+        if (activeBattle?.id === battle.id) {
+          setActiveBattle(null)
+        }
+
+        if (selectedSceneActiveBattle?.id === battle.id) {
+          setSelectedSceneActiveBattle(null)
+        }
+
+        await loadCurrentBattle(true)
+
+        const shouldGoToPreviousPage =
+          battle.status === "finished" &&
+          battleCenterHistory.finishedBattles.length === 1 &&
+          battleHistoryPage > 0 &&
+          !battleCenterHistory.hasNextPage
+
+        const nextPage = shouldGoToPreviousPage ? battleHistoryPage - 1 : battleHistoryPage
+        if (nextPage !== battleHistoryPage) {
+          setBattleHistoryPage(nextPage)
+        } else {
+          await loadBattleCenterHistory(nextPage)
+        }
+      } catch (error) {
+        setBattleHistoryError(getBackendErrorMessage(error, "No se pudo borrar la batalla seleccionada."))
+      } finally {
+        setDeletingBattleId(null)
+      }
+    },
+    [
+      activeBattle?.id,
+      applySelectedBattle,
+      battleCenterHistory.finishedBattles.length,
+      battleCenterHistory.hasNextPage,
+      battleHistoryPage,
+      deletingBattleId,
+      isOpeningBattle,
+      loadBattleCenterHistory,
+      loadCurrentBattle,
+      reopeningBattleId,
+      selectedBattle?.id,
+      selectedSceneActiveBattle?.id,
+    ],
+  )
 
   useEffect(() => {
     const requestedActionId = requestedReopenBattleId ?? requestedBattleId
@@ -2804,8 +3105,8 @@ export function BattlePageClient() {
 
     handledBattleNavigationRequestRef.current = requestKey
 
-    if (requestedBattleLandmarkSlug && selectedLandmarkSlug !== requestedBattleLandmarkSlug) {
-      setSelectedLandmarkSlug(requestedBattleLandmarkSlug)
+    if (requestedBattleLandmarkSlug && selectedSceneKey !== `landmark:${requestedBattleLandmarkSlug}`) {
+      setSelectedSceneKey(`landmark:${requestedBattleLandmarkSlug}`)
     }
 
     void (requestedActionType === "reopen"
@@ -2821,7 +3122,7 @@ export function BattlePageClient() {
     requestedBattleLandmarkSlug,
     requestedReopenBattleId,
     router,
-    selectedLandmarkSlug,
+    selectedSceneKey,
   ])
 
   const handleFinishBattle = useCallback(async () => {
@@ -2834,13 +3135,17 @@ export function BattlePageClient() {
     try {
       await finishBattle(selectedBattle.id)
       setActiveBattle(null)
+      if (selectedScene && `${selectedBattle.sceneType}:${selectedBattle.sceneSlug}` === selectedScene.key) {
+        setSelectedSceneActiveBattle(null)
+      }
       applySelectedBattle(null)
       lastSyncedSnapshotRef.current = null
       await loadCurrentBattle()
+      await loadBattleCenterHistory(battleHistoryPage)
     } catch (error) {
       setSaveError(getBackendErrorMessage(error, "No se pudo finalizar la batalla."))
     }
-  }, [applySelectedBattle, loadCurrentBattle, selectedBattle])
+  }, [applySelectedBattle, battleHistoryPage, loadBattleCenterHistory, loadCurrentBattle, selectedBattle, selectedScene])
 
   const battleOverlay = useMemo(() => {
     if (!selectedBattle) {
@@ -2998,7 +3303,7 @@ export function BattlePageClient() {
         <BattleStatusBanner
           battle={selectedBattle}
           characterById={charactersById}
-          landmarkLabel={selectedLandmark?.nombre ?? selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? null}
+          landmarkLabel={selectedScene?.label ?? selectedBattle?.sceneSlug ?? selectedBattle?.landmarkSlug ?? null}
           modeLabel={battleModeLabel}
           isSaving={isSaving}
           error={saveError ?? loadError}
@@ -3010,7 +3315,7 @@ export function BattlePageClient() {
         ) : null}
       </div>
     )
-  }, [battleModeLabel, charactersById, isSaving, loadError, saveError, selectedBattle, selectedLandmark?.nombre])
+  }, [battleModeLabel, charactersById, isSaving, loadError, saveError, selectedBattle, selectedScene?.label])
 
   const battleTopLeftControls = useMemo(
     () => (
@@ -3027,9 +3332,22 @@ export function BattlePageClient() {
             <Layers3 className="size-4" />
           </Button>
         </DelayedControlTooltip>
+        <DelayedControlTooltip label="Info de batalla">
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="outline"
+            className="h-10 w-10 rounded-full border border-stone-900/10 bg-white/95 shadow-lg backdrop-blur"
+            aria-label="Info de batalla"
+            onClick={() => setIsBattleInfoOpen(true)}
+            disabled={!selectedBattle}
+          >
+            <Info className="size-4" />
+          </Button>
+        </DelayedControlTooltip>
       </div>
     ),
-    [],
+    [selectedBattle],
   )
 
   const battleTopRightControls = useMemo(
@@ -3143,7 +3461,7 @@ export function BattlePageClient() {
                 setIsPresentationViewVerticallyMirrored(nextValue)
                 setBattleScreenPresentationVerticalMirror(nextValue)
               }}
-              disabled={!displayedLandmarkSlug}
+              disabled={!displayedSceneSlug}
             >
               <ArrowUpDown className="size-4" />
             </Button>
@@ -3184,7 +3502,7 @@ export function BattlePageClient() {
   }, [
     battleEditHistory.future.length,
     battleEditHistory.past.length,
-    displayedLandmarkSlug,
+    displayedSceneSlug,
     displayedSceneTarget,
     handleAdvanceTurn,
     handleFinishBattle,
@@ -3589,7 +3907,15 @@ export function BattlePageClient() {
       </section>
 
       <Dialog open={isBattleCenterOpen} onOpenChange={setIsBattleCenterOpen}>
-        <DialogContent className="max-w-5xl rounded-[2rem] border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,244,0.96))] p-6">
+        <DialogContent
+          ref={battleCenterDialogRef}
+          className="max-w-5xl rounded-[2rem] border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,244,0.96))] p-6"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            battleCenterDialogRef.current?.focus()
+          }}
+          tabIndex={-1}
+        >
           <DialogHeader>
             <DialogTitle>Centro de batalla</DialogTitle>
             <DialogDescription>
@@ -3598,91 +3924,13 @@ export function BattlePageClient() {
           </DialogHeader>
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.88fr)]">
-            <div className="space-y-4">
-              <section className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Landmark</p>
-                    <select
-                      value={selectedLandmarkSlug ?? ""}
-                      className="mt-1 h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-800 outline-none transition focus:border-amber-500"
-                      onChange={(event) => {
-                        const nextSlug = event.target.value || null
-                        setSelectedLandmarkSlug(nextSlug)
-                        if (
-                          selectedBattle &&
-                          (selectedBattle.parentLandmarkSlug ?? selectedBattle.landmarkSlug) !== nextSlug &&
-                          !isSelectedBattleEditable
-                        ) {
-                          applySelectedBattle(null)
-                        }
-                      }}
-                    >
-                      {eligibleLandmarks.length === 0 ? (
-                        <option value="">Sin landmarks listos</option>
-                      ) : null}
-                      {eligibleLandmarks.map(({ landmark, slug }) => (
-                        <option key={landmark.id} value={slug}>
-                          {landmark.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <Button
-                    type="button"
-                    className="h-11 rounded-xl"
-                    onClick={() => void handleCreateBattleForSelectedLandmark()}
-                    disabled={!selectedLandmarkSlug || isCreatingBattle || Boolean(selectedLandmarkActiveBattle)}
-                  >
-                    {isCreatingBattle ? "Creando..." : "Nueva batalla"}
-                  </Button>
-                </div>
-
-                {selectedLandmarkActiveBattle ? (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                    <p className="font-semibold">Hay una batalla activa para este landmark</p>
-                    <p className="mt-1 text-xs text-amber-800">
-                      {selectedLandmarkActiveBattle.title} · {selectedLandmarkActiveBattle.sceneSlug}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl"
-                        onClick={() => void handleOpenBattle(selectedLandmarkActiveBattle.id)}
-                      >
-                        Ir a la activa
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl"
-                        onClick={() =>
-                          openSceneInPresentation({
-                            sceneType: selectedLandmarkActiveBattle.sceneType,
-                            sceneSlug: selectedLandmarkActiveBattle.sceneSlug,
-                          })
-                        }
-                      >
-                        Presentación
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-stone-500">
-                    No hay batalla activa para el landmark seleccionado. Podés crear una nueva.
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-sm">
+            <div className="space-y-4 order-2 lg:order-1">
+              <section className="bg-white/70 p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-stone-900">Historial del landmark</h3>
+                    <h3 className="text-sm font-semibold text-stone-900">Historial de batallas</h3>
                     <p className="text-xs text-stone-500">
-                      Abrí una batalla terminada en modo lectura o reabrila para volver a editarla.
+                      Todas las batallas, con las activas arriba y las terminadas paginadas abajo.
                     </p>
                   </div>
                   {isOpeningBattle ? (
@@ -3694,80 +3942,283 @@ export function BattlePageClient() {
                 </div>
 
                 {battleHistoryError ? (
-                  <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
+                  <p className="bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
                     {battleHistoryError}
                   </p>
                 ) : null}
 
                 {isBattleHistoryLoading ? (
                   <p className="text-sm text-stone-500">Cargando historial...</p>
-                ) : landmarkBattleHistory.length === 0 ? (
-                  <p className="text-sm text-stone-500">Todavía no hay batallas para este landmark.</p>
                 ) : (
-                  <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-                    {landmarkBattleHistory.map((battle) => (
-                      <article
-                        key={battle.id}
-                        className={`rounded-2xl border p-3 ${
-                          battle.id === selectedBattle?.id
-                            ? "border-amber-300 bg-amber-50/90"
-                            : battle.status === "active"
-                              ? "border-emerald-200 bg-emerald-50/90"
-                              : "border-stone-200 bg-white"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-stone-900">{battle.title}</p>
-                            <p className="mt-1 text-[11px] text-stone-500">
-                              #{battle.id} · {battle.status === "active" ? "Activa" : "Terminada"} · {formatBattleSummaryTimestamp(battle)}
-                            </p>
-                            <p className="mt-1 text-[11px] text-stone-500">
-                              {battle.tokenCount} fichas · {battle.obstacleCount} obstáculos
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="rounded-xl"
-                              onClick={() => void handleOpenBattle(battle.id)}
-                            >
-                              Abrir
-                            </Button>
-                            {battle.status === "finished" ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="rounded-xl"
-                                onClick={() => void handleReopenBattle(battle.id)}
-                                disabled={reopeningBattleId === battle.id}
-                              >
-                                {reopeningBattleId === battle.id ? "Reabriendo..." : "Reabrir"}
-                              </Button>
-                            ) : null}
-                          </div>
+                  <div className="max-h-[36rem] space-y-5 overflow-y-auto pr-1">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Activas</h4>
+                        <span className="text-[11px] text-stone-500">{visibleActiveBattles.length}</span>
+                      </div>
+
+                      {visibleActiveBattles.length === 0 ? (
+                        <p className="text-sm text-stone-500">No hay batallas activas.</p>
+                      ) : (
+                        visibleActiveBattles.map((battle) => (
+                          <article
+                            key={battle.id}
+                            className={`border border-stone-200 px-3 py-3 ${battle.id === selectedBattle?.id ? "bg-stone-100" : "bg-transparent"}`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-stone-900">{battle.title}</p>
+                                <p className="mt-1 text-[11px] text-stone-500">
+                                  #{battle.id} · {getBattleSceneLabel(battle)}
+                                </p>
+                                <p className="mt-1 text-[11px] text-stone-500">
+                                  {formatBattleSummaryTimestamp(battle)} · {battle.tokenCount} fichas · {battle.obstacleCount} obstáculos
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 flex-wrap gap-2">
+                                <DelayedControlTooltip label="Abrir" side="left">
+                                  <Button type="button" size="icon" variant="ghost" onClick={() => void handleOpenBattle(battle.id)}>
+                                    <FolderOpen className="size-4" />
+                                  </Button>
+                                </DelayedControlTooltip>
+                                <DelayedControlTooltip label="Presentación" side="left">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      openSceneInPresentation({
+                                        sceneType: battle.sceneType,
+                                        sceneSlug: battle.sceneSlug,
+                                      })
+                                    }
+                                  >
+                                    <Monitor className="size-4" />
+                                  </Button>
+                                </DelayedControlTooltip>
+                                <DelayedControlTooltip label="Borrar" side="left">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => void handleDeleteBattle(battle)}
+                                    disabled={deletingBattleId === battle.id}
+                                  >
+                                    {deletingBattleId === battle.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                  </Button>
+                                </DelayedControlTooltip>
+                              </div>
+                            </div>
+                          </article>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Terminadas</h4>
+                        <span className="text-[11px] text-stone-500">{battleCenterHistory.totalFinishedBattles}</span>
+                      </div>
+
+                      {visibleFinishedBattles.length === 0 ? (
+                        <p className="text-sm text-stone-500">No hay batallas terminadas.</p>
+                      ) : (
+                        visibleFinishedBattles.map((battle) => (
+                          <article
+                            key={battle.id}
+                            className={`border border-stone-200 px-3 py-3 ${battle.id === selectedBattle?.id ? "bg-stone-100" : "bg-transparent"}`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-stone-900">{battle.title}</p>
+                                <p className="mt-1 text-[11px] text-stone-500">
+                                  #{battle.id} · {getBattleSceneLabel(battle)}
+                                </p>
+                                <p className="mt-1 text-[11px] text-stone-500">
+                                  {formatBattleSummaryTimestamp(battle)} · {battle.tokenCount} fichas · {battle.obstacleCount} obstáculos
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 flex-wrap gap-2">
+                                <DelayedControlTooltip label="Abrir" side="left">
+                                  <Button type="button" size="icon" variant="ghost" onClick={() => void handleOpenBattle(battle.id)}>
+                                    <FolderOpen className="size-4" />
+                                  </Button>
+                                </DelayedControlTooltip>
+                                <DelayedControlTooltip label="Reabrir" side="left">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => void handleReopenBattle(battle.id)}
+                                    disabled={reopeningBattleId === battle.id}
+                                  >
+                                    {reopeningBattleId === battle.id ? <LoaderCircle className="size-4 animate-spin" /> : <Undo2 className="size-4" />}
+                                  </Button>
+                                </DelayedControlTooltip>
+                                <DelayedControlTooltip label="Borrar" side="left">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => void handleDeleteBattle(battle)}
+                                    disabled={deletingBattleId === battle.id}
+                                  >
+                                    {deletingBattleId === battle.id ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                                  </Button>
+                                </DelayedControlTooltip>
+                              </div>
+                            </div>
+                          </article>
+                        ))
+                      )}
+
+                      {battleCenterHistory.totalFinishedPages > 1 ? (
+                        <div className="flex items-center justify-between gap-3 pt-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setBattleHistoryPage((current) => Math.max(0, current - 1))}
+                            disabled={!battleCenterHistory.hasPreviousPage || isBattleHistoryLoading}
+                          >
+                            Anterior
+                          </Button>
+                          <p className="text-[11px] text-stone-500">
+                            Página {battleCenterHistory.page + 1} de {Math.max(1, battleCenterHistory.totalFinishedPages)}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setBattleHistoryPage((current) => current + 1)}
+                            disabled={!battleCenterHistory.hasNextPage || isBattleHistoryLoading}
+                          >
+                            Siguiente
+                          </Button>
                         </div>
-                      </article>
-                    ))}
+                      ) : null}
+                    </div>
+
+                    {visibleActiveBattles.length === 0 && visibleFinishedBattles.length === 0 ? (
+                      <p className="text-sm text-stone-500">No hay batallas para mostrar.</p>
+                    ) : null}
                   </div>
                 )}
               </section>
             </div>
 
-            <div className="space-y-4">
-              <section className="rounded-2xl border border-stone-200 bg-white/85 p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-stone-900">Batalla seleccionada</h3>
-                {selectedBattle ? (
-                  <div className="mt-3 space-y-3">
-                    <div className="rounded-xl border border-stone-200 bg-stone-50/90 px-3 py-3">
-                      <p className="text-sm font-semibold text-stone-900">{selectedBattle.title}</p>
-                      <p className="mt-1 text-[11px] text-stone-500">
-                        {selectedBattle.sceneSlug} · {isSelectedBattleEditable ? "Editable" : "Solo lectura"}
-                      </p>
-                    </div>
+            <div className="space-y-4 order-1 lg:order-2">
+              <section className="bg-white/70 p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Escena</p>
+                    <select
+                      value={selectedSceneKey ?? ""}
+                      className="mt-1 h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-800 outline-none transition focus:border-amber-500"
+                      onChange={(event) => {
+                        const nextSceneKey = event.target.value || null
+                        setSelectedSceneKey(nextSceneKey)
+                        if (
+                          selectedBattle &&
+                          `${selectedBattle.sceneType}:${selectedBattle.sceneSlug}` !== nextSceneKey &&
+                          !isSelectedBattleEditable
+                        ) {
+                          applySelectedBattle(null)
+                        }
+                      }}
+                    >
+                      {eligibleBattleScenes.length === 0 ? (
+                        <option value="">Sin escenas listas</option>
+                      ) : null}
+                      {eligibleBattleScenes.map((scene) => (
+                        <option key={scene.key} value={scene.key}>
+                          {scene.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    type="button"
+                    className="h-11 rounded-xl"
+                    onClick={() => void handleCreateBattleForSelectedScene()}
+                    disabled={!selectedScene || isCreatingBattle || Boolean(selectedSceneActiveBattle)}
+                  >
+                    {isCreatingBattle ? "Creando..." : "Nueva batalla"}
+                  </Button>
+                </div>
 
+                {isSelectedSceneActiveBattleLoading ? (
+                  <p className="mt-3 text-xs text-stone-500">Buscando batalla activa para esta escena...</p>
+                ) : selectedSceneActiveBattle ? (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                    <p className="font-semibold">Hay una batalla activa para esta escena</p>
+                    <p className="mt-1 text-xs text-amber-800">
+                      {selectedSceneActiveBattle.title} · {getBattleSceneLabel(selectedSceneActiveBattle)}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => void handleOpenBattle(selectedSceneActiveBattle.id ?? 0)}
+                        disabled={!selectedSceneActiveBattle.id}
+                      >
+                        Ir a la activa
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() =>
+                          openSceneInPresentation({
+                            sceneType: selectedSceneActiveBattle.sceneType,
+                            sceneSlug: selectedSceneActiveBattle.sceneSlug,
+                          })
+                        }
+                      >
+                        Presentación
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-stone-500">
+                    No hay batalla activa para la escena seleccionada. Podés crear una nueva.
+                  </p>
+                )}
+              </section>
+
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBattleInfoOpen} onOpenChange={setIsBattleInfoOpen}>
+        <DialogContent className="max-w-5xl rounded-[2rem] border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,244,0.96))] p-6">
+          <DialogHeader>
+            <DialogTitle>Batalla Info</DialogTitle>
+            <DialogDescription>
+              Resumen, contexto y notas de la batalla actualmente abierta.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedBattle && battleInfoSummary ? (
+            <div className="space-y-5">
+              <section className="border-b border-stone-200 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-stone-600">{getBattleSceneLabel(selectedBattle)}</p>
+                  </div>
+                  <div className="bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
+                    {battleInfoSummary.statusLabel} · {isSelectedBattleEditable ? "Editable" : "Solo lectura"}
+                  </div>
+                </div>
+              </section>
+
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
+                <section className="space-y-5">
+                  <section>
                     <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                       Título
                       <Input
@@ -3783,11 +4234,11 @@ export function BattlePageClient() {
                       />
                     </label>
 
-                    <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                       Notas DM
                       <Textarea
                         value={selectedBattle.dmNotes}
-                        className="mt-1 min-h-32 resize-y"
+                        className="mt-1 min-h-24 resize-y"
                         disabled={!isSelectedBattleEditable}
                         placeholder="Notas rápidas del encuentro..."
                         onChange={(event) =>
@@ -3798,21 +4249,103 @@ export function BattlePageClient() {
                         }
                       />
                     </label>
+                  </section>
 
-                    {selectedBattleSummary ? (
-                      <p className="text-[11px] text-stone-500">
-                        {selectedBattleSummary.tokenCount} fichas · {selectedBattleSummary.obstacleCount} obstáculos
-                      </p>
-                    ) : null}
+                  <div className="border-t border-stone-200 pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Contexto</p>
+                    <div className="mt-3 grid gap-x-6 gap-y-3 lg:grid-cols-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Escena</p>
+                        <p className="mt-1 text-sm text-stone-900">{getBattleSceneLabel(selectedBattle)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Tipo</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.sceneTypeLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Landmark padre</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.parentLandmarkSlug}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">ID / Slug</p>
+                        <p className="mt-1 text-sm text-stone-900">#{selectedBattle.id ?? "-"} · {selectedBattle.slug}</p>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <p className="mt-3 text-sm text-stone-500">
-                    Elegí una batalla del historial o creá una nueva para editar metadata y operar el combate.
-                  </p>
-                )}
-              </section>
+
+                  <div className="border-t border-stone-200 pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Progreso</p>
+                    <div className="mt-3 grid gap-x-6 gap-y-3 lg:grid-cols-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Ronda</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.roundNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Turno actual</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.currentTurnLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Niebla</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.fogEnabled ? "Activa" : "Desactivada"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Zonas reveladas</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.fogReveals.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="space-y-5 border-l border-stone-200 pl-8">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Resumen</p>
+                    <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Fichas</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.tokens.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Obstáculos</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.obstacles.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Jugadores</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.playerCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Enemigos</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.enemyCount}</p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Fichas ocultas</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.hiddenTokenCount}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-stone-200 pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Fechas</p>
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Creada</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.createdAtLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Actualizada</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.updatedAtLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Finalizada</p>
+                        <p className="mt-1 text-sm text-stone-900">{battleInfoSummary.endedAtLabel}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-stone-500">No hay una batalla seleccionada.</p>
+          )}
         </DialogContent>
       </Dialog>
 
