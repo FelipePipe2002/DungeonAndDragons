@@ -1,16 +1,15 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { BookMarked, BookOpen, ExternalLink, FileText, Link2, Loader2, Plus, ScrollText, Star, Swords, Trash2, Upload, WandSparkles } from "lucide-react"
+import { useEffect, useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { BookMarked, ExternalLink, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react"
 
 import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
-import { BrowserHeader } from "@/components/browser/BrowserHeader"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
 import { BrowserListPanel } from "@/components/browser/BrowserListPanel"
 import { BrowserSearch } from "@/components/browser/BrowserSearch"
-import { BrowserSectionButton } from "@/components/browser/BrowserSectionButton"
 import { FeatCard } from "@/components/card/feat-card"
 import { RuleCard } from "@/components/card/rule-card"
 import { SpellCard } from "@/components/card/spell-card"
@@ -30,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getFeatCategoryTone, getRuleTone, getSpellSchoolTone } from "@/lib/informacion/constants"
 import type { InformationSection, MonsterSortField } from "@/lib/informacion/types"
+import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 import { useBooksSection } from "@/app/informacion/hooks/useBooksSection"
 import { useConditionsSection } from "@/app/informacion/hooks/useConditionsSection"
 import { useFeatsSection } from "@/app/informacion/hooks/useFeatsSection"
@@ -71,7 +71,26 @@ function getListItemClassName(isActive: boolean) {
 }
 
 export default function InformacionPage() {
-  const [activeSection, setActiveSection] = useState<InformationSection>("monsters")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const infoSubnavConfig = getSubnavConfig("/informacion")
+  const activeSection = (infoSubnavConfig
+    ? getSubnavActiveValue(infoSubnavConfig, searchParams.get("section"))
+    : "monsters") as InformationSection
+
+  useEffect(() => {
+    if (!infoSubnavConfig) {
+      return
+    }
+
+    const currentSection = searchParams.get("section")
+    const normalizedSection = getSubnavActiveValue(infoSubnavConfig, currentSection)
+    if (currentSection === normalizedSection) {
+      return
+    }
+
+    router.replace(`/informacion?section=${encodeURIComponent(normalizedSection)}`)
+  }, [infoSubnavConfig, router, searchParams])
 
   const monsters = useMonstersSection({ isActive: activeSection === "monsters" })
   const conditions = useConditionsSection({ isActive: activeSection === "conditions" })
@@ -229,62 +248,9 @@ export default function InformacionPage() {
         disabled={books.isUploading || books.isDeleting}
       />
       <BrowserLayout
-        header={
-          <BrowserHeader
-            title="Informacion"
-            subtitle="Referencias rapidas en una sola pantalla."
-            icon={FileText}
-            tabs={
-              <>
-                <BrowserSectionButton
-                  active={activeSection === "monsters"}
-                  icon={Swords}
-                  label="Monstruos"
-                  onClick={() => setActiveSection("monsters")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "conditions"}
-                  icon={ScrollText}
-                  label="Condiciones"
-                  onClick={() => setActiveSection("conditions")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "spells"}
-                  icon={WandSparkles}
-                  label="Conjuros"
-                  onClick={() => setActiveSection("spells")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "feats"}
-                  icon={Star}
-                  label="Dotes"
-                  onClick={() => setActiveSection("feats")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "rules"}
-                  icon={BookOpen}
-                  label="Reglas"
-                  onClick={() => setActiveSection("rules")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "books"}
-                  icon={BookMarked}
-                  label="Libros"
-                  onClick={() => setActiveSection("books")}
-                />
-                <BrowserSectionButton
-                  active={activeSection === "pages"}
-                  icon={Link2}
-                  label="Paginas"
-                  onClick={() => setActiveSection("pages")}
-                />
-              </>
-            }
-            actions={headerActions}
-          />
-        }
         sidebar={
           <BrowserListPanel>
+            {headerActions ? <div className="mb-3 flex justify-end">{headerActions}</div> : null}
             <BrowserSearch
               value={currentQuery}
               onChange={handleQueryChange}

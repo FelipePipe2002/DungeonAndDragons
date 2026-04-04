@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { MedievalSharp } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppNav } from '@/components/app-nav'
+import { AppSubnav } from '@/components/app-subnav'
 import { AppGlobalOverlays } from '@/components/app-global-overlays'
 import { GlobalNavigationShortcuts } from '@/components/global-navigation-shortcuts'
 import { NavSettingsSheet } from '@/components/nav-settings-sheet'
@@ -53,6 +54,7 @@ export default function RootLayout({
           <GlobalNavigationShortcuts />
           <NavSettingsSheet showTrigger={false} />
           <AppNav />
+          <AppSubnav />
           <main className="flex-1">
             {children}
           </main>

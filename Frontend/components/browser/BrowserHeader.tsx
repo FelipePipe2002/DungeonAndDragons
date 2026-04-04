@@ -4,7 +4,7 @@ type BrowserHeaderProps = {
   title: string
   subtitle: string
   icon: ComponentType<{ className?: string }>
-  tabs: ReactNode
+  tabs?: ReactNode
   actions?: ReactNode
 }
 
@@ -22,7 +22,7 @@ export function BrowserHeader({ title, subtitle, icon: Icon, tabs, actions }: Br
               <p className="text-xs text-[#6a5642]">{subtitle}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">{tabs}</div>
+          {tabs ? <div className="flex flex-wrap gap-2">{tabs}</div> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
