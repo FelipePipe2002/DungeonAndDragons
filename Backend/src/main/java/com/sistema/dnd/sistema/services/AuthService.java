@@ -119,4 +119,5 @@ public class AuthService {
         String normalized = value.trim().toLowerCase();
         return normalized.isBlank() ? null : normalized;
     }
+
 }

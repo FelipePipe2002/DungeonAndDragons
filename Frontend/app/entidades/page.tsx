@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { CharactersPageContent } from "@/components/characters/CharactersPageContent"
@@ -11,7 +11,7 @@ import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 
 type EntitySection = "personajes" | "jugadores" | "edificios" | "organizaciones" | "landmarks"
 
-export default function EntidadesPage() {
+function EntidadesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const entidadesSubnavConfig = getSubnavConfig("/entidades")
@@ -50,4 +50,12 @@ export default function EntidadesPage() {
   }
 
   return <CharactersPageContent initialScope="npcs" showHeader={false} />
+}
+
+export default function EntidadesPage() {
+  return (
+    <Suspense fallback={null}>
+      <EntidadesPageContent />
+    </Suspense>
+  )
 }

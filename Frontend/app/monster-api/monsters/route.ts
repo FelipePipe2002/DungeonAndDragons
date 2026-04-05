@@ -22,15 +22,12 @@ function buildMonsterRequestContext(request: Request) {
   const hostname = requestUrl.hostname.trim().toLowerCase()
   const cookie = request.headers.get("cookie")?.trim() ?? ""
   const xsrfToken = request.headers.get("x-xsrf-token")?.trim() ?? ""
-  const configuredApiBaseUrl =
-    process.env.BACKEND_API_BASE_URL?.trim() ?? process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? ""
-  const backendApiBaseUrl = configuredApiBaseUrl
-    ? configuredApiBaseUrl.replace(/\/+$/, "")
+  const configuredBackendApiBaseUrl = process.env.BACKEND_API_BASE_URL?.trim() ?? ""
+  const backendApiBaseUrl = configuredBackendApiBaseUrl
+    ? configuredBackendApiBaseUrl.replace(/\/+$/, "")
     : hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
       ? `${requestUrl.protocol}//${hostname}:8086/api`
-      : process.env.NODE_ENV === "production"
-        ? `${requestUrl.origin}/api`
-        : "http://localhost:8086/api"
+      : "http://localhost:8086/api"
 
   return {
     cookie,

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { BookMarked, BookOpen, Building2, Link2, MapPin, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
+import { BookMarked, BookOpen, Building2, CalendarDays, Link2, MapPin, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
 
 import { normalizeMainNavPath } from "@/lib/navigation/main-nav"
 
@@ -42,6 +42,15 @@ export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
       { id: "edificios", value: "edificios", label: "Edificios", icon: Building2 },
       { id: "organizaciones", value: "organizaciones", label: "Organizaciones", icon: Shield },
       { id: "landmarks", value: "landmarks", label: "Landmarks", icon: MapPin },
+    ],
+  },
+  {
+    basePath: "/notas",
+    queryKey: "section",
+    defaultValue: "dm-notes",
+    items: [
+      { id: "dm-notes", value: "dm-notes", label: "Notas DM", icon: BookOpen },
+      { id: "dm-events", value: "dm-events", label: "Eventos DM", icon: CalendarDays },
     ],
   },
 ]

@@ -1,10 +1,12 @@
 export const OPEN_CREATE_CHARACTER_EVENT = "dm-codex:open-create-character"
 export const OPEN_CREATE_BUILDING_EVENT = "dm-codex:open-create-building"
 export const OPEN_CREATE_ORGANIZATION_EVENT = "dm-codex:open-create-organization"
+export const OPEN_CREATE_DM_EVENT = "dm-codex:open-create-dm-event"
 
 export const CHARACTERS_CHANGED_EVENT = "dm-codex:characters-changed"
 export const BUILDINGS_CHANGED_EVENT = "dm-codex:buildings-changed"
 export const ORGANIZATIONS_CHANGED_EVENT = "dm-codex:organizations-changed"
+export const DM_EVENTS_CHANGED_EVENT = "dm-codex:dm-events-changed"
 
 function dispatchWindowEvent(eventName: string) {
   if (typeof window === "undefined") {
@@ -26,6 +28,10 @@ export function openCreateOrganizationDialog() {
   dispatchWindowEvent(OPEN_CREATE_ORGANIZATION_EVENT)
 }
 
+export function openCreateDmEventDialog() {
+  dispatchWindowEvent(OPEN_CREATE_DM_EVENT)
+}
+
 export function notifyCharactersChanged() {
   dispatchWindowEvent(CHARACTERS_CHANGED_EVENT)
 }
@@ -36,4 +42,8 @@ export function notifyBuildingsChanged() {
 
 export function notifyOrganizationsChanged() {
   dispatchWindowEvent(ORGANIZATIONS_CHANGED_EVENT)
+}
+
+export function notifyDmEventsChanged() {
+  dispatchWindowEvent(DM_EVENTS_CHANGED_EVENT)
 }

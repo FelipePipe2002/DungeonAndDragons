@@ -1,10 +1,16 @@
+TODO - Bugs:
+    Cans edit organizations
+
 TODO-Priority-Hight:
+    Agregar que pueda abrir una batalla antigua
+    Agregar tiendas
+    Crear mapas simples del mundo y que lo puedan comprar los jugadores
+
 
 TODO-Priority-Medium:
     Poder crear caminos
 
 Ideas:
-    Estaria bueno que pueda cargar un mapa de algunos edificios
     Poder conectar mazmorras con herramientas para hacer mazmorras
     Agregar filtros en /personajes, /edificios, /organizaciones, /landmarks
     Agregar eventos DM, que el dm pueda cargar eventos que pasan, ej "El jugador Mateo le pego a el jefe del gremio", "compraron un libro", etc, asi rapido, y que los eventos se adjunten a una sesion, por ej es la sesion 5 de jugada y adjunto eventos ahi, 

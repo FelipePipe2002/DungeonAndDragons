@@ -1,6 +1,5 @@
 package com.sistema.dnd.sistema;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,7 +18,6 @@ public class SistemadndBackendApplication {
 
 	@PostConstruct
 	public void init(){
-		Dotenv.configure().load();
 		// Configurar la zona horaria predeterminada a GMT-3
 		TimeZone.setDefault(TimeZone.getTimeZone("America/Argentina/Buenos_Aires"));
 	}

@@ -25,15 +25,27 @@ type BackendRequestOptions = {
 
 function resolveApiBasePath() {
   const configuredBasePath = process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
-  if (configuredBasePath && configuredBasePath.length > 0) {
-    return configuredBasePath.replace(/\/+$/, "")
-  }
 
   if (isBrowser()) {
     const hostname = window.location.hostname.trim().toLowerCase()
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+      if (configuredBasePath && configuredBasePath.length > 0) {
+        return configuredBasePath.replace(/\/+$/, "")
+      }
       return `${window.location.protocol}//${hostname}:${LOCAL_BACKEND_PORT}/api`
     }
+
+    // In deployed environments the backend lives behind the same public origin under /api.
+    // Using an absolute URL here can force cross-origin preflights and break authenticated writes.
+    if (configuredBasePath?.startsWith("/")) {
+      return configuredBasePath.replace(/\/+$/, "")
+    }
+
+    return "/api"
+  }
+
+  if (configuredBasePath && configuredBasePath.length > 0) {
+    return configuredBasePath.replace(/\/+$/, "")
   }
 
   return process.env.NODE_ENV === "production" ? "/api" : DEV_API_BASE_PATH

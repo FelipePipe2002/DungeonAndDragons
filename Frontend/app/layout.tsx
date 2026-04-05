@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { MedievalSharp } from 'next/font/google'
@@ -54,7 +55,9 @@ export default function RootLayout({
           <GlobalNavigationShortcuts />
           <NavSettingsSheet showTrigger={false} />
           <AppNav />
-          <AppSubnav />
+          <Suspense fallback={null}>
+            <AppSubnav />
+          </Suspense>
           <main className="flex-1">
             {children}
           </main>

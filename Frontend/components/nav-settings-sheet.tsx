@@ -46,8 +46,12 @@ export function NavSettingsSheet({ showTrigger = true }: NavSettingsSheetProps) 
         action: "Crear organizacion",
       },
       {
+        key: "Alt+E",
+        action: "Agregar evento del DM",
+      },
+      {
         key: "Alt+N",
-        action: "Ir a notas",
+        action: "Ir a DM",
       },
       {
         key: "Alt+C",

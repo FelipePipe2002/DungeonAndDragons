@@ -70,8 +70,7 @@ const DEFAULT_BACKEND_API_BASE_URL = "http://localhost:8086/api";
 const pendingTokenResolutions = new Map();
 
 function resolveBackendApiBaseUrl() {
-  const configuredBaseUrl =
-    process.env.BACKEND_API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const configuredBaseUrl = process.env.BACKEND_API_BASE_URL?.trim();
   if (configuredBaseUrl) {
     return configuredBaseUrl.replace(/\/+$/, "");
   }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { Suspense, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookMarked, ExternalLink, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react"
 
@@ -70,7 +70,7 @@ function getListItemClassName(isActive: boolean) {
   }`
 }
 
-export default function InformacionPage() {
+function InformacionPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const infoSubnavConfig = getSubnavConfig("/informacion")
@@ -900,5 +900,13 @@ export default function InformacionPage() {
       onConfirm={pages.handleConfirmDelete}
     />
   </>
+  )
+}
+
+export default function InformacionPage() {
+  return (
+    <Suspense fallback={null}>
+      <InformacionPageContent />
+    </Suspense>
   )
 }

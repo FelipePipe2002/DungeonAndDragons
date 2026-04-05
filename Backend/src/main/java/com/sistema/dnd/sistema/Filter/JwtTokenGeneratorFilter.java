@@ -68,6 +68,7 @@ public class JwtTokenGeneratorFilter extends OncePerRequestFilter {
                     cookie.setPath("/");
                     cookie.setMaxAge(20000);
                     response.addCookie(cookie);
+
                     response.setHeader(ProjectSecurityConfig.X_XSRF_TOKEN, csrfTokenValue);
                 }
             }

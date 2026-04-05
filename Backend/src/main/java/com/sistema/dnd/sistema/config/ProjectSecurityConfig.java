@@ -29,7 +29,6 @@ import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -103,10 +102,10 @@ public class ProjectSecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         return request -> {
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOrigins(Collections.singletonList("http://localhost:3000"));
+            config.setAllowedOrigins(List.of("https://dnd.felipebertoldi.com.ar"));
             config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowCredentials(true);
-            config.setAllowedHeaders(Collections.singletonList("*"));
+            config.setAllowedHeaders(List.of("*"));
             config.setExposedHeaders(List.of(
                     JWT_HEADER,
                     X_XSRF_TOKEN

@@ -90,7 +90,7 @@ export async function searchMonsters(
     sortBy: options.sortField,
     sortDir: options.sortDirection,
   })
-  const response = await fetch(`/api/monsters?${search}`, {
+  const response = await fetch(`/monster-api/monsters?${search}`, {
     method: "GET",
     cache: "no-store",
   })
@@ -123,7 +123,7 @@ export async function fetchMonsterByExactName(
 ): Promise<MonsterRecord | null> {
   const withTokenImage = options.withTokenImage !== false
   const search = buildQuery({ nameExact, withTokenImage: withTokenImage ? 1 : 0 })
-  const response = await fetch(`/api/monsters?${search}`, {
+  const response = await fetch(`/monster-api/monsters?${search}`, {
     method: "GET",
     cache: "no-store",
   })
@@ -142,7 +142,7 @@ export async function fetchMonsterByExactName(
 
 export async function prefetchMonsterTokenImages(limit = 8): Promise<void> {
   const search = buildQuery({ prefetchTokens: 1, limit })
-  const response = await fetch(`/api/monsters?${search}`, {
+  const response = await fetch(`/monster-api/monsters?${search}`, {
     method: "GET",
     cache: "no-store",
   })
