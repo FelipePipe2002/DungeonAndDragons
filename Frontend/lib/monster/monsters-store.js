@@ -124,7 +124,8 @@ function normalizeMonsterTokenRequestContext(requestContext) {
     return {
       cookie: "",
       xsrfToken: "",
-      backendApiBaseUrl: ""
+      backendApiBaseUrl: "",
+      publicApiBaseUrl: ""
     };
   }
 
@@ -133,11 +134,15 @@ function normalizeMonsterTokenRequestContext(requestContext) {
   const backendApiBaseUrl = typeof requestContext.backendApiBaseUrl === "string"
     ? requestContext.backendApiBaseUrl.trim().replace(/\/+$/, "")
     : "";
+  const publicApiBaseUrl = typeof requestContext.publicApiBaseUrl === "string"
+    ? requestContext.publicApiBaseUrl.trim().replace(/\/+$/, "")
+    : "";
 
   return {
     cookie,
     xsrfToken,
-    backendApiBaseUrl
+    backendApiBaseUrl,
+    publicApiBaseUrl
   };
 }
 
@@ -150,7 +155,7 @@ function buildMonsterTokenResolutionKey(monsterName, sourceCodes) {
   return `${normalizedSources.join("|")}::${normalizedName}`;
 }
 
-function normalizeMonsterTokenImageUrl(downloadUrl, backendApiBaseUrl) {
+function normalizeMonsterTokenImageUrl(downloadUrl, backendApiBaseUrl, publicApiBaseUrl = "") {
   if (typeof downloadUrl !== "string") {
     return null;
   }
@@ -163,13 +168,17 @@ function normalizeMonsterTokenImageUrl(downloadUrl, backendApiBaseUrl) {
   const normalizedBackendApiBaseUrl = typeof backendApiBaseUrl === "string"
     ? backendApiBaseUrl.trim().replace(/\/+$/, "")
     : "";
+  const normalizedPublicApiBaseUrl = typeof publicApiBaseUrl === "string"
+    ? publicApiBaseUrl.trim().replace(/\/+$/, "")
+    : "";
 
   const buildApiAssetUrl = (assetPath) => {
-    if (!normalizedBackendApiBaseUrl || !assetPath.startsWith("/")) {
+    const apiBaseUrl = normalizedPublicApiBaseUrl || normalizedBackendApiBaseUrl;
+    if (!apiBaseUrl || !assetPath.startsWith("/")) {
       return null;
     }
 
-    return new URL(assetPath.slice(1), `${normalizedBackendApiBaseUrl}/`).toString();
+    return new URL(assetPath.slice(1), `${apiBaseUrl}/`).toString();
   };
 
   if (normalizedUrl.startsWith("http://") || normalizedUrl.startsWith("https://")) {
@@ -245,7 +254,11 @@ async function resolveMonsterTokenImageFromBackend(monsterName, sourceCodes, req
       return null;
     }
 
-    return normalizeMonsterTokenImageUrl(payload.downloadUrl, backendApiBaseUrl);
+    return normalizeMonsterTokenImageUrl(
+      payload.downloadUrl,
+      backendApiBaseUrl,
+      normalizedContext.publicApiBaseUrl,
+    );
   } catch {
     return null;
   }
@@ -273,7 +286,8 @@ async function ensureMonsterTokenImage(monster, requestContext = null) {
 
   const pendingResolution = (async () => {
     try {
-      return await resolveMonsterTokenImageFromBackend(monsterName, sourceCodes, requestContext);
+      const resolvedFromBackend = await resolveMonsterTokenImageFromBackend(monsterName, sourceCodes, requestContext);
+      return resolvedFromBackend;
     } catch {
       return null;
     } finally {

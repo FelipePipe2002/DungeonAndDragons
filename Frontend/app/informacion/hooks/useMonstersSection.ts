@@ -4,6 +4,7 @@ import { normalizeSearch } from "@/lib/informacion/normalize"
 import { MONSTER_ITEMS, MONSTER_ITEMS_BY_ID, parseMonsterCrValue } from "@/lib/informacion/monsters"
 import type { MonsterRecord } from "@/lib/informacion/types"
 import type { MonsterSortField, SortDirection } from "@/lib/informacion/types"
+import { resolveMonsterImage } from "@/lib/monster/utils"
 import { fetchMonsterByExactName } from "@/lib/services/monster-api.service"
 
 type UseMonstersSectionProps = {
@@ -89,9 +90,13 @@ export function useMonstersSection({ isActive }: UseMonstersSectionProps) {
     setSelectedMonsterRecord(localMonster)
 
     const cachedMonster = monsterDetailsCacheRef.current.get(selectedMonsterId)
-    if (cachedMonster) {
+    if (cachedMonster && resolveMonsterImage(cachedMonster)) {
       setSelectedMonsterRecord(cachedMonster)
       return
+    }
+
+    if (cachedMonster) {
+      setSelectedMonsterRecord(cachedMonster)
     }
 
     let cancelled = false

@@ -1043,7 +1043,7 @@ export function BattlePageClient() {
     const cache = monsterByNameCacheRef.current
     const cacheKey = normalized.toLocaleLowerCase("es")
     const cachedMonster = cache.get(cacheKey)
-    if (cachedMonster) {
+    if (cachedMonster && resolveMonsterImage(cachedMonster)) {
       return cachedMonster
     }
 

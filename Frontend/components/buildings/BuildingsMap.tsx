@@ -49,6 +49,8 @@ type BuildingsMapProps = {
   focusBuildingIndex?: number | null;
   focusBuildingIndices?: number[] | null;
   highlightBuildingIndices?: number[] | null;
+  hiddenBuildingIndices?: number[] | null;
+  onHiddenBuildingsChange?: (hiddenBuildingIndices: number[]) => void;
   focusRequestId?: number;
   showGrid?: boolean;
 };
@@ -644,6 +646,8 @@ export default function BuildingsMap({
   focusBuildingIndex,
   focusBuildingIndices,
   highlightBuildingIndices,
+  hiddenBuildingIndices,
+  onHiddenBuildingsChange,
   focusRequestId = 0,
   showGrid = true,
 }: BuildingsMapProps): ReactElement {

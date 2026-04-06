@@ -396,14 +396,18 @@ export default function MonsterCard({ monster, index, embedded = false }: Monste
               </div>
             )}
           </div>
-          {monsterImage && (
-            <img
-              alt={panel.title || monster.name || "Monster image"}
-              className="monster-portrait-image"
-              loading="lazy"
-              src={monsterImage}
-            />
-          )}
+          <div className="monster-portrait-wrap">
+            {monsterImage ? (
+              <img
+                alt={panel.title || monster.name || "Monster image"}
+                className="monster-portrait-image"
+                loading="lazy"
+                src={monsterImage}
+              />
+            ) : (
+              <div className="monster-portrait-empty">No tiene imagen</div>
+            )}
+          </div>
         </div>
       </header>
       {embedded ? <div className="monster-inner-panel">{body}</div> : body}

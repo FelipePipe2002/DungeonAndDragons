@@ -144,6 +144,21 @@ export const MONSTER_UI_CSS = String.raw`
   object-fit: cover;
 }
 
+.monster-portrait-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 104px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
 .feed-status {
   display: grid;
   gap: 10px;

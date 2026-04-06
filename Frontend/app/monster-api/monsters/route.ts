@@ -33,6 +33,7 @@ function buildMonsterRequestContext(request: Request) {
     cookie,
     xsrfToken,
     backendApiBaseUrl,
+    publicApiBaseUrl: `${requestUrl.origin}/api`,
   }
 }
 
