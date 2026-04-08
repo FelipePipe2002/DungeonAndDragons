@@ -35,6 +35,7 @@ type BattleTokenDto = {
   life?: number | null
   size?: number | null
   status?: string | null
+  statusDurationTurns?: number | null
   hidden?: boolean | null
 }
 
@@ -131,6 +132,7 @@ type UpdateBattlePayload = {
     life: number | null
     size: number | null
     status: string | null
+    statusDurationTurns: number | null
     hidden: boolean | null
   }>
   nextObstacleId: number
@@ -304,6 +306,13 @@ function normalizeToken(dto: BattleTokenDto): BattleToken {
     life: typeof dto.life === "number" && Number.isFinite(dto.life) ? Math.trunc(dto.life) : undefined,
     size: clampTokenSize(dto.size),
     status: normalizeBattleConditionStatus(dto.status),
+    statusDurationTurns:
+      normalizeBattleConditionStatus(dto.status) &&
+      typeof dto.statusDurationTurns === "number" &&
+      Number.isFinite(dto.statusDurationTurns) &&
+      dto.statusDurationTurns >= 0
+        ? Math.trunc(dto.statusDurationTurns)
+        : undefined,
     hidden: Boolean(dto.hidden),
   }
 }
@@ -528,6 +537,13 @@ function toPayload(input: BattleState): UpdateBattlePayload {
           const normalizedStatus = normalizeBattleConditionStatus(token.status)
           return normalizedStatus ? normalizedStatus : null
         })(),
+        statusDurationTurns:
+          normalizeBattleConditionStatus(token.status) &&
+          typeof token.statusDurationTurns === "number" &&
+          Number.isFinite(token.statusDurationTurns) &&
+          token.statusDurationTurns >= 0
+            ? Math.trunc(token.statusDurationTurns)
+            : null,
         hidden: typeof token.hidden === "boolean" ? token.hidden : null,
       }
     }),

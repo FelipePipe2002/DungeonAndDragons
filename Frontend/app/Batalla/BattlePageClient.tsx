@@ -126,6 +126,13 @@ function parseLifeModifierInput(value: string) {
   }
 }
 
+const DEFAULT_CONDITION_DURATION_TURNS = "1"
+
+function parseConditionDurationTurns(value: string) {
+  const parsed = parseNumberInput(value)
+  return parsed !== undefined && parsed >= 0 ? parsed : null
+}
+
 function rollInitiativeDie() {
   return Math.floor(Math.random() * 20) + 1
 }
@@ -610,6 +617,7 @@ type TokenFormDraft = {
   initiativeModifier: string
   life: string
   status: string
+  statusDurationTurns: string
 }
 
 const EMPTY_STATUS_SELECT_VALUE = "__none__"
@@ -629,6 +637,7 @@ function createEmptyTokenFormDraft(type: BattleToken["type"]): TokenFormDraft {
     initiativeModifier: type === "enemy" ? "0" : "",
     life: type === "enemy" ? "0" : "",
     status: "",
+    statusDurationTurns: "",
   }
 }
 
@@ -713,6 +722,7 @@ export function BattlePageClient() {
   const [isStatusLoaderDialogOpen, setIsStatusLoaderDialogOpen] = useState(false)
   const [statusLoaderTokenNumber, setStatusLoaderTokenNumber] = useState("")
   const [statusLoaderConditionName, setStatusLoaderConditionName] = useState("")
+  const [statusLoaderDurationTurns, setStatusLoaderDurationTurns] = useState("")
   const [statusLoaderError, setStatusLoaderError] = useState<string | null>(null)
   const [reopeningBattleId, setReopeningBattleId] = useState<number | null>(null)
   const [librarySheetCharacter, setLibrarySheetCharacter] = useState<Character | null>(null)
@@ -2077,6 +2087,9 @@ export function BattlePageClient() {
         const nextLife = type === "enemy" ? parsedLife ?? 0 : parsedLife
         const draftName = typeof draft?.nombre === "string" ? draft.nombre.trim() : ""
         const draftStatus = normalizeBattleConditionStatus(typeof draft?.status === "string" ? draft.status : "")
+        const draftStatusDurationTurns = draftStatus
+          ? parseConditionDurationTurns(draft?.statusDurationTurns ?? DEFAULT_CONDITION_DURATION_TURNS) ?? 1
+          : undefined
         const draftImageValue = typeof draft?.image === "string" ? draft.image : ""
         const nextSourceRef =
           hasCharacterId
@@ -2108,6 +2121,7 @@ export function BattlePageClient() {
           life: nextLife,
           size: 1,
           status: draftStatus,
+          statusDurationTurns: draftStatusDurationTurns,
           hidden: true,
         }
 
@@ -2214,6 +2228,7 @@ export function BattlePageClient() {
       imageFocusX: normalizedImageCrop.focusX,
       imageFocusY: normalizedImageCrop.focusY,
       imageZoom: normalizedImageCrop.zoom,
+      statusDurationTurns: savedDraft.statusDurationTurns ?? (savedDraft.status ? DEFAULT_CONDITION_DURATION_TURNS : ""),
     })
   }, [savedTokenDrafts, tokenDialogType])
 
@@ -2890,6 +2905,9 @@ export function BattlePageClient() {
 
     const tokenNumber = parseNumberInput(statusLoaderTokenNumber)
     const nextStatus = normalizeBattleConditionStatus(statusLoaderConditionName)
+    const nextStatusDurationTurns = nextStatus
+      ? parseConditionDurationTurns(statusLoaderDurationTurns)
+      : null
 
     if (!tokenNumber || tokenNumber <= 0) {
       setStatusLoaderError("Indicá un número de ficha válido.")
@@ -2898,6 +2916,11 @@ export function BattlePageClient() {
 
     if (statusLoaderConditionName.trim() && !findBattleConditionByName(nextStatus)) {
       setStatusLoaderError("La condición seleccionada no es válida.")
+      return
+    }
+
+    if (nextStatus && nextStatusDurationTurns === null) {
+      setStatusLoaderError("Indicá una duración válida en turnos. Usa 0 para infinito.")
       return
     }
 
@@ -2916,6 +2939,7 @@ export function BattlePageClient() {
             ? {
                 ...token,
                 status: nextStatus,
+                statusDurationTurns: nextStatus ? nextStatusDurationTurns ?? undefined : undefined,
               }
             : token,
         ),
@@ -2933,7 +2957,14 @@ export function BattlePageClient() {
     setIsStatusLoaderDialogOpen(false)
     setStatusLoaderTokenNumber("")
     setStatusLoaderConditionName("")
-  }, [isSelectedBattleEditable, statusLoaderConditionName, statusLoaderTokenNumber, updateSelectedBattle])
+    setStatusLoaderDurationTurns("")
+  }, [
+    isSelectedBattleEditable,
+    statusLoaderConditionName,
+    statusLoaderDurationTurns,
+    statusLoaderTokenNumber,
+    updateSelectedBattle,
+  ])
 
   const handleOpenBattle = useCallback(async (battleId: number) => {
     setSaveError(null)
@@ -3757,6 +3788,8 @@ export function BattlePageClient() {
               scheduleInputFocus(statusLoaderTokenInputRef)
             } else {
               setStatusLoaderError(null)
+              setStatusLoaderConditionName("")
+              setStatusLoaderDurationTurns("")
             }
           }}
         >
@@ -3800,7 +3833,9 @@ export function BattlePageClient() {
                 <Select
                   value={statusLoaderConditionName || EMPTY_STATUS_SELECT_VALUE}
                   onValueChange={(nextValue) => {
-                    setStatusLoaderConditionName(nextValue === EMPTY_STATUS_SELECT_VALUE ? "" : nextValue)
+                    const nextStatus = nextValue === EMPTY_STATUS_SELECT_VALUE ? "" : nextValue
+                    setStatusLoaderConditionName(nextStatus)
+                    setStatusLoaderDurationTurns(nextStatus ? DEFAULT_CONDITION_DURATION_TURNS : "")
                     setStatusLoaderError(null)
                   }}
                 >
@@ -3822,6 +3857,20 @@ export function BattlePageClient() {
                   </p>
                 ) : null}
               </div>
+              {statusLoaderConditionName ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">Duración</p>
+                  <Input
+                    value={statusLoaderDurationTurns}
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      setStatusLoaderDurationTurns(event.target.value)
+                      setStatusLoaderError(null)
+                    }}
+                    placeholder="Ej: 1 o 0 = infinito"
+                  />
+                </div>
+              ) : null}
               {statusLoaderError ? (
                 <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                   {statusLoaderError}
@@ -3860,6 +3909,7 @@ export function BattlePageClient() {
       selectedBattle?.fogReveals.length,
       statusLoaderError,
       statusLoaderConditionName,
+      statusLoaderDurationTurns,
       statusLoaderTokenNumber,
       setFogEnabled,
     ],
@@ -4510,9 +4560,11 @@ export function BattlePageClient() {
                   <Select
                     value={normalizeBattleConditionStatus(tokenDialogDraft.status) || EMPTY_STATUS_SELECT_VALUE}
                     onValueChange={(nextValue) => {
+                      const nextStatus = nextValue === EMPTY_STATUS_SELECT_VALUE ? "" : normalizeBattleConditionStatus(nextValue)
                       setTokenDialogDraft((current) => ({
                         ...current,
-                        status: nextValue === EMPTY_STATUS_SELECT_VALUE ? "" : normalizeBattleConditionStatus(nextValue),
+                        status: nextStatus,
+                        statusDurationTurns: nextStatus ? DEFAULT_CONDITION_DURATION_TURNS : "",
                       }))
                     }}
                   >
@@ -4533,6 +4585,21 @@ export function BattlePageClient() {
                   <p className="mt-2 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] leading-relaxed text-stone-600">
                     {findBattleConditionByName(tokenDialogDraft.status)?.entriesText}
                   </p>
+                ) : null}
+                {tokenDialogDraft.status ? (
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Duración (turnos, 0 = infinito)
+                    <Input
+                      value={tokenDialogDraft.statusDurationTurns}
+                      inputMode="numeric"
+                      className="mt-1 h-10"
+                      placeholder="1 o 0"
+                      onChange={(event) => {
+                        const nextValue = event.target.value
+                        setTokenDialogDraft((current) => ({ ...current, statusDurationTurns: nextValue }))
+                      }}
+                    />
+                  </label>
                 ) : null}
               </div>
             </div>

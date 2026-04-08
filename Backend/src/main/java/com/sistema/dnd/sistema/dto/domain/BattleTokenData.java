@@ -18,6 +18,7 @@ public record BattleTokenData(
     Integer life,
     Double size,
     String status,
+    Integer statusDurationTurns,
     Boolean hidden
 ) {
 }

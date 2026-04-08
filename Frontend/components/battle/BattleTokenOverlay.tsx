@@ -75,6 +75,7 @@ type BattleTokenOverlayProps = {
       life?: number | undefined
       size?: number
       status?: string
+      statusDurationTurns?: number | undefined
       hidden?: boolean
       type?: BattleToken["type"]
     },
@@ -360,6 +361,16 @@ function resolveTokenStatusDefinition(
   }
 
   return statusDefinitionByName.get(normalizedStatus) ?? null
+}
+
+function parseStatusDurationTurnsInput(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  const parsed = Number.parseInt(trimmed, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
 }
 
 function getTokenVisualMirrorTransform(verticalMirror: boolean) {
@@ -679,6 +690,11 @@ function BattleTokenItem({
             )
           })()
         ) : null}
+        {tokenStatusDefinition && typeof token.statusDurationTurns === "number" && token.statusDurationTurns >= 0 ? (
+          <span className="pointer-events-none absolute -bottom-1.5 right-0 z-30 rounded-full bg-stone-950/85 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
+            {token.statusDurationTurns === 0 ? "INF" : `${token.statusDurationTurns}T`}
+          </span>
+        ) : null}
         {isHidden ? (
           <>
             <span
@@ -958,7 +974,11 @@ function BattleTokenInspector({
               onOpenInspector(inspectedToken.number)
             }}
             onChange={(event) => {
-              onUpdateTokenDetails?.(inspectedToken.number, { status: event.target.value })
+              const nextStatus = event.target.value
+              onUpdateTokenDetails?.(inspectedToken.number, {
+                status: nextStatus,
+                statusDurationTurns: nextStatus ? 1 : undefined,
+              })
             }}
             disabled={!tokenInspectorEditable}
           >
@@ -971,7 +991,30 @@ function BattleTokenInspector({
           </select>
         </label>
         {inspectedTokenStatusDefinition ? (
-          <p className="col-span-2 text-[11px] text-stone-700">
+          <>
+            <label className="col-span-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-600">
+              Duración (turnos, 0 = infinito)
+              <input
+                inputMode="numeric"
+                aria-label={`Duración del estado de la ficha ${inspectedToken.number}`}
+                value={typeof inspectedToken.statusDurationTurns === "number" ? String(inspectedToken.statusDurationTurns) : ""}
+                className="mt-1 h-8 w-full rounded-xl border border-stone-200 bg-white px-2.5 text-[12px] font-medium text-stone-900 outline-none transition focus:border-amber-500"
+                placeholder="1 o 0"
+                onPointerDown={(event) => {
+                  event.stopPropagation()
+                }}
+                onFocus={() => {
+                  onOpenInspector(inspectedToken.number)
+                }}
+                onChange={(event) => {
+                  onUpdateTokenDetails?.(inspectedToken.number, {
+                    statusDurationTurns: parseStatusDurationTurnsInput(event.target.value),
+                  })
+                }}
+                disabled={!tokenInspectorEditable}
+              />
+            </label>
+            <p className="col-span-2 text-[11px] text-stone-700">
             <span
               className="inline-flex items-center rounded-full border px-2 py-0.5 font-semibold"
               style={{
@@ -981,8 +1024,14 @@ function BattleTokenInspector({
               title={inspectedTokenStatusDefinition.entriesText || undefined}
             >
               {inspectedTokenStatusDefinition.name}
+              {typeof inspectedToken.statusDurationTurns === "number" && inspectedToken.statusDurationTurns >= 0
+                ? inspectedToken.statusDurationTurns === 0
+                  ? " · infinito"
+                  : ` · ${inspectedToken.statusDurationTurns} turnos`
+                : ""}
             </span>
-          </p>
+            </p>
+          </>
         ) : null}
       </div>
     </div>

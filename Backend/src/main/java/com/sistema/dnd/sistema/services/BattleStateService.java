@@ -464,6 +464,8 @@ public class BattleStateService {
 
         Integer life = optionalInt(token.life());
         boolean hidden = token.hidden() != null && token.hidden();
+        String status = trimToLength(normalizedOrNull(token.status()), 200);
+        Integer statusDurationTurns = status == null ? null : nonNegativeOptionalInt(token.statusDurationTurns());
 
         return new BattleTokenData(
             number,
@@ -482,7 +484,8 @@ public class BattleStateService {
             optionalInt(token.initiative()),
             life,
             clampTokenSize(token.size(), 1),
-            trimToLength(normalizedOrNull(token.status()), 200),
+            status,
+            statusDurationTurns,
             hidden
         );
     }
@@ -749,6 +752,13 @@ public class BattleStateService {
 
     private Integer positiveOptionalInt(Integer value) {
         if (value == null || value < 1) {
+            return null;
+        }
+        return value;
+    }
+
+    private Integer nonNegativeOptionalInt(Integer value) {
+        if (value == null || value < 0) {
             return null;
         }
         return value;

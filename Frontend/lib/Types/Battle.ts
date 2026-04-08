@@ -22,6 +22,7 @@ export interface BattleToken {
   life?: number
   size: number
   status: string
+   statusDurationTurns?: number
   hidden?: boolean
 }
 
