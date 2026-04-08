@@ -3,6 +3,25 @@ import { NextResponse } from "next/server"
 import { getMonsterBatch, getMonsterByExactName, prefetchMissingMonsterTokens } from "@/lib/monster/monsters-store"
 import { buildMonsterListItem, normalizeMonsterRecord } from "@/lib/monster/utils"
 
+const DEV_BACKEND_API_BASE_URL = "http://localhost:8086/api"
+const DEV_SITE_ORIGIN = "http://localhost:3000"
+const PROD_SITE_ORIGIN = "https://dnd.felipebertoldi.com.ar"
+
+function resolveAppMode() {
+  return process.env.NEXT_PUBLIC_APP_MODE?.trim().toLowerCase() === "production"
+    ? "production"
+    : "development"
+}
+
+function resolveSiteOrigin() {
+  const configuredSiteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN?.trim()
+  if (configuredSiteOrigin) {
+    return configuredSiteOrigin.replace(/\/+$/, "")
+  }
+
+  return resolveAppMode() === "production" ? PROD_SITE_ORIGIN : DEV_SITE_ORIGIN
+}
+
 function parseIntegerParam(value: string | null, fallback: number) {
   if (!value) return fallback
   const parsed = Number.parseInt(value, 10)
@@ -23,17 +42,24 @@ function buildMonsterRequestContext(request: Request) {
   const cookie = request.headers.get("cookie")?.trim() ?? ""
   const xsrfToken = request.headers.get("x-xsrf-token")?.trim() ?? ""
   const configuredBackendApiBaseUrl = process.env.BACKEND_API_BASE_URL?.trim() ?? ""
+  const appMode = resolveAppMode()
   const backendApiBaseUrl = configuredBackendApiBaseUrl
     ? configuredBackendApiBaseUrl.replace(/\/+$/, "")
+    : appMode === "production"
+      ? `${resolveSiteOrigin()}/api`
     : hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
       ? `${requestUrl.protocol}//${hostname}:8086/api`
-      : "http://localhost:8086/api"
+      : DEV_BACKEND_API_BASE_URL
+
+  const publicApiBaseUrl = appMode === "production"
+    ? `${resolveSiteOrigin()}/api`
+    : `${requestUrl.origin}/api`
 
   return {
     cookie,
     xsrfToken,
     backendApiBaseUrl,
-    publicApiBaseUrl: `${requestUrl.origin}/api`,
+    publicApiBaseUrl,
   }
 }
 

@@ -67,12 +67,33 @@ let monstersCache = {
 };
 let pendingLoad = null;
 const DEFAULT_BACKEND_API_BASE_URL = "http://localhost:8086/api";
+const DEFAULT_DEV_SITE_ORIGIN = "http://localhost:3000";
+const DEFAULT_PROD_SITE_ORIGIN = "https://dnd.felipebertoldi.com.ar";
 const pendingTokenResolutions = new Map();
 
+function resolveAppMode() {
+  return process.env.NEXT_PUBLIC_APP_MODE?.trim().toLowerCase() === "production"
+    ? "production"
+    : "development";
+}
+
+function resolveSiteOrigin() {
+  const configuredSiteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN?.trim();
+  if (configuredSiteOrigin) {
+    return configuredSiteOrigin.replace(/\/+$/, "");
+  }
+
+  return resolveAppMode() === "production" ? DEFAULT_PROD_SITE_ORIGIN : DEFAULT_DEV_SITE_ORIGIN;
+}
+
 function resolveBackendApiBaseUrl() {
-  const configuredBaseUrl = process.env.BACKEND_API_BASE_URL?.trim();
+  const configuredBaseUrl = process.env.BACKEND_API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   if (configuredBaseUrl) {
     return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  if (resolveAppMode() === "production") {
+    return `${resolveSiteOrigin()}/api`;
   }
 
   return DEFAULT_BACKEND_API_BASE_URL;

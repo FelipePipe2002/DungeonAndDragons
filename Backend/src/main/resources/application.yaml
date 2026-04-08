@@ -79,5 +79,7 @@ management:
       application: dnd
 
 app:
+  mode: ${APP_MODE:development}
+  frontend-origin: ${FRONTEND_PUBLIC_ORIGIN:}
   storage:
     books-dir: ${BOOKS_STORAGE_DIR:storage/books}

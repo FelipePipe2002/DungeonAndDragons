@@ -9,3 +9,4 @@ deploy-static/*
 deploy-static.bat
 .CleanedDataset/*
 Frontend/dnd-app-src.tgz
+Frontend/.env

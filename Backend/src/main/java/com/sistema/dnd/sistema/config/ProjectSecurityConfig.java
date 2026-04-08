@@ -34,12 +34,43 @@ import java.util.List;
 @Configuration
 public class ProjectSecurityConfig {
 
+    private static final String DEV_FRONTEND_ORIGIN = "http://localhost:3000";
+    private static final String DEV_FRONTEND_ORIGIN_ALT = "http://127.0.0.1:3000";
+    private static final String PROD_FRONTEND_ORIGIN = "https://dnd.felipebertoldi.com.ar";
+
     public static final String JWT_HEADER = "Authorization";
     public static final String JWT_TOKEN = "JWT-TOKEN";
     public static final String X_XSRF_TOKEN = "X-XSRF-TOKEN";
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Value("${app.mode:development}")
+    private String appMode;
+
+    @Value("${app.frontend-origin:}")
+    private String configuredFrontendOrigin;
+
+    private boolean isProductionMode() {
+        return "production".equalsIgnoreCase(appMode == null ? "" : appMode.trim());
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        String normalizedConfiguredOrigin = configuredFrontendOrigin == null ? "" : configuredFrontendOrigin.trim();
+        if (!normalizedConfiguredOrigin.isEmpty()) {
+            return List.of(normalizedConfiguredOrigin);
+        }
+
+        if (isProductionMode()) {
+            return List.of(PROD_FRONTEND_ORIGIN);
+        }
+
+        return List.of(DEV_FRONTEND_ORIGIN, DEV_FRONTEND_ORIGIN_ALT);
+    }
+
+    private String buildFrameAncestorsPolicy() {
+        return "frame-ancestors 'self' " + String.join(" ", resolveAllowedOrigins());
+    }
 
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
@@ -68,7 +99,7 @@ public class ProjectSecurityConfig {
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.disable())
                         .contentSecurityPolicy(contentSecurityPolicy -> contentSecurityPolicy
-                                .policyDirectives("frame-ancestors 'self' http://localhost:3000 http://127.0.0.1:3000")));
+                                .policyDirectives(buildFrameAncestorsPolicy())));
 
         http.httpBasic(basicConfigurer -> basicConfigurer.authenticationEntryPoint(authenticationEntryPoint()))
                 .addFilterAfter(new JwtTokenGeneratorFilter(usuarioRepository, jwtSigningKey), BasicAuthenticationFilter.class)
@@ -102,7 +133,7 @@ public class ProjectSecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         return request -> {
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOrigins(List.of("https://dnd.felipebertoldi.com.ar"));
+            config.setAllowedOrigins(resolveAllowedOrigins());
             config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowCredentials(true);
             config.setAllowedHeaders(List.of("*"));

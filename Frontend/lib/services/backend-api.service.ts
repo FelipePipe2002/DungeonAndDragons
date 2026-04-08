@@ -1,4 +1,6 @@
 const DEV_API_BASE_PATH = "http://localhost:8086/api"
+const DEV_SITE_ORIGIN = "http://localhost:3000"
+const PROD_SITE_ORIGIN = "https://dnd.felipebertoldi.com.ar"
 const LOCAL_BACKEND_PORT = "8086"
 const XSRF_HEADER_NAME = "X-XSRF-TOKEN"
 const XSRF_STORAGE_KEY = "dnd_xsrf_token"
@@ -23,32 +25,45 @@ type BackendRequestOptions = {
   skipAuthRedirect?: boolean
 }
 
+function resolveAppMode() {
+  return process.env.NEXT_PUBLIC_APP_MODE?.trim().toLowerCase() === "production"
+    ? "production"
+    : "development"
+}
+
+function resolveSiteOrigin() {
+  const configuredSiteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN?.trim()
+  if (configuredSiteOrigin) {
+    return configuredSiteOrigin.replace(/\/+$/, "")
+  }
+
+  return resolveAppMode() === "production" ? PROD_SITE_ORIGIN : DEV_SITE_ORIGIN
+}
+
 function resolveApiBasePath() {
   const configuredBasePath = process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
-
-  if (isBrowser()) {
-    const hostname = window.location.hostname.trim().toLowerCase()
-    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
-      if (configuredBasePath && configuredBasePath.length > 0) {
-        return configuredBasePath.replace(/\/+$/, "")
-      }
-      return `${window.location.protocol}//${hostname}:${LOCAL_BACKEND_PORT}/api`
-    }
-
-    // In deployed environments the backend lives behind the same public origin under /api.
-    // Using an absolute URL here can force cross-origin preflights and break authenticated writes.
-    if (configuredBasePath?.startsWith("/")) {
-      return configuredBasePath.replace(/\/+$/, "")
-    }
-
-    return "/api"
-  }
+  const appMode = resolveAppMode()
 
   if (configuredBasePath && configuredBasePath.length > 0) {
     return configuredBasePath.replace(/\/+$/, "")
   }
 
-  return process.env.NODE_ENV === "production" ? "/api" : DEV_API_BASE_PATH
+  if (appMode === "production") {
+    return `${resolveSiteOrigin()}/api`
+  }
+
+  if (isBrowser()) {
+    const hostname = window.location.hostname.trim().toLowerCase()
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+      return `${window.location.protocol}//${hostname}:${LOCAL_BACKEND_PORT}/api`
+    }
+
+    // In deployed environments the backend lives behind the same public origin under /api.
+    // Using an absolute URL here can force cross-origin preflights and break authenticated writes.
+    return "/api"
+  }
+
+  return DEV_API_BASE_PATH
 }
 
 export function buildBackendApiUrl(path: string) {
