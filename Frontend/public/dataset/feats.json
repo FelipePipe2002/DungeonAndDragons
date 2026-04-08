@@ -1,6 +1,6 @@
 [
   {
-    "name": "Ability Score Improvement",
+    "name": "Mejora de atributo",
     "category": "G",
     "prerequisite": [
       {
@@ -39,12 +39,12 @@
       }
     ],
     "entries": [
-      "Increase one ability score of your choice by 2, or increase two ability scores of your choice by 1. This feat can't increase an ability score above 20.",
+      "Aumenta uno de tus atributos a tu elección en 2, o aumenta dos atributos a tu elección en 1. Esta habilidad no puede aumentar un atributo por encima de 20.",
       {
         "type": "entries",
-        "name": "Repeatable",
+        "name": "Repetible",
         "entries": [
-          "You can take this feat more than once."
+          "Puedes tomar esta habilidad más de una vez."
         ]
       }
     ]
@@ -68,46 +68,46 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Impersonation",
+        "name": "Imitación",
         "entries": [
-          "While you're disguised as a real or fictional person, you have Advantage on Charisma (Deception or Performance) checks to convince others that you are that person."
+          "Mientras estás disfrazado como una persona real o ficticia, tienes Ventaja en las tiradas de Carisma (Engaño o Interpretación) para convencer a otros de que eres esa persona."
         ]
       },
       {
         "type": "entries",
-        "name": "Mimicry",
+        "name": "Imitación de sonidos",
         "entries": [
-          "You can mimic the sounds of other creatures, including speech. A creature that hears the mimicry must succeed on a Wisdom (Insight) check to determine the effect is faked (DC 8 plus your Charisma modifier and Proficiency Bonus)."
+          "Puedes imitar los sonidos de otras criaturas, incluyendo el habla. Una criatura que escuche la imitación debe tener éxito en una tirada de Sabiduría (Percepción) para determinar si el efecto es falso (CD 8 más tu modificador de Carisma y Bonificación de Competencia)."
         ]
       }
     ]
   },
   {
-    "name": "Alert",
+    "name": "Alerta",
     "category": "O",
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Initiative Proficiency",
+        "name": "Competencia en Iniciativa",
         "entries": [
-          "When you roll Initiative, you can add your Proficiency Bonus to the roll."
+          "Cuando haces el lanzamiento de Iniciativa, puedes añadir tu bonificación de competencia al lanzamiento."
         ]
       },
       {
         "type": "entries",
-        "name": "Initiative Swap",
+        "name": "Intercambio de Iniciativa",
         "entries": [
-          "Immediately after you roll Initiative, you can swap your Initiative with the Initiative of one willing ally in the same combat. You can't make this swap if you or the ally has the Incapacitated condition."
+          "Inmediatamente después de lanzar tu Iniciativa, puedes intercambiar tu Iniciativa con la Iniciativa de un aliado dispuesto en el mismo combate. No puedes hacer este intercambio si tú o el aliado tienen la condición de incapacitado."
         ]
       }
     ]
   },
   {
-    "name": "Archery",
+    "name": "Arquería",
     "category": "FS",
     "prerequisite": [
       {
@@ -117,11 +117,11 @@
       }
     ],
     "entries": [
-      "You gain a +2 bonus to attack rolls you make with Ranged weapons."
+      "Obtienes un bono de +2 a tus tiradas de ataque con armas de largo alcance."
     ]
   },
   {
-    "name": "Athlete",
+    "name": "Atleta",
     "category": "G",
     "prerequisite": [
       {
@@ -152,47 +152,47 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Climb Speed",
+        "name": "Velocidad de escalada",
         "entries": [
-          "You gain a Climb Speed equal to your Speed."
+          "Obtienes una velocidad de escalada igual a tu velocidad."
         ]
       },
       {
         "type": "entries",
-        "name": "Hop Up",
+        "name": "Potenciar",
         "entries": [
-          "When you have the Prone condition, you can right yourself with only 5 feet of movement."
+          "Cuando tienes la condición de 'Prone', puedes levantarte solo con 5 pies de movimiento."
         ]
       },
       {
         "type": "entries",
-        "name": "Jumping",
+        "name": "Saltar",
         "entries": [
-          "You can make a running Long Jump or High Jump after moving only 5 feet."
+          "Puedes hacer un salto largo o salto alto después de moverte solo 5 pies."
         ]
       }
     ]
   },
   {
-    "name": "Blessed Warrior",
+    "name": "Guerrero Bendecido",
     "category": "FS:P",
     "prerequisite": [
       {
         "otherSummary": {
-          "entry": "When Gaining the Level 2 Paladin \"Fighting Style\" Feature",
+          "entry": "Cuando obtienes la característica de estilo de combate del Paladín de nivel 2",
           "entrySummary": "Special"
         }
       }
     ],
     "entries": [
-      "You learn two Cleric cantrips of your choice. Guidance and Sacred Flame are recommended. The chosen cantrips count as Paladin spells for you, and Charisma is your spellcasting ability for them. Whenever you gain a Paladin level, you can replace one of these cantrips with another Cleric cantrip."
+      "Aprendes dos cantrips de clérigo de tu elección. Guidance y Sacred Flame son recomendados. Los cantrips elegidos cuentan como conjuros de paladín para ti, y Charisma es tu habilidad para lanzar hechizos."
     ]
   },
   {
-    "name": "Blind Fighting",
+    "name": "Combate ciego",
     "category": "FS",
     "prerequisite": [
       {
@@ -207,11 +207,11 @@
       }
     ],
     "entries": [
-      "You have Blindsight with a range of 10 feet."
+      "Tienes Blindsight con un rango de 10 pies."
     ]
   },
   {
-    "name": "Boon of Combat Prowess",
+    "name": "Bendición de habilidad en combate",
     "category": "EB",
     "prerequisite": [
       {
@@ -234,18 +234,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Peerless Aim",
+        "name": "Objetivo Impecable",
         "entries": [
-          "When you miss with an attack roll, you can hit instead. Once you use this benefit, you can't use it again until the start of your next turn."
+          "Cuando fallas con un ataque, puedes golpear en su lugar. Una vez que usas este beneficio, no puedes volver a usarlo hasta el inicio de tu siguiente turno."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Dimensional Travel",
+    "name": "Bendición del Viaje Dimensional",
     "category": "EB",
     "prerequisite": [
       {
@@ -268,18 +268,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Blink Steps",
+        "name": "Pasos de Teletransportación",
         "entries": [
-          "Immediately after you take the Attack action or the Magic action, you can teleport up to 30 feet to an unoccupied space you can see."
+          "Inmediatamente después de que tomes la acción de Ataque o la acción de Magia, puedes teletransportarte hasta 30 pies a un espacio vacío que puedas ver."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Energy Resistance",
+    "name": "Bendición de Resistencia a Energía",
     "category": "EB",
     "prerequisite": [
       {
@@ -320,25 +320,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Energy Resistances",
+        "name": "Resistencias a Energía",
         "entries": [
-          "You gain Resistance to two of the following damage types of your choice: Acid, Cold, Fire, Lightning, Necrotic, Poison, Psychic, Radiant, or Thunder. Whenever you finish a Long Rest, you can change your choices."
+          "Obtienes Resistencia a dos de los siguientes tipos de daño de tu elección: Ácido, Frío, Fuego, Rayo, Necrótico, Veneno, Psíquico, Radiante, o Trueno. Cada vez que termines un Descanso Largo, puedes cambiar tus elecciones."
         ]
       },
       {
         "type": "entries",
-        "name": "Energy Redirection",
+        "name": "Redirección de Energía",
         "entries": [
-          "When you take damage of one of the types chosen for the Energy Resistances benefit, you can take a Reaction to direct damage of the same type toward another creature you can see within 60 feet of yourself that isn't behind Total Cover. If you do so, that creature must succeed on a Dexterity saving throw (DC 8 plus your Constitution modifier and Proficiency Bonus) or take damage equal to 2d12 plus your Constitution modifier."
+          "Cuando recibes daño de uno de los tipos elegidos para el beneficio de Resistencia a Energía, puedes realizar una Reacción para dirigir el daño del mismo tipo hacia otra criatura que puedas ver a 60 pies de ti que no esté detrás de Total Cover. Si lo haces, esa criatura debe superar una tirada de salvación de Destreza (CD 8 más tu modificador de Constitución y Bonificación de competencia) o recibirá daño igual a 2d12 más tu modificador de Constitución."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Fate",
+    "name": "Bendición del Destino",
     "category": "EB",
     "prerequisite": [
       {
@@ -361,19 +361,19 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Improve Fate",
+        "name": "Mejorar el Destino",
         "entries": [
-          "When you or another creature within 60 feet of you succeeds on or fails a D20 Test, you can roll 2d4 and apply the total rolled as a bonus or penalty to the d20 roll. Once you use this benefit, you can't use it again until you roll Initiative or finish a Short or Long Rest."
+          "Cuando tú o cualquier criatura dentro de 60 pies de ti tiene éxito o falla en una prueba de D20, puedes tirar 2d4 y aplicar el resultado total como bonificación o penalización a la tirada de D20. Una vez que utilices esta ventaja, no puedes volver a usarla hasta que tires iniciativa o termines un descanso corto o largo."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Boon of Fortitude",
+    "name": "Bendición de Fortaleza",
     "category": "EB",
     "prerequisite": [
       {
@@ -396,18 +396,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Fortified Health",
+        "name": "Salud Fortificada",
         "entries": [
-          "Your Hit Point maximum increases by 40. In addition, whenever you regain Hit Points, you can regain additional Hit Points equal to your Constitution modifier. Once you've regained these additional Hit Points, you can't do so again until the start of your next turn."
+          "Tu máximo de Puntos de Vida aumenta en 40. Además, cada vez que recuperas Puntos de Vida, puedes recuperar Puntos de Vida adicionales iguales a tu modificador de Constitución. Una vez que hayas recuperado estos Puntos de Vida adicionales, no podrás hacerlo de nuevo hasta el comienzo de tu siguiente turno."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Irresistible Offense",
+    "name": "Bendición de Ataque Imparable",
     "category": "EB",
     "prerequisite": [
       {
@@ -426,25 +426,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Overcome Defenses",
+        "name": "Superar Defensas",
         "entries": [
-          "The Bludgeoning, Piercing, and Slashing damage you deal always ignores Resistance."
+          "El daño de Impacto, Perforación y Corte que infliges siempre ignora la Resistencia."
         ]
       },
       {
         "type": "entries",
-        "name": "Overwhelming Strike",
+        "name": "Golpe Abrumador",
         "entries": [
-          "When you roll a 20 on the d20 for an attack roll, you can deal extra damage to the target equal to the ability score increased by this feat. The extra damage's type is the same as the attack's type."
+          "Cuando tiras un 20 en el d20 para un ataque, puedes infligir daño adicional al objetivo igual a la puntuación de habilidad aumentada por esta habilidad. El tipo de daño adicional es el mismo que el del ataque."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Recovery",
+    "name": "Bendición de Recuperación",
     "category": "EB",
     "prerequisite": [
       {
@@ -467,25 +467,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Last Stand",
+        "name": "Último Respiro",
         "entries": [
-          "When you would be reduced to 0 Hit Points, you can drop to 1 Hit Point instead and regain a number of Hit Points equal to half your Hit Point maximum. Once you use this benefit, you can't use it again until you finish a Long Rest."
+          "Cuando te reduzcas a 0 Puntos de Vida, puedes reducirte a 1 Punto de Vida en su lugar y recuperar un número de Puntos de Vida igual a la mitad de tu máximo de Puntos de Vida. Una vez que uses este beneficio, no puedes usarlo de nuevo hasta que termines un Descanso Largo."
         ]
       },
       {
         "type": "entries",
-        "name": "Recover Vitality",
+        "name": "Recuperar Vitalidad",
         "entries": [
-          "You have a pool of ten d10s. As a Bonus Action, you can expend dice from the pool, roll those dice, and regain a number of Hit Points equal to the roll's total. You regain all the expended dice when you finish a Long Rest."
+          "Tienes un conjunto de diez dados de 10 caras. Como acción adicional, puedes gastar dados del conjunto, tirar esos dados y recuperar un número de Puntos de Vida igual a la suma del resultado. Recuperas todos los dados gastados cuando termines un Descanso Largo."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Skill",
+    "name": "Bendición de Habilidad",
     "category": "EB",
     "prerequisite": [
       {
@@ -535,26 +535,26 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "All-Around Adept",
+        "name": "Experto Omnipresente",
         "entries": [
-          "You gain proficiency in all skills."
+          "Obtienes competencia en todas las habilidades."
         ]
       },
       {
         "type": "entries",
-        "name": "Expertise",
+        "name": "Experiencia",
         "entries": [
-          "Choose one skill in which you lack Expertise. You gain Expertise in that skill."
+          "Elige una habilidad en la que careces de experiencia."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Boon of Speed",
+    "name": "Ventaja de la Velocidad",
     "category": "EB",
     "prerequisite": [
       {
@@ -577,25 +577,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Escape Artist",
+        "name": "Artista de la Escapada",
         "entries": [
-          "As a Bonus Action, you can take the Disengage action, which also ends the Grappled condition on you."
+          "Como una acción adicional, puedes realizar la acción de Disparar, lo que también termina la condición de Ser agarrado."
         ]
       },
       {
         "type": "entries",
-        "name": "Quickness",
+        "name": "Rapidez",
         "entries": [
-          "Your Speed increases by 30 feet."
+          "Tu velocidad aumenta en 30 pies."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Spell Recall",
+    "name": "Bendición de Recuerdo de Conjuro",
     "category": "EB",
     "prerequisite": [
       {
@@ -616,18 +616,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Free Casting",
+        "name": "Casting Gratuito",
         "entries": [
-          "Whenever you cast a spell with a level 1-4 spell slot, roll 1d4. If the number you roll is the same as the slot's level, the slot isn't expended."
+          "Siempre que lances un conjuro con un espacio de conjuro de nivel 1-4, tira 1d4. Si el número que saques es igual al nivel del espacio, el espacio no se consume."
         ]
       }
     ]
   },
   {
-    "name": "Boon of the Night Spirit",
+    "name": "Bendición del Espíritu Nocturno",
     "category": "EB",
     "prerequisite": [
       {
@@ -650,25 +650,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Merge with Shadows",
+        "name": "Unir con las Sombras",
         "entries": [
-          "While within Dim Light or Darkness, you can give yourself the Invisible condition as a Bonus Action. The condition ends on you immediately after you take an action, a Bonus Action, or a Reaction."
+          "Mientras estés en la Luz Tenue o la Oscuridad, puedes aplicarte a ti mismo la condición de Invisible como una Acción Adicional. La condición termina sobre ti inmediatamente después de realizar una acción, una Acción Adicional o una Reacción."
         ]
       },
       {
         "type": "entries",
-        "name": "Shadowy Form",
+        "name": "Forma de Sombra",
         "entries": [
-          "While within Dim Light or Darkness, you have Resistance to all damage except Psychic and Radiant."
+          "Mientras estés en la Luz Tenue o la Oscuridad, tienes Resistencia a todo tipo de daño excepto a los Psíquicos y a los Radiantes."
         ]
       }
     ]
   },
   {
-    "name": "Boon of Truesight",
+    "name": "Bendición de la Clarividencia",
     "category": "EB",
     "prerequisite": [
       {
@@ -696,12 +696,12 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
         "name": "Truesight",
         "entries": [
-          "You have Truesight with a range of 60 feet."
+          "Tienes Truesight con un alcance de 60 pies."
         ]
       }
     ]
@@ -738,19 +738,19 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Improved Dash",
+        "name": "Aceleración mejorada",
         "entries": [
-          "When you take the Dash action, your Speed increases by 10 feet for that action."
+          "Cuando realizas la acción de Aceleración, tu Velocidad aumenta en 10 pies para esa acción."
         ]
       },
       {
         "type": "entries",
-        "name": "Charge Attack",
+        "name": "Ataque de carga",
         "entries": [
-          "If you move at least 10 feet in a straight line toward a target immediately before hitting it with a melee attack roll as part of the Attack action, choose one of the following effects: gain a 1d8 bonus to the attack's damage roll, or push the target up to 10 feet away if it is no more than one size larger than you. You can use this benefit only once on each of your turns."
+          "Si te mueves al menos 10 pies en línea recta hacia un objetivo inmediatamente antes de golpear con un ataque cuerpo a cuerpo como parte de la acción de ataque, elige uno de los siguientes efectos: obtén un bono de 1d8 al lanzamiento de daño del ataque, o empuja al objetivo hasta 10 pies de distancia si es más grande que tú en una escala."
         ]
       }
     ]
@@ -779,32 +779,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Cook's Utensils",
+        "name": "Utensilios de cocina",
         "entries": [
-          "You gain proficiency with Cook's Utensils if you don't already have it."
+          "Obtienes competencia con Utensilios de cocina si ya no la tienes."
         ]
       },
       {
         "type": "entries",
-        "name": "Replenishing Meal",
+        "name": "Comida para reponer energías",
         "entries": [
-          "As part of a Short Rest, you can cook special food if you have ingredients and Cook's Utensils on hand. You can prepare enough of this food for a number of creatures equal to 4 plus your Proficiency Bonus. At the end of the Short Rest, any creature who eats the food and spends one or more Hit Dice to regain Hit Points regains an extra 1d8 Hit Points."
+          "Como parte de un breve descanso, puedes preparar comida especial si tienes ingredientes y utensilios de cocina. Puedes preparar suficiente comida para un número de criaturas igual a 4 más tu bonificación de habilidad. Al final del breve descanso, cualquier criatura que coma la comida y gaste uno o más dados de golpe para recuperar puntos de golpe recupera 1d8 puntos de golpe adicionales."
         ]
       },
       {
         "type": "entries",
-        "name": "Bolstering Treats",
+        "name": "Premios para fortalecer",
         "entries": [
-          "With 1 hour of work or when you finish a Long Rest, you can cook a number of treats equal to your Proficiency Bonus if you have ingredients and Cook's Utensils on hand. These special treats last 8 hours after being made. A creature can use a Bonus Action to eat one of those treats to gain a number of Temporary Hit Points equal to your Proficiency Bonus."
+          "Con 1 hora de trabajo o cuando termines un descanso largo, puedes preparar un número de premios igual a tu bonificación de habilidad si tienes ingredientes y utensilios de cocina. Estos premios especiales duran 8 horas después de ser preparados. Una criatura puede usar una acción adicional para comer uno de esos premios y obtener un número de puntos de golpe temporales iguales a tu bonificación de habilidad."
         ]
       }
     ]
   },
   {
-    "name": "Crafter",
+    "name": "Artesano",
     "category": "O",
     "toolProficiencies": [
       {
@@ -824,26 +824,26 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Tool Proficiency",
+        "name": "Nivel de dominio",
         "entries": [
-          "You gain proficiency with three different Artisan's Tools of your choice from the Fast Crafting table."
+          "Obtienes dominio con tres herramientas de artesano diferentes de tu elección, de la tabla de 'Fast Crafting'."
         ]
       },
       {
         "type": "entries",
-        "name": "Discount",
+        "name": "Descuento",
         "entries": [
-          "Whenever you buy a nonmagical item, you receive a 20 percent discount on it."
+          "Siempre que compres un objeto no mágico, recibes un descuento del 20 por ciento en él."
         ]
       },
       {
         "type": "entries",
         "name": "Fast Crafting",
         "entries": [
-          "When you finish a Long Rest, you can craft one piece of gear from the Fast Crafting table, provided you have the Artisan's Tools associated with that item and have proficiency with those tools. The item lasts until you finish another Long Rest, at which point the item falls apart.",
+          "Cuando termines una Descanso Largo, puedes fabricar una pieza de equipo de la mesa de Fabricación Rápida, siempre y cuando tengas las Herramientas del Artesano asociadas a ese objeto y tengas dominio con esas herramientas. El objeto dura hasta que termines otra Descanso Largo, momento en el que el objeto se desmorona.",
           {
             "type": "table",
             "caption": "Fast Crafting",
@@ -857,35 +857,35 @@
             ],
             "rows": [
               [
-                "Carpenter's Tools",
-                "Ladder, Torch"
+                "Herramientas del Carpintero",
+                "Escalera, Linterna"
               ],
               [
-                "Leatherworker's Tools",
-                "Crossbow Bolt Case, Map or Scroll Case, Pouch"
+                "Herramientas del Cuero",
+                "Caja de Munición para Arco, Caja de Mapa o Rollo, Bolsillo"
               ],
               [
-                "Mason's Tools",
-                "Block and Tackle"
+                "Herramientas de Mason",
+                "Bloques y poleas"
               ],
               [
-                "Potter's Tools",
-                "Jug, Lamp"
+                "Herramientas de Potter",
+                "Juego, lámpara"
               ],
               [
-                "Smith's Tools",
-                "Ball Bearings, Bucket, Caltrops, Grappling Hook, Iron Pot"
+                "Herramientas de Smith",
+                "Rodamientos de bolas, Cubo, Clavos, Ganchos de agarre, Olla de hierro"
               ],
               [
-                "Tinker's Tools",
-                "Bell, Shovel, Tinderbox"
+                "Herramientas del artesano",
+                "Campana, Pala, Cenicillo"
               ],
               [
-                "Weaver's Tools",
-                "Basket, Rope, Net, Tent"
+                "Herramientas del tejedor",
+                "Cesto, Cuerda, Red, Tienda de campaña"
               ],
               [
-                "Woodcarver's Tools",
+                "Herramientas del carpintero",
                 "Club, Greatclub, Quarterstaff"
               ]
             ]
@@ -895,7 +895,7 @@
     ]
   },
   {
-    "name": "Crossbow Expert",
+    "name": "Experto en arcos largos",
     "category": "G",
     "prerequisite": [
       {
@@ -913,32 +913,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Ignore Loading",
+        "name": "Ignorar la propiedad de carga",
         "entries": [
-          "You ignore the Loading property of the Hand Crossbow, Heavy Crossbow, and Light Crossbow (all called crossbows elsewhere in this feat). If you're holding one of them, you can load a piece of ammunition into it even if you lack a free hand."
+          "Ignoras la propiedad de carga del arco largo, arco pesado y arco ligero (todos llamados arcos en otro lugar de este conjuro). Si estas sosteniendo uno de ellos, puedes cargar una pieza de munición en él, incluso si no tienes una mano libre."
         ]
       },
       {
         "type": "entries",
-        "name": "Firing in Melee",
+        "name": "Disparo en Combate",
         "entries": [
-          "Being within 5 feet of an enemy doesn't impose Disadvantage on your attack rolls with crossbows."
+          "Estar a 5 pies de un enemigo no impone Desventaja en tus tiradas con arcos."
         ]
       },
       {
         "type": "entries",
-        "name": "Dual Wielding",
+        "name": "Uso de dos armas",
         "entries": [
-          "When you make the extra attack of the Light property, you can add your ability modifier to the damage of the extra attack if that attack is with a crossbow that has the Light property and you aren't already adding that modifier to the damage."
+          "Cuando haces el ataque adicional con la propiedad 'Ligero', puedes añadir tu modificador de habilidad al daño del ataque adicional si ese ataque es con un arco con la propiedad 'Ligero' y no estás ya añadiendo ese modificador al daño."
         ]
       }
     ]
   },
   {
-    "name": "Crusher",
+    "name": "Tritador",
     "category": "G",
     "prerequisite": [
       {
@@ -956,25 +956,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Push",
+        "name": "Empujar",
         "entries": [
-          "Once per turn, when you hit a creature with an attack that deals Bludgeoning damage, you can move it 5 feet to an unoccupied space if the target is no more than one size larger than you."
+          "Una vez por turno, cuando ataques a una criatura con un ataque que causa daño contundente, puedes moverla 5 pies a un espacio vacío si el objetivo es no más de un tamaño mayor que tú."
         ]
       },
       {
         "type": "entries",
-        "name": "Enhanced Critical",
+        "name": "Crítico mejorado",
         "entries": [
-          "When you score a Critical Hit that deals Bludgeoning damage to a creature, attack rolls against that creature have Advantage until the start of your next turn."
+          "Cuando causas un golpe crítico que causa daño contundente a una criatura, los ataques contra esa criatura tienen ventaja hasta el inicio de tu siguiente turno."
         ]
       }
     ]
   },
   {
-    "name": "Defense",
+    "name": "Defensa",
     "category": "FS",
     "prerequisite": [
       {
@@ -984,11 +984,11 @@
       }
     ],
     "entries": [
-      "While you're wearing Light, Medium, or Heavy armor, you gain a +1 bonus to Armor Class."
+      "Mientras estés usando armadura Ligera, Media o Pesada, obtienes un bono de +1 a tu Clase de Armadura."
     ]
   },
   {
-    "name": "Defensive Duelist",
+    "name": "Duelista Defensivo",
     "category": "G",
     "prerequisite": [
       {
@@ -1006,29 +1006,29 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Parry",
+        "name": "Bloquear",
         "entries": [
-          "If you're holding a Finesse weapon and another creature hits you with a melee attack, you can take a Reaction to add your Proficiency Bonus to your Armor Class, potentially causing the attack to miss you. You gain this bonus to your AC against melee attacks until the start of your next turn."
+          "Si estás sosteniendo un arma de destreza y otra criatura te ataca con un ataque cuerpo a cuerpo, puedes usar una Reacción para añadir tu bono de Pericia a tu Clase de Armadura, lo que podría hacer que el ataque te falle. Obtienes este bono a tu CA contra ataques cuerpo a cuerpo hasta el inicio de tu siguiente turno."
         ]
       }
     ]
   },
   {
-    "name": "Druidic Warrior",
+    "name": "Guerrero Druídico",
     "category": "FS:R",
     "prerequisite": [
       {
         "otherSummary": {
-          "entry": "When Gaining the Level 2 Ranger \"Fighting Style\" Feature",
+          "entry": "Cuando obtienes la característica de \"Estilo de Combate\" del Ranger de nivel 2",
           "entrySummary": "Special"
         }
       }
     ],
     "entries": [
-      "You learn two Druid cantrips of your choice. Guidance and Starry Wisp are recommended. The chosen cantrips count as Ranger spells for you, and Wisdom is your spellcasting ability for them. Whenever you gain a Ranger level, you can replace one of these cantrips with another Druid cantrip."
+      "Aprendes dos cantrips de Druida de tu elección. Guidance y Starry Wisp son recomendados. Los cantrips elegidos cuentan como hechizos de Ranger para ti, y Wisdom es tu habilidad para lanzar hechizos."
     ]
   },
   {
@@ -1063,25 +1063,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
         "name": "Enhanced Dual Wielding",
         "entries": [
-          "When you take the Attack action on your turn and attack with a weapon that has the Light property, you can make one extra attack as a Bonus Action later on the same turn with a different weapon, which must be a Melee weapon that lacks the Two-Handed property. You don't add your ability modifier to the extra attack's damage unless that modifier is negative."
+          "Cuando tomas la acción de Attaque en tu turno y atacas con un arma que tiene la propiedad de Light, puedes realizar un ataque adicional como una acción adicional más tarde en el mismo turno con un arma diferente, que debe ser un arma de combate que no tenga la propiedad de Two-Handed. No agregas tu modificador de habilidad al daño del ataque adicional a menos que ese modificador sea negativo."
         ]
       },
       {
         "type": "entries",
-        "name": "Quick Draw",
+        "name": "Rápido",
         "entries": [
-          "You can draw or stow two weapons that lack the Two-Handed property when you would normally be able to draw or stow only one."
+          "Puedes dibujar o guardar dos armas que no tengan la propiedad de 'Dos Manos' cuando normalmente solo podrías dibujar o guardar una."
         ]
       }
     ]
   },
   {
-    "name": "Dueling",
+    "name": "Combate",
     "category": "FS",
     "prerequisite": [
       {
@@ -1091,11 +1091,11 @@
       }
     ],
     "entries": [
-      "When you're holding a Melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon."
+      "Cuando estás sosteniendo un arma de combate con una mano y no hay otras armas, obtienes un bono de +2 en los tiradas de daño con esa arma."
     ]
   },
   {
-    "name": "Durable",
+    "name": "Resistente",
     "category": "G",
     "prerequisite": [
       {
@@ -1108,25 +1108,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Defy Death",
+        "name": "Desafiar la Muerte",
         "entries": [
-          "You have Advantage on Death Saving Throws."
+          "Tienes Ventaja en los Lanzamientos de Salvación contra la Muerte."
         ]
       },
       {
         "type": "entries",
-        "name": "Speedy Recovery",
+        "name": "Recuperación Rápida",
         "entries": [
-          "As a Bonus Action, you can expend one of your Hit Point Dice, roll the die, and regain a number of Hit Points equal to the roll."
+          "Como Acción Adicional, puedes gastar uno de tus Dados de Puntos de Vida, lanzar el dado y recuperar un número de Puntos de Vida igual al resultado."
         ]
       }
     ]
   },
   {
-    "name": "Elemental Adept",
+    "name": "Adeptos Elementales",
     "category": "G",
     "prerequisite": [
       {
@@ -1147,25 +1147,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Energy Mastery",
+        "name": "Dominio de la Energía",
         "entries": [
-          "Choose one of the following damage types: Acid, Cold, Fire, Lightning, or Thunder. Spells you cast ignore Resistance to damage of the chosen type. In addition, when you roll damage for a spell you cast that deals damage of that type, you can treat any 1 on a damage die as a 2."
+          "Elija uno de los siguientes tipos de daño: Ácido, Frío, Fuego, Rayo o Trueno. Los hechizos que lance ignoran la Resistencia al daño del tipo elegido. Además, cuando lance un hechizo que cause daño de ese tipo, puede tratar cualquier 1 en un dado de daño como un 2."
         ]
       },
       {
         "type": "entries",
-        "name": "Repeatable",
+        "name": "Repetible",
         "entries": [
-          "You can take this feat more than once, but you must choose a different damage type each time for Energy Mastery."
+          "Puede tomar esta habilidad más de una vez, pero debe elegir un tipo de daño diferente cada vez para el Dominio de la Energía."
         ]
       }
     ]
   },
   {
-    "name": "Fey-Touched",
+    "name": "Tocada por los Fey",
     "category": "G",
     "prerequisite": [
       {
@@ -1184,19 +1184,19 @@
       }
     ],
     "entries": [
-      "Your exposure to the Feywild's magic grants you the following benefits.",
+      "Su exposición a la magia del Feywild le otorga los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Fey Magic",
+        "name": "Magia de Fey",
         "entries": [
-          "Choose one level 1 spell from the Divination or Enchantment school of magic. You always have that spell and the Misty Step spell prepared. You can cast each of these spells without expending a spell slot. Once you cast either spell in this way, you can't cast that spell in this way again until you finish a Long Rest. You can also cast these spells using spell slots you have of the appropriate level. The spells' spellcasting ability is the ability increased by this feat."
+          "Elige un hechizo de nivel 1 de las escuelas de Magia Divinatoria o Encantamiento. Siempre tendrás ese hechizo y el hechizo Misty Step preparados. Puedes lanzar cada uno de estos hechizos sin gastar un espacio de hechizo. Una vez que lances cualquiera de estos hechizos de esta manera, no puedes lanzar ese hechizo de esta manera nuevamente hasta que termines un Descanso Largo. También puedes lanzar estos hechizos usando espacios de hechizo que tengas del nivel apropiado. La capacidad de lanzamiento de los hechizos es la habilidad aumentada por esta habilidad."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Grappler",
+    "name": "Agarre",
     "category": "G",
     "prerequisite": [
       {
@@ -1227,32 +1227,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Punch and Grab",
+        "name": "Golpea y Agarra",
         "entries": [
-          "When you hit a creature with an Unarmed Strike as part of the Attack action on your turn, you can use both the Damage and the Grapple option. You can use this benefit only once per turn."
+          "Cuando golpeas a una criatura con un Golpe sin Armas como parte de la acción de Ataque en tu turno, puedes usar ambas opciones de Daño y Agarre. Puedes usar este beneficio solo una vez por turno."
         ]
       },
       {
         "type": "entries",
-        "name": "Attack Advantage",
+        "name": "Ventaja de Ataque",
         "entries": [
-          "You have Advantage on attack rolls against a creature Grappled by you."
+          "Tienes Ventaja en los ataques contra una criatura que esta agarrada por ti."
         ]
       },
       {
         "type": "entries",
-        "name": "Fast Wrestler",
+        "name": "Luchador Ágil",
         "entries": [
-          "You don't have to spend extra movement to move a creature Grappled by you if the creature is your size or smaller."
+          "No tienes que gastar movimiento extra para mover una criatura que esta agarrada por ti si la criatura es del mismo tamaño o más pequeña."
         ]
       }
     ]
   },
   {
-    "name": "Great Weapon Fighting",
+    "name": "Combate con Armas Grandes",
     "category": "FS",
     "prerequisite": [
       {
@@ -1262,11 +1262,11 @@
       }
     ],
     "entries": [
-      "When you roll damage for an attack you make with a Melee weapon that you are holding with two hands, you can treat any 1 or 2 on a damage die as a 3. The weapon must have the Two-Handed or Versatile property to gain this benefit."
+      "Cuando realices un ataque con un arma cuerpo a cuerpo que sostienes con ambas manos, puedes considerar cualquier resultado de 1 o 2 en el dado de daño como un 3. El arma debe tener la propiedad \"Dos Manos\" o \"Versátil\" para obtener este beneficio."
     ]
   },
   {
-    "name": "Great Weapon Master",
+    "name": "Maestro de Armas",
     "category": "G",
     "prerequisite": [
       {
@@ -1284,47 +1284,47 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Heavy Weapon Mastery",
+        "name": "Dominio de Armas Pesadas",
         "entries": [
-          "When you hit a creature with a weapon that has the Heavy property as part of the Attack action on your turn, you can cause the weapon to deal extra damage to the target. The extra damage equals your Proficiency Bonus."
+          "Cuando golpeas a una criatura con un arma que tiene la propiedad 'Pesada' como parte de la acción de ataque en tu turno, puedes hacer que el arma cause daño adicional al objetivo. El daño adicional es igual a tu bonificación de competencia."
         ]
       },
       {
         "type": "entries",
         "name": "Hew",
         "entries": [
-          "Immediately after you score a Critical Hit with a Melee weapon or reduce a creature to 0 Hit Points with one, you can make one attack with the same weapon as a Bonus Action."
+          "Inmediatamente después de que realices un golpe crítico con un arma cuerpo a cuerpo o reduzcas a un monstruo a 0 puntos de golpe, puedes realizar un ataque con la misma arma como una acción adicional."
         ]
       }
     ]
   },
   {
-    "name": "Healer",
+    "name": "Curandero",
     "category": "O",
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Battle Medic",
+        "name": "Médico de combate",
         "entries": [
-          "If you have a Healer's Kit, you can expend one use of it and tend to a creature within 5 feet of yourself as a Utilize action. That creature can expend one of its Hit Point Dice, and you then roll that die. The creature regains a number of Hit Points equal to the roll plus your Proficiency Bonus."
+          "Si tienes un kit de curandero, puedes gastar una de sus usos para curar a un monstruo a 5 pies de ti como una acción de utilización. Ese monstruo puede gastar uno de sus dados de puntos de golpe, y luego tú tiras ese dado. El monstruo recupera un número de puntos de golpe igual al resultado más tu bonificación de competencia."
         ]
       },
       {
         "type": "entries",
-        "name": "Healing Rerolls",
+        "name": "Reintentos de curación",
         "entries": [
-          "Whenever you roll a die to determine the number of Hit Points you restore with a spell or with this feat's Battle Medic benefit, you can reroll the die if it rolls a 1, and you must use the new roll."
+          "Cada vez que lances un dado para determinar la cantidad de Puntos de Vida que recuperas con un hechizo o con el beneficio de Battle Medic de esta habilidad, puedes volver a lanzar el dado si sale un 1, y debes usar el nuevo resultado."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Heavily Armored",
+    "name": "Armadura Pesada",
     "category": "G",
     "prerequisite": [
       {
@@ -1352,18 +1352,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Armor Training",
+        "name": "Entrenamiento en Armadura",
         "entries": [
-          "You gain training with Heavy armor."
+          "Obtienes entrenamiento con armadura pesada."
         ]
       }
     ]
   },
   {
-    "name": "Heavy Armor Master",
+    "name": "Maestro de Armadura Pesada",
     "category": "G",
     "prerequisite": [
       {
@@ -1386,18 +1386,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Damage Reduction",
+        "name": "Reducción de Daño",
         "entries": [
-          "When you're hit by an attack while you're wearing Heavy armor, any Bludgeoning, Piercing, and Slashing damage dealt to you by that attack is reduced by an amount equal to your Proficiency Bonus."
+          "Cuando eres golpeado por un ataque mientras llevas armadura pesada, cualquier daño contundente, perforante o cortante causado por ese ataque se reduce en una cantidad igual a tu bonificación de competencia."
         ]
       }
     ]
   },
   {
-    "name": "Inspiring Leader",
+    "name": "Líder Inspirador",
     "category": "G",
     "prerequisite": [
       {
@@ -1428,18 +1428,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Bolstering Performance",
+        "name": "Mejorando el Rendimiento",
         "entries": [
-          "When you finish a Short Rest or Long Rest, you can give an inspiring performance: a speech, song, or dance. When you do so, choose up to six allies (which can include yourself) within 30 feet of yourself who witness the performance. The chosen creatures each gain Temporary Hit Points equal to your character level plus the modifier of the ability you increased with this feat."
+          "Cuando termines un Descanso Corto o un Descanso Largo, puedes dar un rendimiento inspirador: un discurso, una canción o una danza. Cuando lo hagas, elige hasta seis aliados (que pueden incluirte) dentro de 30 pies de ti que presencien el rendimiento. Las criaturas elegidas obtienen Puntos de Golpe Temporales iguales a tu nivel de personaje más el modificador de la habilidad que aumentaste con esta habilidad."
         ]
       }
     ]
   },
   {
-    "name": "Interception",
+    "name": "Intercepción",
     "category": "FS",
     "prerequisite": [
       {
@@ -1449,11 +1449,11 @@
       }
     ],
     "entries": [
-      "When a creature you can see hits another creature within 5 feet of you with an attack roll, you can take a Reaction to reduce the damage dealt to the target by 1d10 plus your Proficiency Bonus. You must be holding a Shield or a Simple or Martial weapon to use this Reaction."
+      "Cuando una criatura que puedas ver golpea a otra criatura dentro de 5 pies de ti con un ataque, puedes realizar una Reacción para reducir el daño causado al objetivo en 1d10 más tu bonificación de competencia. Debes estar sosteniendo un Escudo o un arma Simple o de Combate para usar esta Reacción."
     ]
   },
   {
-    "name": "Keen Mind",
+    "name": "Mente Aguda",
     "category": "G",
     "prerequisite": [
       {
@@ -1484,25 +1484,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Lore Knowledge",
+        "name": "Conocimiento de Lore",
         "entries": [
-          "Choose one of the following skills: Arcana, History, Investigation, Nature, or Religion. If you lack proficiency in the chosen skill, you gain proficiency in it, and if you already have proficiency in it, you gain Expertise in it."
+          "Elige una de las siguientes habilidades: Arcano, Historia, Investigación, Naturaleza, o Religión. Si no tienes competencia en la habilidad elegida, obtienes competencia en ella, y si ya tienes competencia en ella, obtienes Experiencia en ella."
         ]
       },
       {
         "type": "entries",
-        "name": "Quick Study",
+        "name": "Estudio rápido",
         "entries": [
-          "You can take the Study action as a Bonus Action."
+          "Puedes realizar la acción de Estudio como una acción adicional."
         ]
       }
     ]
   },
   {
-    "name": "Lightly Armored",
+    "name": "Ligera armadura",
     "category": "G",
     "prerequisite": [
       {
@@ -1526,46 +1526,46 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Armor Training",
+        "name": "Entrenamiento en Armadura",
         "entries": [
-          "You gain training with Light armor and Shields."
+          "Obtienes entrenamiento con armaduras y escudos ligeros."
         ]
       }
     ]
   },
   {
-    "name": "Lucky",
+    "name": "Afortunado",
     "category": "O",
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Luck Points",
+        "name": "Puntos de Suerte",
         "entries": [
-          "You have a number of Luck Points equal to your Proficiency Bonus and can spend the points on the benefits below. You regain your expended Luck Points when you finish a Long Rest."
+          "Tienes un número de Puntos de Suerte igual a tu Bonificación de Competencia y puedes gastar los puntos en los beneficios a continuación. Recuperas tus Puntos de Suerte gastados cuando termines un Descanso Largo."
         ]
       },
       {
         "type": "entries",
-        "name": "Advantage",
+        "name": "Ventaja",
         "entries": [
-          "When you roll a d20 for a D20 Test, you can spend 1 Luck Point to give yourself Advantage on the roll."
+          "Cuando lances un d20 para una Prueba de d20, puedes gastar 1 Punto de Suerte para obtener Ventaja en el lanzamiento."
         ]
       },
       {
         "type": "entries",
-        "name": "Disadvantage",
+        "name": "Desventaja",
         "entries": [
-          "When a creature rolls a d20 for an attack roll against you, you can spend 1 Luck Point to impose Disadvantage on that roll."
+          "Cuando una criatura tira un d20 para un ataque contra ti, puedes gastar 1 Punto de Suerte para imponer Desventaja en ese tirón."
         ]
       }
     ]
   },
   {
-    "name": "Mage Slayer",
+    "name": "Matador de Magos",
     "category": "G",
     "prerequisite": [
       {
@@ -1583,61 +1583,61 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Concentration Breaker",
+        "name": "Rompe Concentración",
         "entries": [
-          "When you damage a creature that is Concentrating, it has Disadvantage on the saving throw it makes to maintain Concentration."
+          "Cuando dañas a una criatura que está Concentrando, esta tiene Desventaja en el tirón de salvación para mantener la Concentración."
         ]
       },
       {
         "type": "entries",
-        "name": "Guarded Mind",
+        "name": "Mente Protegida",
         "entries": [
-          "If you fail an Intelligence, a Wisdom, or a Charisma saving throw, you can cause yourself to succeed instead. Once you use this benefit, you can't use it again until you finish a Short Rest or Long Rest."
+          "Si fallas un lanzamiento de salvación de Inteligencia, Sabiduría o Carisma, puedes hacer que tengas éxito en lugar de eso."
         ]
       }
     ]
   },
   {
-    "name": "Magic Initiate",
+    "name": "Aprendiz de Magia",
     "category": "O",
     "repeatable": true,
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Two Cantrips",
+        "name": "Dos Hechizos",
         "entries": [
-          "You learn two cantrips of your choice from the Cleric, Druid, or Wizard spell list. Intelligence, Wisdom, or Charisma is your spellcasting ability for this feat's spells (choose when you select this feat)."
+          "Aprendes dos hechizos a tu elección de la lista de hechizos de Sacerdotes, Druidas o Magos. Inteligencia, Sabiduría o Carisma es tu habilidad para lanzar hechizos para los hechizos de este logro (elige cuando selecciones este logro)."
         ]
       },
       {
         "type": "entries",
-        "name": "Level 1 Spell",
+        "name": "Hechizo de Nivel 1",
         "entries": [
-          "Choose a level 1 spell from the same list you selected for this feat's cantrips. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have."
+          "Elige un hechizo de nivel 1 de la misma lista que seleccionaste para este truco. Siempre tendrás ese hechizo preparado. Puedes lanzarlo una vez sin usar un espacio de hechizo, y recuperar la capacidad de lanzarlo de esa manera cuando termines un descanso largo. También puedes lanzar el hechizo usando cualquier espacio de hechizo que tengas."
         ]
       },
       {
         "type": "entries",
-        "name": "Spell Change",
+        "name": "Cambio de hechizo",
         "entries": [
-          "Whenever you gain a new level, you can replace one of the spells you chose for this feat with a different spell of the same level from the chosen spell list."
+          "Cada vez que ganes un nuevo nivel, puedes reemplazar uno de los hechizos que elegiste para este truco con un hechizo diferente del mismo nivel de la lista de hechizos elegida."
         ]
       },
       {
         "type": "entries",
-        "name": "Repeatable",
+        "name": "Repetible",
         "entries": [
-          "You can take this feat more than once, but you must choose a different spell list each time."
+          "Puedes tomar este truco más de una vez, pero debes elegir una lista de hechizos diferente cada vez."
         ]
       }
     ]
   },
   {
-    "name": "Martial Weapon Training",
+    "name": "Entrenamiento con arma de combate",
     "category": "G",
     "prerequisite": [
       {
@@ -1660,18 +1660,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Weapon Proficiency",
+        "name": "Dominio de Arma",
         "entries": [
-          "You gain proficiency with Martial weapons weapon."
+          "Obtienes dominio con armas marciales."
         ]
       }
     ]
   },
   {
-    "name": "Medium Armor Master",
+    "name": "Maestro de Armadura Media",
     "category": "G",
     "prerequisite": [
       {
@@ -1694,18 +1694,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Dexterous Wearer",
+        "name": "Portador de Armadura Media",
         "entries": [
-          "While you're wearing Medium armor, you can add 3, rather than 2 to your AC if you have a Dexterity score of 16 or higher."
+          "Mientras llevas armadura media, puedes añadir 3, en lugar de 2, a tu CA si tienes una puntuación de Destreza de 16 o más."
         ]
       }
     ]
   },
   {
-    "name": "Moderately Armored",
+    "name": "Ligeramente blindado",
     "category": "G",
     "prerequisite": [
       {
@@ -1733,18 +1733,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Armor Training",
+        "name": "Entrenamiento en Armadura",
         "entries": [
-          "You gain training with Medium armor."
+          "Obtienes entrenamiento con armadura media."
         ]
       }
     ]
   },
   {
-    "name": "Mounted Combatant",
+    "name": "Combate a caballo",
     "category": "G",
     "prerequisite": [
       {
@@ -1763,32 +1763,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Mounted Strike",
+        "name": "Ataque a caballo",
         "entries": [
-          "While mounted, you have Advantage on attack rolls against any unmounted creature within 5 feet of your mount that is at least one size smaller than the mount."
+          "Mientras estas montado, tienes ventaja en los ataques contra cualquier criatura que no esté montada y que esté a al menos un tamaño menor que tu montura, y que esté a 5 pies de distancia."
         ]
       },
       {
         "type": "entries",
-        "name": "Leap Aside",
+        "name": "Alejarse",
         "entries": [
-          "If your mount is subjected to an effect that allows it to make a Dexterity saving throw to take only half damage, it instead takes no damage if it succeeds on the saving throw and only half damage if it fails. For your mount to gain this benefit, you must be riding it, and neither of you can have the Incapacitated condition."
+          "Si tu montura es sujeta a un efecto que le permite realizar un salvaguardia de Destreza para recibir solo la mitad del daño, en su lugar recibe cero daño si tiene éxito en la salvaguardia y solo la mitad del daño si falla. Para que tu montura obtenga este beneficio, debes estar montándola, y ninguno de los dos puede tener el estado de incapacitado."
         ]
       },
       {
         "type": "entries",
-        "name": "Veer",
+        "name": "Observar",
         "entries": [
-          "While mounted, you can force an attack that hits your mount to hit you instead if you don't have the Incapacitated condition."
+          "Mientras estás montado, puedes forzar un ataque que golpee a tu montura para golpear en su lugar si no tienes el estado de incapacitado."
         ]
       }
     ]
   },
   {
-    "name": "Musician",
+    "name": "Músico",
     "category": "O",
     "toolProficiencies": [
       {
@@ -1796,25 +1796,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Instrument Training",
+        "name": "Entrenamiento en Instrumentos",
         "entries": [
-          "You gain proficiency with three Musical Instruments of your choice."
+          "Adquieres dominio con tres Instrumentos Musicales de tu elección."
         ]
       },
       {
         "type": "entries",
-        "name": "Encouraging Song",
+        "name": "Canción Inspiradora",
         "entries": [
-          "As you finish a Short Rest or Long Rest, you can play a song on a Musical Instrument with which you have proficiency and give Heroic Inspiration to allies who hear the song. The number of allies you can affect in this way equals your Proficiency Bonus."
+          "Al terminar un Descanso Corto o un Descanso Largo, puedes tocar una canción en un Instrumento Musical con el que tienes dominio y otorgar Inspiración Heroica a los aliados que escuchen la canción. El número de aliados que puedes afectar de esta manera es igual a tu Bonificación de Dominio."
         ]
       }
     ]
   },
   {
-    "name": "Observant",
+    "name": "Observador",
     "category": "G",
     "prerequisite": [
       {
@@ -1856,25 +1856,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Keen Observer",
+        "name": "Observador agudo",
         "entries": [
-          "Choose one of the following skills: Insight, Investigation, or Perception. If you lack proficiency with the chosen skill, you gain proficiency in it, and if you already have proficiency in it, you gain Expertise in it."
+          "Elija una de las siguientes habilidades: Perspicacia, Investigación o Percepción. Si carece de dominio en la habilidad elegida, adquiere dominio en ella, y si ya tiene dominio en ella, adquiere Experiencia en ella."
         ]
       },
       {
         "type": "entries",
-        "name": "Quick Search",
+        "name": "Búsqueda rápida",
         "entries": [
-          "You can take the Search action as a Bonus Action."
+          "Puede realizar la acción de Búsqueda como una Acción de Bonificación."
         ]
       }
     ]
   },
   {
-    "name": "Piercer",
+    "name": "Perforador",
     "category": "G",
     "prerequisite": [
       {
@@ -1892,25 +1892,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Puncture",
+        "name": "Golpe",
         "entries": [
-          "Once per turn, when you hit a creature with an attack that deals Piercing damage, you can reroll one of the attack's damage dice, and you must use the new roll."
+          "Una vez por turno, cuando ataques a una criatura con un ataque que inflige daño perforante, puedes volver a tirar uno de los dados de daño del ataque, y debes usar el nuevo resultado."
         ]
       },
       {
         "type": "entries",
-        "name": "Enhanced Critical",
+        "name": "Crítico mejorado",
         "entries": [
-          "When you score a Critical Hit that deals Piercing damage to a creature, you can roll one additional damage die when determining the extra Piercing damage the target takes."
+          "Cuando causas un golpe crítico que inflige daño perforante a una criatura, puedes tirar un dado de daño adicional al determinar el daño perforante adicional que recibe la criatura."
         ]
       }
     ]
   },
   {
-    "name": "Poisoner",
+    "name": "Envenenador",
     "category": "G",
     "prerequisite": [
       {
@@ -1933,26 +1933,26 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Potent Poison",
+        "name": "Veneno Potente",
         "entries": [
-          "When you make a damage roll that deals Poison damage, it ignores Resistance to Poison damage."
+          "Cuando haces un ataque que inflige daño por envenenamiento, ignora la resistencia al daño por envenenamiento."
         ]
       },
       {
         "type": "entries",
-        "name": "Brew Poison",
+        "name": "Preparar veneno",
         "entries": [
-          "You gain proficiency with the Poisoner's Kit. With 1 hour of work using such a kit and expending 50 GP worth of materials, you can create a number of poison doses equal to your Proficiency Bonus. As a Bonus Action, you can apply a poison dose to a weapon or piece of ammunition. Once applied, the poison retains its potency for 1 minute or until you deal damage with the poisoned item, whichever is shorter. When a creature takes damage from the poisoned item, that creature must succeed on a Constitution saving throw (DC 8 plus the modifier of the ability increased by this feat and your Proficiency Bonus) or take 2d8 Poison damage and have the Poisoned condition until the end of your next turn."
+          "Obtienes competencia con el kit del venenos. Con 1 hora de trabajo usando tal kit y gastando 50 GP en materiales, puedes crear un número de dosis de veneno igual a tu bonificador de competencia. Como acción de bonificación, puedes aplicar una dosis de veneno a una arma o munición. Una vez aplicada, el veneno conserva su potencia durante 1 minuto o hasta que causes daño con el arma envenenada, lo que sea menor. Cuando una criatura recibe daño con el arma envenenada, esa criatura debe tener éxito en un tiro de salvación de Constitución (CD 8 más el modificador de la habilidad aumentado por esta habilidad y tu bonificador de competencia) o recibe 2d8 de daño por veneno y tiene el estado de envenenado hasta el final de tu siguiente turno."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Polearm Master",
+    "name": "Maestro de armas largas",
     "category": "G",
     "prerequisite": [
       {
@@ -1983,25 +1983,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Pole Strike",
+        "name": "Golpe con arma larga",
         "entries": [
-          "Immediately after you take the Attack action and attack with a Quarterstaff, a Spear, or a weapon that has the Heavy and Reach properties, you can use a Bonus Action to make a melee attack with the opposite end of the weapon. The weapon deals Bludgeoning damage, and the weapon's damage die for this attack is a d4."
+          "Inmediatamente después de que tomes la acción de Ataque y ataques con un Bastón, una Lanza o un arma que tenga las propiedades de Pesado y Alcance, puedes usar una Acción Adicional para realizar un ataque cuerpo a cuerpo con el extremo opuesto del arma. El arma causa daño contundente, y el dado de daño del arma para este ataque es un d4."
         ]
       },
       {
         "type": "entries",
-        "name": "Reactive Strike",
+        "name": "Ataque Reactivo",
         "entries": [
-          "While you're holding a Quarterstaff, a Spear, or a weapon that has the Heavy and Reach properties, you can take a Reaction to make one melee attack against a creature that enters the reach you have with that weapon."
+          "Mientras sostienes un Bastón, una Lanza o un arma que tenga las propiedades de Pesado y Alcance, puedes realizar una Reacción para realizar un ataque cuerpo a cuerpo contra una criatura que entre en el alcance que tienes con ese arma."
         ]
       }
     ]
   },
   {
-    "name": "Protection",
+    "name": "Protección",
     "category": "FS",
     "prerequisite": [
       {
@@ -2011,11 +2011,11 @@
       }
     ],
     "entries": [
-      "When a creature you can see attacks a target other than you that is within 5 feet of you, you can take a Reaction to interpose your Shield if you're holding one. You impose Disadvantage on the triggering attack roll and all other attack rolls against the target until the start of your next turn if you remain within 5 feet of the target."
+      "Cuando una criatura que puedas ver ataca a un objetivo que no es tú y que esté dentro de 5 pies de ti, puedes realizar una Reacción para interponer tu Escudo si lo estás sosteniendo. Impones Desventaja en el lanzamiento de ataque desencadenante y en todos los demás ataques contra el objetivo hasta el comienzo de tu siguiente turno si permaneces dentro de 5 pies del objetivo."
     ]
   },
   {
-    "name": "Resilient",
+    "name": "Resiliente",
     "category": "G",
     "prerequisite": [
       {
@@ -2034,7 +2034,7 @@
             "cha"
           ],
           "amount": 1,
-          "entry": "Choose one ability in which you lack saving throw proficiency. Increase the chosen ability score by 1, to a maximum of 20."
+          "entry": "Elige una habilidad en la que careces de la proficiencia en las tiradas de salvación. Aumenta el nivel de habilidad elegido en 1, hasta un máximo de 20."
         }
       }
     ],
@@ -2053,18 +2053,18 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Saving Throw Proficiency",
+        "name": "Proficiencia en Tiradas de Salvación",
         "entries": [
-          "You gain saving throw proficiency with the chosen ability."
+          "Obtienes proficiencia en tiradas de salvación con la habilidad elegida."
         ]
       }
     ]
   },
   {
-    "name": "Ritual Caster",
+    "name": "Caster de Ritual",
     "category": "G",
     "prerequisite": [
       {
@@ -2104,33 +2104,33 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Ritual Spells",
+        "name": "Hechizos Rituales",
         "entries": [
-          "Choose a number of level 1 spells equal to your Proficiency Bonus that have the Ritual tag. You always have those spells prepared, and you can cast them with any spell slots you have. The spells' spellcasting ability is the ability increased by this feat. Whenever your Proficiency Bonus increases thereafter, you can add an additional level 1 spell with the Ritual tag to the spells always prepared with this feature."
+          "Elige un número de hechizos de nivel 1 iguales a tu bonificador de competencia que tengan la etiqueta Ritual. Siempre tendrás esos hechizos preparados, y puedes lanzarlos con cualquier ranura de hechizo que tengas. La capacidad para lanzar hechizos de los hechizos es la capacidad aumentada por esta habilidad. Cada vez que tu bonificador de competencia aumente, puedes añadir un hechizo de nivel 1 con la etiqueta Ritual a los hechizos siempre preparados con esta habilidad."
         ]
       },
       {
         "type": "entries",
-        "name": "Quick Ritual",
+        "name": "Ritual Rápido",
         "entries": [
-          "With this benefit, you can cast a Ritual spell that you have prepared using its regular casting time rather than the extended time for a Ritual. Doing so doesn't require a spell slot. Once you cast the spell in this way, you can't use this benefit again until you finish a Long Rest."
+          "Con esta ventaja, puedes lanzar un hechizo Ritual que hayas preparado utilizando su tiempo de lanzamiento regular en lugar del tiempo extendido para un Ritual. Hacerlo no requiere una ranura de hechizo. Una vez que lances el hechizo de esta manera, no puedes volver a usar esta ventaja hasta que termines un Descanso Largo."
         ]
       }
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Savage Attacker",
+    "name": "Atacante Salvaje",
     "category": "O",
     "entries": [
-      "You've trained to deal particularly damaging strikes. Once per turn when you hit a target with a weapon, you can roll the weapon's damage dice twice and use either roll against the target."
+      "Has entrenado para lidiar con ataques especialmente dañinos. Una vez por turno, cuando golpeas a un objetivo con un arma, puedes tirar los dados de daño del arma dos veces y usar cualquiera de los resultados contra el objetivo."
     ]
   },
   {
-    "name": "Sentinel",
+    "name": "Guarda",
     "category": "G",
     "prerequisite": [
       {
@@ -2161,25 +2161,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Guardian",
+        "name": "Protector",
         "entries": [
-          "Immediately after a creature within 5 feet of you takes the Disengage action or hits a target other than you with an attack, you can make an Opportunity Attack against that creature."
+          "Inmediatamente después de que una criatura a 5 pies de ti tome la acción de Disparar o golpee a un objetivo diferente a ti con un ataque, puedes realizar un ataque de oportunidad contra esa criatura."
         ]
       },
       {
         "type": "entries",
-        "name": "Halt",
+        "name": "Alto",
         "entries": [
-          "When you hit a creature with an Opportunity Attack, the creature's Speed becomes 0 for the rest of the current turn."
+          "Cuando golpeas a una criatura con un ataque de oportunidad, la velocidad de la criatura se convierte en 0 para el resto del turno actual."
         ]
       }
     ]
   },
   {
-    "name": "Shadow-Touched",
+    "name": "Tocado por las sombras",
     "category": "G",
     "prerequisite": [
       {
@@ -2198,12 +2198,12 @@
       }
     ],
     "entries": [
-      "Your exposure to the Shadowfell's magic grants you the following benefits.",
+      "Tu exposición a la magia del Shadowfell te otorga los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Shadow Magic",
+        "name": "Magia de las sombras",
         "entries": [
-          "Choose one level 1 spell from the Illusion or Necromancy school of magic. You always have that spell and the Invisibility spell prepared. You can cast each of these spells without expending a spell slot. Once you cast either spell in this way, you can't cast that spell in this way again until you finish a Long Rest. You can also cast these spells using spell slots you have of the appropriate level. The spells' spellcasting ability is the ability increased by this feat."
+          "Elige un hechizo de nivel 1 de las escuelas de magia de Ilusión o Necromancia. Siempre tendrás ese hechizo y el hechizo de Invisibilidad preparados. Puedes lanzar cada uno de estos hechizos sin gastar un espacio de hechizo. Una vez que lances uno de estos hechizos de esta manera, no puedes lanzar ese hechizo de esta manera nuevamente hasta que termines un Descanso Largo. También puedes lanzar estos hechizos usando espacios de hechizos que tengas del nivel apropiado. La habilidad de lanzamiento de hechizos de estos hechizos es la habilidad aumentada por esta habilidad."
         ]
       }
     ]
@@ -2227,32 +2227,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Bypass Cover",
+        "name": "Evadir Protección",
         "entries": [
-          "Your ranged attacks with weapons ignore Half Cover and Three-Quarters Cover."
+          "Tus ataques a distancia con armas ignoran la Protección Parcial y la Protección de Tres Cuartos."
         ]
       },
       {
         "type": "entries",
-        "name": "Firing in Melee",
+        "name": "Disparo en Combate",
         "entries": [
-          "Being within 5 feet of an enemy doesn't impose Disadvantage on your attack rolls with Ranged weapons."
+          "Estar a 5 pies de un enemigo no impone Desventaja en tus tiradas de ataque con armas a distancia."
         ]
       },
       {
         "type": "entries",
-        "name": "Long Shots",
+        "name": "Disparos a Larga Distancia",
         "entries": [
-          "Attacking at long range doesn't impose Disadvantage on your attack rolls with Ranged weapons."
+          "Atacar a larga distancia no impone Desventaja en tus tiradas de ataque con armas a distancia."
         ]
       }
     ]
   },
   {
-    "name": "Shield Master",
+    "name": "Maestro de Escudo",
     "category": "G",
     "prerequisite": [
       {
@@ -2270,25 +2270,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Shield Bash",
+        "name": "Golpear con Escudo",
         "entries": [
-          "If you attack a creature within 5 feet of you as part of the Attack action and hit with a Melee weapon, you can immediately bash the target with your Shield if it's equipped, forcing the target to make a Strength saving throw (DC 8 plus your Strength modifier and Proficiency Bonus). On a failed save, you either push the target 5 feet from you or cause it to have the Prone condition (your choice). You can use this benefit only once on each of your turns."
+          "Si atacas a una criatura a 5 pies de distancia como parte de la acción de Ataque y aciertas con un arma cuerpo a cuerpo, puedes golpear inmediatamente al objetivo con tu Escudo, si lo tienes equipado, obligando al objetivo a hacer un tiro de Fuerza salvaje (CD 8 más tu modificador de Fuerza y Bonificación de Competencia). En un fallo, o empujas al objetivo 5 pies de distancia o le causas la condición de Posto (tu elección). Puedes usar esta ventaja solo una vez en cada turno."
         ]
       },
       {
         "type": "entries",
-        "name": "Interpose Shield",
+        "name": "Escudo Intervención",
         "entries": [
-          "If you're subjected to an effect that allows you to make a Dexterity saving throw to take only half damage, you can take a Reaction to take no damage if you succeed on the saving throw and are holding a Shield."
+          "Si te sometes a un efecto que te permite realizar un lanzamiento de Destreza para recibir solo la mitad del daño, puedes realizar una Reacción para no recibir daño si tienes éxito en el lanzamiento y estás sosteniendo un escudo."
         ]
       }
     ]
   },
   {
-    "name": "Skill Expert",
+    "name": "Experto en habilidad",
     "category": "G",
     "prerequisite": [
       {
@@ -2320,25 +2320,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Skill Proficiency",
+        "name": "Competencia en habilidad",
         "entries": [
-          "You gain proficiency in one skill of your choice."
+          "Obtienes competencia en una habilidad de tu elección."
         ]
       },
       {
         "type": "entries",
-        "name": "Expertise",
+        "name": "Experiencia",
         "entries": [
-          "Choose one skill in which you have proficiency but lack Expertise. You gain Expertise with that skill."
+          "Elige una habilidad en la que tienes competencia, pero no Experiencia. Obtienes Experiencia con esa habilidad."
         ]
       }
     ]
   },
   {
-    "name": "Skilled",
+    "name": "Experto",
     "category": "O",
     "repeatable": true,
     "skillToolLanguageProficiencies": [
@@ -2355,12 +2355,12 @@
       }
     ],
     "entries": [
-      "You gain proficiency in any combination of three skills or tools of your choice.",
+      "Adquieres dominio en cualquier combinación de tres habilidades o herramientas de tu elección.",
       {
         "type": "entries",
-        "name": "Repeatable",
+        "name": "Repetible",
         "entries": [
-          "You can take this feat more than once."
+          "Puedes tomar esta habilidad más de una vez."
         ]
       }
     ]
@@ -2389,32 +2389,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Blindsight",
+        "name": "Visión limitada",
         "entries": [
-          "You have Blindsight with a range of 10 feet."
+          "Tienes Blindsight con un rango de 10 pies."
         ]
       },
       {
         "type": "entries",
-        "name": "Fog of War",
+        "name": "Niebla de la guerra",
         "entries": [
-          "You exploit the distractions of battle, gaining Advantage on any Dexterity (Stealth) check you make as part of the Hide action during combat."
+          "Usted aprovecha las distracciones del combate, obteniendo Ventaja en cualquier tirada de Destreza (Sigilo) que haga como parte de la acción de Esconder durante el combate."
         ]
       },
       {
         "type": "entries",
-        "name": "Sniper",
+        "name": "Francotirador",
         "entries": [
-          "If you make an attack roll while hidden and the roll misses, making the attack roll doesn't reveal your location."
+          "Si hace una tirada de ataque mientras está escondido y la tirada falla, hacer la tirada de ataque no revela su ubicación."
         ]
       }
     ]
   },
   {
-    "name": "Slasher",
+    "name": "Asesino",
     "category": "G",
     "prerequisite": [
       {
@@ -2432,25 +2432,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Hamstring",
+        "name": "Lesionar la rodilla",
         "entries": [
-          "Once per turn when you hit a creature with an attack that deals Slashing damage, you can reduce the Speed of that creature by 10 feet until the start of your next turn."
+          "Una vez por turno, cuando ataques a una criatura con un ataque que causa daño de corte, puedes reducir la Velocidad de esa criatura en 10 pies hasta el comienzo de tu próximo turno."
         ]
       },
       {
         "type": "entries",
-        "name": "Enhanced Critical",
+        "name": "Crítico mejorado",
         "entries": [
-          "When you score a Critical Hit that deals Slashing damage to a creature, it has Disadvantage on attack rolls until the start of your next turn."
+          "Cuando causas un golpe crítico que causa daño de corte a una criatura, tiene desventaja en los ataques hasta el comienzo de tu próximo turno."
         ]
       }
     ]
   },
   {
-    "name": "Speedy",
+    "name": "Veloz",
     "category": "G",
     "prerequisite": [
       {
@@ -2481,32 +2481,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Speed Increase",
+        "name": "Aumento de Velocidad",
         "entries": [
-          "Your Speed increases by 10 feet."
+          "Tu Velocidad aumenta en 10 pies."
         ]
       },
       {
         "type": "entries",
-        "name": "Dash over Difficult Terrain",
+        "name": "Dash sobre Terreno Difícil",
         "entries": [
-          "When you take the Dash action on your turn, Difficult Terrain doesn't cost you extra movement for the rest of that turn."
+          "Cuando tomes la acción Dash en tu turno, el Terreno Difícil no te cuesta más movimiento para el resto de ese turno."
         ]
       },
       {
         "type": "entries",
-        "name": "Agile Movement",
+        "name": "Movimiento Ágil",
         "entries": [
-          "Opportunity Attacks have Disadvantage against you."
+          "Los ataques de Oportunidad tienen Desventaja contra ti."
         ]
       }
     ]
   },
   {
-    "name": "Spell Sniper",
+    "name": "Especialista en Hechizos",
     "category": "G",
     "prerequisite": [
       {
@@ -2526,32 +2526,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Bypass Cover",
+        "name": "Evadir Protección",
         "entries": [
-          "Your attack rolls for spells ignore Half Cover and Three-Quarters Cover."
+          "Tus tiradas de ataque para conjuros ignoran la Protección Parcial y la Protección Completa."
         ]
       },
       {
         "type": "entries",
-        "name": "Casting in Melee",
+        "name": "Lanzar conjuros en combate",
         "entries": [
-          "Being within 5 feet of an enemy doesn't impose Disadvantage on your attack rolls with spells."
+          "Estar a 5 pies de un enemigo no te impone desventaja en tus tiradas de ataque con conjuros."
         ]
       },
       {
         "type": "entries",
-        "name": "Increased Range",
+        "name": "Rango aumentado",
         "entries": [
-          "When you cast a spell that has a range of at least 10 feet and requires you to make an attack roll, you can increase the spell's range by 60 feet."
+          "Cuando lances un conjuro con un rango de al menos 10 pies y que requiera que hagas una tirada de ataque, puedes aumentar el rango del conjuro en 60 pies."
         ]
       }
     ]
   },
   {
-    "name": "Tavern Brawler",
+    "name": "Taberna de peleadores",
     "category": "O",
     "weaponProficiencies": [
       {
@@ -2559,39 +2559,39 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Enhanced Unarmed Strike",
+        "name": "Golpe sin armas mejorado",
         "entries": [
-          "When you hit with your Unarmed Strike and deal damage, you can deal Bludgeoning damage equal to 1d4 plus your Strength modifier instead of the normal damage of an Unarmed Strike."
+          "Cuando golpeas con tu golpe sin armas y causas daño, puedes causar daño contundente igual a 1d4 más tu modificador de Fuerza en lugar del daño normal de un golpe sin armas."
         ]
       },
       {
         "type": "entries",
-        "name": "Damage Rerolls",
+        "name": "Rebobinar daño",
         "entries": [
-          "Whenever you roll a damage die for your Unarmed Strike, you can reroll the die if it rolls a 1, and you must use the new roll."
+          "Cuando tires un dado de daño para tu golpe sin armas, puedes retirar el dado si sale un 1, y debes usar el nuevo resultado."
         ]
       },
       {
         "type": "entries",
-        "name": "Improvised Weaponry",
+        "name": "Armas Improvisadas",
         "entries": [
-          "You have proficiency with improvised weapons."
+          "Tienes competencia con armas improvisadas."
         ]
       },
       {
         "type": "entries",
-        "name": "Push",
+        "name": "Empujar",
         "entries": [
-          "When you hit a creature with an Unarmed Strike as part of the Attack action on your turn, you can deal damage to the target and also push it 5 feet away from you. You can use this benefit only once per turn."
+          "Cuando golpeas a una criatura con un Golpe sin Armas como parte de la acción de Ataque en tu turno, puedes infligir daño al objetivo y también empujarlo 5 pies lejos de ti. Puedes usar este beneficio solo una vez por turno."
         ]
       }
     ]
   },
   {
-    "name": "Telekinetic",
+    "name": "Telequinesis",
     "category": "G",
     "prerequisite": [
       {
@@ -2610,25 +2610,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Minor Telekinesis",
+        "name": "Telequinesis Menor",
         "entries": [
-          "You learn the Mage Hand spell. You can cast it without Verbal or Somatic components, you can make the spectral hand Invisible, and its range and the distance it can be away from you both increase by 30 feet when you cast it. The spell's spellcasting ability is the ability increased by this feat."
+          "Aprendes el hechizo Mage Hand. Puedes lanzarlo sin componentes verbales o sutiles, puedes hacer que la mano espectral sea invisible, y su alcance y la distancia que puede estar de ti aumentan en 30 pies cuando lo lanzas. La habilidad utilizada para lanzar el hechizo es la habilidad que aumenta con este logro."
         ]
       },
       {
         "type": "entries",
-        "name": "Telekinetic Shove",
+        "name": "Empujón Telekínético",
         "entries": [
-          "As a Bonus Action, you can telekinetically shove one creature you can see within 30 feet of yourself. When you do so, the target must succeed on a Strength saving throw (DC 8 plus the ability modifier of the score increased by this feat and your Proficiency Bonus) or be moved 5 feet toward or away from you."
+          "Como una acción adicional, puedes empujar telequínicamente a una criatura que puedas ver dentro de 30 pies de ti. Cuando lo haces, el objetivo debe tener éxito en un tirada de salvación de Fuerza (CD 8 más el modificador de habilidad del logro y tu bonificación de competencia) o ser movido 5 pies hacia o lejos de ti."
         ]
       }
     ]
   },
   {
-    "name": "Telepathic",
+    "name": "Telepático",
     "category": "G",
     "prerequisite": [
       {
@@ -2647,25 +2647,25 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Telepathic Utterance",
+        "name": "Declaración Telepática",
         "entries": [
-          "You can speak telepathically to any creature you can see within 60 feet of yourself. Your telepathic utterances are in a language you know, and the creature understands you only if it knows that language. Your communication doesn't give the creature the ability to respond to you telepathically."
+          "Puedes comunicarte telepáticamente con cualquier criatura que puedas ver dentro de 60 pies de ti. Tus comunicaciones telepáticas están en un idioma que conoces, y la criatura solo te entiende si conoce ese idioma. Tu comunicación no le da a la criatura la capacidad de responderte telepáticamente."
         ]
       },
       {
         "type": "entries",
-        "name": "Detect Thoughts",
+        "name": "Detectar Pensamientos",
         "entries": [
-          "You always have the Detect Thoughts spell prepared. You can cast it without a spell slot or spell components, and you must finish a Long Rest before you can cast it in this way again. You can also cast it using spell slots you have of the appropriate level. Your spellcasting ability for the spell is the ability increased by this feat."
+          "Siempre tienes el hechizo Detectar Pensamientos preparado. Puedes lanzarlo sin un espacio de hechizo o componentes de hechizo, y debes completar un Descanso Largo antes de poder lanzarlo de esta manera nuevamente. También puedes lanzarlo usando espacios de hechizo que tengas del nivel apropiado. Tu capacidad de lanzar hechizos para este hechizo es la capacidad aumentada por esta habilidad."
         ]
       }
     ]
   },
   {
-    "name": "Thrown Weapon Fighting",
+    "name": "Combate con Armas Lanzadas",
     "category": "FS",
     "prerequisite": [
       {
@@ -2675,18 +2675,18 @@
       }
     ],
     "entries": [
-      "When you hit with a ranged attack roll using a weapon that has the Thrown property, you gain a +2 bonus to the damage roll."
+      "Cuando golpeas con un ataque a distancia usando un arma que tiene la propiedad de ser lanzada, obtienes un bono de +2 al tirar del daño."
     ]
   },
   {
-    "name": "Tough",
+    "name": "Difícil",
     "category": "O",
     "entries": [
-      "Your Hit Point maximum increases by an amount equal to twice your character level when you gain this feat. Whenever you gain a character level thereafter, your Hit Point maximum increases by an additional 2 Hit Points."
+      "Tu máximo de puntos de vida aumenta en una cantidad igual a dos veces tu nivel de personaje cuando obtienes esta habilidad. Cada vez que obtienes un nivel de personaje, tu máximo de puntos de vida aumenta en 2 puntos más."
     ]
   },
   {
-    "name": "Two-Weapon Fighting",
+    "name": "Combate con dos armas",
     "category": "FS",
     "prerequisite": [
       {
@@ -2696,12 +2696,12 @@
       }
     ],
     "entries": [
-      "When you make an extra attack as a result of using a weapon that has the Light property, you can add your ability modifier to the damage of that attack if you aren't already adding it to the damage."
+      "Cuando realizas un ataque adicional como resultado del uso de un arma que tiene la propiedad 'Ligera', puedes añadir tu modificador de habilidad al daño de ese ataque si ya no lo estás añadiendo al daño."
     ],
     "hasFluffImages": true
   },
   {
-    "name": "Unarmed Fighting",
+    "name": "Combate sin armas",
     "category": "FS",
     "prerequisite": [
       {
@@ -2711,12 +2711,12 @@
       }
     ],
     "entries": [
-      "When you hit with your Unarmed Strike and deal damage, you can deal Bludgeoning damage equal to 1d6 plus your Strength modifier instead of the normal damage of an Unarmed Strike. If you aren't holding any weapons or a Shield when you make the attack roll, the d6 becomes a d8.",
-      "At the start of each of your turns, you can deal 1d4 Bludgeoning damage to one creature Grappled by you."
+      "Cuando golpeas con tu Golpe sin Armas y causas daño, puedes causar daño contundente igual a 1d6 más tu modificador de Fuerza en lugar del daño normal de un Golpe sin Armas.",
+      "Al inicio de cada uno de tus turnos, puedes causar 1d4 de daño contundente a una criatura que estás agarrando."
     ]
   },
   {
-    "name": "War Caster",
+    "name": "Hechicero de Guerra",
     "category": "G",
     "prerequisite": [
       {
@@ -2736,32 +2736,32 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Concentration",
+        "name": "Concentración",
         "entries": [
-          "You have Advantage on Constitution saving throws that you make to maintain Concentration."
+          "Tienes ventaja en las tiradas de salvación de Constitución que haces para mantener la Concentración."
         ]
       },
       {
         "type": "entries",
-        "name": "Reactive Spell",
+        "name": "Hechizo Reactivo",
         "entries": [
-          "When a creature provokes an Opportunity Attack from you by leaving your reach, you can take a Reaction to cast a spell at the creature rather than making an Opportunity Attack. The spell must have a casting time of one action and must target only that creature."
+          "Cuando una criatura provoca un ataque de oportunidad de tu parte al salir de tu alcance, puedes realizar una reacción para lanzar un hechizo a la criatura en lugar de realizar un ataque de oportunidad. El hechizo debe tener un tiempo de lanzamiento de una acción y debe dirigirse solo a esa criatura."
         ]
       },
       {
         "type": "entries",
-        "name": "Somatic Components",
+        "name": "Componentes Sóricos",
         "entries": [
-          "You can perform the Somatic components of spells even when you have weapons or a Shield in one or both hands."
+          "Puedes realizar los componentes sóricos de los hechizos incluso cuando tienes armas o una escudo en una o ambas manos."
         ]
       }
     ]
   },
   {
-    "name": "Weapon Master",
+    "name": "Maestro de Armas",
     "category": "G",
     "prerequisite": [
       {
@@ -2779,12 +2779,12 @@
       }
     ],
     "entries": [
-      "You gain the following benefits.",
+      "Obtienes los siguientes beneficios.",
       {
         "type": "entries",
-        "name": "Mastery Property",
+        "name": "Dominio de la propiedad",
         "entries": [
-          "Your training with weapons allows you to use the mastery property of one kind of Simple or Martial weapon of your choice, provided you have proficiency with it. Whenever you finish a Long Rest, you can change the kind of weapon to another eligible kind."
+          "Tu entrenamiento con armas te permite usar la propiedad de dominio de un tipo de arma simple o de combate de tu elección, siempre y cuando tengas competencia con ella. Cada vez que termines un descanso largo, puedes cambiar el tipo de arma a otro tipo compatible."
         ]
       }
     ],
