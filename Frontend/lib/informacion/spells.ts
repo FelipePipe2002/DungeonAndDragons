@@ -1,5 +1,12 @@
 import type { Spell, SpellBrowserItem } from "@/lib/informacion/types"
 
+function flattenSpellEntryText(spell: Spell): string[] {
+  return [
+    ...spell.description.flatMap((entry) => [entry.name ?? "", entry.text]),
+    ...spell.higherLevel.flatMap((entry) => [entry.name ?? "", entry.text]),
+  ].filter(Boolean)
+}
+
 export function buildSpellSearchText(spell: Spell) {
   const chunks = [
     spell.name,
@@ -11,6 +18,7 @@ export function buildSpellSearchText(spell: Spell) {
     spell.duration,
     ...spell.damageTypes,
     ...spell.savingThrows,
+    ...flattenSpellEntryText(spell),
   ]
 
   return chunks.join(" ").toLocaleLowerCase("es")

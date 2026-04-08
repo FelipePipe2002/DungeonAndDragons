@@ -1,0 +1,1401 @@
+[
+  {
+    "name": "Verificación de habilidad",
+    "entries": [
+      "Una verificación de habilidad es una prueba de D20 que representa el uso de una de las seis habilidades, o de una habilidad específica asociada a una habilidad, para superar un desafío."
+    ]
+  },
+  {
+    "name": "Puntuación de habilidad y modificador",
+    "entries": [
+      "Una criatura tiene seis puntuaciones de habilidad: Fuerza, Destreza, Constitución, Inteligencia, Sabiduría y Carisma, cada una de las cuales tiene un modificador correspondiente. Añade el modificador cuando realices una prueba de D20 con la habilidad correspondiente o cuando una regla te lo solicite."
+    ]
+  },
+  {
+    "name": "Acción",
+    "entries": [
+      "En tu turno, puedes realizar una acción. Elige qué acción realizar de las siguientes o de las acciones especiales proporcionadas por tus habilidades. Estas acciones están definidas en otro lugar de este glosario:",
+      {
+        "type": "lista",
+        "style": "lista-hang-notitle",
+        "columns": 4,
+        "items": [
+          "Atacar",
+          "Evadir",
+          "Dash",
+          "Ayuda",
+          "Desengajar",
+          "Esconder",
+          "Influir",
+          "Magia",
+          "Listo",
+          "Buscar",
+          "Estudiar",
+          "Utilizar"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Ventaja",
+    "entries": [
+      "Si tienes Ventaja en una prueba de D20, tira dos D20 y usa el resultado más alto. Un resultado no puede verse afectado por más de una Ventaja, y la Ventaja y la Desventaja en el mismo resultado se anulan."
+    ]
+  },
+  {
+    "name": "Aventura",
+    "entries": [
+      "Una aventura es una serie de encuentros. Una historia emerge al jugarlos."
+    ]
+  },
+  {
+    "name": "Alineamiento",
+    "entries": [
+      "La alineación de una criatura describe ampliamente sus actitudes y ideales éticos. La alineación es una combinación de dos factores: uno identifica la moralidad (buena, mala o neutral), y el otro describe las actitudes hacia el orden (leal, caótico o neutral). Estos factores permiten nueve combinaciones posibles, como Buena y Neutralmente Mala."
+    ]
+  },
+  {
+    "name": "Aliado",
+    "entries": [
+      "Una criatura es tu aliado si es miembro de tu grupo de aventuras, tu amigo, está a tu lado en la batalla, o si es una criatura que las reglas o el DM designan como tu aliado."
+    ]
+  },
+  {
+    "name": "Área de efecto",
+    "entries": [
+      "Las descripciones de muchas habilidades y otras características especifican que tienen un área de efecto, que normalmente tiene una de seis formas. Estas formas están definidas en otro lugar de este glosario:",
+      {
+        "type": "lista",
+        "style": "lista-hang-notitle",
+        "columns": 3,
+        "items": [
+          "Cono [Área de efecto]",
+          "Cubo [Área de efecto]",
+          "Cilindro [Área de efecto]",
+          "Emisión [Área de efecto]",
+          "Línea [Área de efecto]",
+          "Esfera [Área de efecto]"
+        ]
+      },
+      "Un área de efecto tiene un punto de origen, una ubicación desde la cual la energía del efecto se propaga. Las reglas para cada forma especifican cómo posicionar su punto de origen. Si todas las líneas rectas que se extienden desde el punto de origen hasta una ubicación dentro del área de efecto están bloqueadas, esa ubicación no forma parte del área de efecto. Para bloquear una línea, debe haber una obstrucción que proporcione Total Cover.",
+      "Si el creador de un área de efecto lo coloca en un punto invisible y hay una obstrucción (como una pared) entre el creador y ese punto, el punto de origen se crea en el lado cercano de la obstrucción."
+    ]
+  },
+  {
+    "name": "Clase de Armadura",
+    "entries": [
+      "Una Clase de Armadura (CA) es el número objetivo para un lanzamiento de ataque. La CA representa cuán difícil es acertar a un objetivo.",
+      "Tu cálculo de la Clase de Armadura base es 10 más tu modificador de Destreza. Si una regla te da otro cálculo de la Clase de Armadura base, eliges cuál usar; no puedes usar más de uno."
+    ]
+  },
+  {
+    "name": "Entrenamiento en Armadura",
+    "entries": [
+      "El entrenamiento en armadura te permite usar armaduras de una categoría específica sin las siguientes desventajas. Si usas armadura Ligera, Media o Pesada y no tienes entrenamiento con ella, tienes una desventaja en cualquier prueba de D20 que involucre Fuerza o Destreza, y no puedes lanzar hechizos. Si usas un Escudo y no tienes entrenamiento con él, no obtienes su bonificación de Clase de Armadura."
+    ]
+  },
+  {
+    "name": "Lanzamiento de Ataque",
+    "entries": [
+      "Un lanzamiento de ataque es una prueba de D20 que representa realizar un ataque con una arma, un golpe sin armas o un hechizo."
+    ]
+  },
+  {
+    "name": "Actitud",
+    "entries": [
+      "Un monstruo tiene una actitud inicial hacia un Personaje Jugador: Amigable, Hostil o Indiferente."
+    ]
+  },
+  {
+    "name": "Conexión",
+    "entries": [
+      "Algunos objetos mágicos requieren que una criatura forme un vínculo—llamado Conexión—con ellos antes de que la criatura pueda usar las propiedades mágicas del objeto. Una criatura puede tener Conexión con un máximo de tres objetos mágicos a la vez."
+    ]
+  },
+  {
+    "name": "Acción Adicional",
+    "entries": [
+      "Una Acción Adicional es una acción especial que puedes realizar en el mismo turno que realizas una acción. No puedes realizar más de una Acción Adicional en un turno, y solo puedes realizar una Acción Adicional si una regla lo especifica."
+    ]
+  },
+  {
+    "name": "Romper objetos",
+    "entries": [
+      "Los objetos pueden ser dañados por ataques y por algunas hechizos, utilizando las reglas a continuación. Si un objeto es extremadamente frágil, el DM puede permitir que una criatura lo rompa automáticamente utilizando la acción de Ataque o Utilizar.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Clase de Armadura",
+            "entries": [
+              "La tabla de Clase de Armadura del Objeto sugiere valores de AC para diversas sustancias."
+            ]
+          }
+        ]
+      },
+      {
+        "type": "mesa",
+        "caption": "Clase de Armadura del Objeto",
+        "colLabels": [
+          "AC",
+          "Sustancia"
+        ],
+        "colStyles": [
+          "texto centrado en col-2",
+          "col-10"
+        ],
+        "rows": [
+          [
+            "11",
+            "Tela, papel, cuerda"
+          ],
+          [
+            "13",
+            "Cristal, vidrio, hielo"
+          ],
+          [
+            "15",
+            "Madera"
+          ],
+          [
+            "17",
+            "Piedra"
+          ],
+          [
+            "19",
+            "Hierro, acero"
+          ],
+          [
+            "21",
+            "Mithral"
+          ],
+          [
+            "23",
+            "Adamantita"
+          ]
+        ]
+      },
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Puntos de golpe",
+            "entries": [
+              "Un objeto se destruye cuando tiene 0 Puntos de golpe. La tabla de Puntos de golpe sugiere los Puntos de golpe para objetos frágiles y resistentes que son Grandes o más pequeños. Para realizar un seguimiento de los Puntos de golpe de un objeto Gigante o Gargantuesco, divídelo en secciones Grandes o más pequeñas, y realiza un seguimiento de los Puntos de golpe de cada sección por separado. El DM determina si destruir parte de un objeto hace que todo el objeto colapse."
+            ]
+          }
+        ]
+      },
+      {
+        "type": "mesa",
+        "caption": "Puntos de golpe del objeto",
+        "colLabels": [
+          "Tamaño",
+          "Frágil",
+          "Resistente"
+        ],
+        "colStyles": [
+          "col-8",
+          "texto centrado en col-2",
+          "texto centrado en col-2"
+        ],
+        "rows": [
+          [
+            "Pequeño (botella, candado)",
+            "2 (1d4)",
+            "5 (2d4)"
+          ],
+          [
+            "Pequeño (caja, laúd)",
+            "3 (1d6)",
+            "10 (3d6)"
+          ],
+          [
+            "Mediano (barril, candelabro)",
+            "4 (1d8)",
+            "18 (4d8)"
+          ],
+          [
+            "Grande (carrito, mesa de comedor)",
+            "5 (1d10)",
+            "27 (5d10)"
+          ]
+        ]
+      },
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Tipos de Daño y Objetos",
+            "entries": [
+              "Los objetos son inmunes a los daños por veneno y psíquicos. El DM podría decidir que algunos tipos de daño son más o menos efectivos contra un objeto. Por ejemplo, el daño contundente funciona bien para romper cosas, pero no para cortar. Los objetos de papel o tela podrían ser vulnerables al daño por fuego."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Umbral de daño",
+            "entries": [
+              "Objetos grandes, como las murallas de un castillo, a menudo tienen una resistencia adicional representada por un umbral de daño."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Sin atributos",
+            "entries": [
+              "Un objeto carece de atributos a menos que una regla asigne atributos al objeto. Sin atributos, un objeto no puede realizar pruebas de habilidad, y falla en todas las tiradas de salvación."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Luz brillante",
+    "entries": [
+      "Bright Light es la iluminación normal."
+    ]
+  },
+  {
+    "name": "Velocidad de excavación",
+    "entries": [
+      "Una criatura con Velocidad de excavación puede usar esa velocidad para moverse a través de arena, tierra, barro o hielo. La criatura no puede excavar a través de roca sólida a menos que la criatura tenga una característica que le permita hacerlo."
+    ]
+  },
+  {
+    "name": "Campaña",
+    "entries": [
+      "Una campaña es una serie de aventuras."
+    ]
+  },
+  {
+    "name": "Cantrip",
+    "entries": [
+      "Un cantrip es un hechizo de nivel 0, que se lanza sin usar una ranura de hechizo."
+    ]
+  },
+  {
+    "name": "Capacidad de Carga",
+    "entries": [
+      "Tu tamaño y tu puntuación de Fuerza determinan el peso máximo que puedes llevar, como se muestra en la tabla de Capacidad de Carga. La tabla también muestra el peso máximo que puedes arrastrar, levantar o empujar.",
+      "Mientras arrastras, levantas o empujas un peso superior al máximo que puedes llevar, tu Velocidad no puede ser mayor de 5 pies.",
+      {
+        "type": "mesa",
+        "caption": "Capacidad de Carga",
+        "colLabels": [
+          "Tamaño de la criatura",
+          "Carga",
+          "Drag/Lift/Push"
+        ],
+        "colStyles": [
+          "col-4",
+          "col-4",
+          "col-4"
+        ],
+        "rows": [
+          [
+            "Pequeño",
+            "Fuerza × 7.5 lb.",
+            "Fuerza × 15 lb."
+          ],
+          [
+            "Small/Medium",
+            "Fuerza × 15 lb.",
+            "Fuerza × 30 lb."
+          ],
+          [
+            "Grande",
+            "Fuerza × 30 lb.",
+            "Calle × 60 lb."
+          ],
+          [
+            "Enorme",
+            "Calle × 60 lb.",
+            "Calle × 120 lb."
+          ],
+          [
+            "Gigante",
+            "Calle × 120 lb.",
+            "Calle × 240 lb."
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Nivel de desafío",
+    "entries": [
+      "El Nivel de desafío (CR) resume la amenaza que un monstruo representa para un grupo de cuatro personajes. Compara el CR del monstruo con el nivel de los personajes. Si el CR es más alto, el monstruo es probablemente peligroso. Si el CR es más bajo, el monstruo probablemente no representa una gran amenaza. Sin embargo, las circunstancias y el número de personajes pueden alterar significativamente el nivel de amenaza que representa un monstruo en el juego. La Guía del Dungeon Master proporciona orientación al DM sobre cómo utilizar el CR al planificar posibles enfrentamientos."
+    ]
+  },
+  {
+    "name": "Hoja de personaje",
+    "entries": [
+      "Una hoja de personaje es un registro en papel o digital que utilizas para realizar un seguimiento de la información de tu personaje."
+    ]
+  },
+  {
+    "name": "Velocidad de escalada",
+    "entries": [
+      "Una velocidad de escalada puede utilizarse en lugar de la velocidad para atravesar una superficie vertical sin gastar el movimiento adicional normalmente asociado con la escalada."
+    ]
+  },
+  {
+    "name": "Escalada",
+    "entries": [
+      "Mientras estés escalando, cada pie de movimiento cuesta 1 pie adicional (2 pies adicionales en terreno difícil). Ignoras este costo adicional si tienes una velocidad de escalada y la usas para escalar. A discreción del DM, escalar una superficie resbaladiza o una con pocas posiciones para agarrarse podría requerir un chequeo de Fuerza (Atletismo) con una dificultad de 15."
+    ]
+  },
+  {
+    "name": "Condición",
+    "entries": [
+      "Una condición es un estado temporal del juego. La definición de una condición dice cómo afecta a su receptor, y diversas reglas definen cómo terminar una condición. Este glosario define estas condiciones:",
+      {
+        "type": "lista",
+        "style": "lista-hang-notitle",
+        "columns": 3,
+        "items": [
+          "Ciego",
+          "Encantado",
+          "Sordo",
+          "Exhausto",
+          "Asustado",
+          "Luchando",
+          "Incapacitado",
+          "Invisible",
+          "Paralizado",
+          "Petrificado",
+          "Envenenado",
+          "Vulnerable",
+          "Controlado",
+          "Aturdido",
+          "Inconsciente"
+        ]
+      },
+      "Una condición no se puede acumular; un personaje o tiene la condición o no la tiene. La condición de Fatiga es una excepción a esta regla."
+    ]
+  },
+  {
+    "name": "Cono [Área de efecto]",
+    "entries": [
+      "Un Cono es una zona de efecto que se extiende en líneas rectas desde un punto de origen en la dirección que elige su creador. El ancho del Cono en cualquier punto a lo largo de su longitud es igual a la distancia de ese punto al punto de origen. Por ejemplo, un Cono tiene 15 pies de ancho en un punto a lo largo de su longitud que está a 15 pies del punto de origen. El efecto que crea un Cono especifica su longitud máxima.",
+      "El punto de origen de un Cone no está incluido en el área de efecto a menos que su creador decida lo contrario."
+    ]
+  },
+  {
+    "name": "Cubrir",
+    "entries": [
+      "La cobertura proporciona un grado de protección a un objetivo que se encuentra detrás de ella. Existen tres grados de cobertura, cada uno de los cuales ofrece un beneficio diferente al objetivo: Cobertura parcial (+2 de bonificación a la CA y a las tiradas de salvación de Destreza), Cobertura casi total (+5 de bonificación a la CA y a las tiradas de salvación de Destreza) y Cobertura total (no puede ser objetivo directamente). Si se encuentra detrás de más de un grado de cobertura, el objetivo solo se beneficia del grado de cobertura más protector."
+    ]
+  },
+  {
+    "name": "Caminando",
+    "entries": [
+      "Mientras caminas, cada pie de movimiento cuesta 1 pie adicional (2 pies adicionales en terrenos difíciles)."
+    ]
+  },
+  {
+    "name": "Criatura",
+    "entries": [
+      "Cualquier ser en el juego, incluyendo el personaje de un jugador, es una criatura."
+    ]
+  },
+  {
+    "name": "Tipo de criatura",
+    "entries": [
+      "Cada criatura, incluyendo cada personaje de jugador, tiene una etiqueta en las reglas que identifica el tipo de criatura que es. La mayoría de los personajes de jugador son del tipo Humanoide. Estos son los tipos de criaturas del juego:",
+      {
+        "type": "lista",
+        "style": "lista-hang-notitle",
+        "columns": 3,
+        "items": [
+          "Aberración",
+          "Criatura",
+          "Celestial",
+          "Constructo",
+          "Dragón",
+          "Elemental",
+          "Fey",
+          "Criatura malvada",
+          "Gigante",
+          "Humanoide",
+          "Monstruosidad",
+          "Ooze",
+          "Planta",
+          "No muertos"
+        ]
+      },
+      "Los tipos no tienen reglas por sí mismos, pero algunas reglas del juego afectan a criaturas de ciertos tipos de diferentes maneras."
+    ]
+  },
+  {
+    "name": "Gol crítico",
+    "entries": [
+      "Si obtienes un 20 en el d20 para un ataque, obtienes un golpe crítico, y el ataque impacta independientemente de cualquier modificador o la CA del objetivo. Un golpe crítico te permite tirar dados adicionales para el daño del ataque contra el objetivo. Tira dos veces todos los dados de daño del ataque y súmalos. Luego, añade cualquier modificador relevante."
+    ]
+  },
+  {
+    "name": "Cubo [Área de efecto]",
+    "entries": [
+      "Un Cubo es una zona de efecto que se extiende en líneas rectas desde un punto de origen ubicado en cualquier parte de la cara del Cubo. El efecto que crea un Cubo especifica su tamaño, que es la longitud de cada lado. El punto de origen del Cubo no está incluido en la zona de efecto a menos que su creador decida lo contrario."
+    ]
+  },
+  {
+    "name": "Malos augurios",
+    "entries": [
+      "Algunos efectos del juego maldicen a una criatura o un objeto. El efecto que otorga un mal augurio define lo que hace el mal augurio. Los malos augurios se pueden eliminar con los hechizos Remove Curse y Greater Restoration u otras formas de magia que explícitamente terminan con los malos augurios."
+    ]
+  },
+  {
+    "name": "Cilindro [Área de efecto]",
+    "entries": [
+      "Un Cilindro es una zona de efecto que se extiende en líneas rectas desde un punto de origen ubicado en el centro de la parte superior o inferior circular del Cilindro. El efecto que crea un Cilindro especifica el radio de la base del Cilindro y la altura del Cilindro.",
+      "El punto de origen del Cilindro está incluido en el área de efecto."
+    ]
+  },
+  {
+    "name": "Prueba de D20",
+    "entries": [
+      "Las pruebas de D20 abarcan las tres pruebas principales de D20 del juego: comprobaciones de habilidad, pruebas de ataque y tiradas de salvamento. Si algo en el juego afecta a las pruebas de D20, afecta a las tres."
+    ]
+  },
+  {
+    "name": "Daño",
+    "entries": [
+      "El daño representa el perjuicio que causa que una criatura o un objeto pierda Puntos de Golpe."
+    ]
+  },
+  {
+    "name": "Lanzamiento de daño",
+    "entries": [
+      "Un lanzamiento de daño es un lanzamiento de dados, ajustado por cualquier modificador aplicable, que inflige daño a un objetivo."
+    ]
+  },
+  {
+    "name": "Umbral de daño",
+    "entries": [
+      "Una criatura o un objeto que tiene un umbral de daño tiene Inmunidad a todo el daño, a menos que reciba una cantidad de daño de un solo ataque o efecto igual o superior a su umbral de daño, en cuyo caso recibe esa instancia completa de daño. Cualquier daño que no cumpla o supere el umbral de daño es superficial y no reduce los Puntos de Vida. Por ejemplo, si un objeto tiene un umbral de daño de 10, el objeto no recibe daño si se le infligen 9 puntos de daño, ya que ese daño no supera el umbral. Si al mismo objeto se le infligen 11 puntos de daño, recibe todo ese daño."
+    ]
+  },
+  {
+    "name": "Tipos de daño",
+    "entries": [
+      "Los ataques y otros efectos dañinos infligen diferentes tipos de daño. Los tipos de daño no tienen reglas propias, pero otras reglas, como la Resistencia, se basan en los tipos. La tabla de Tipos de Daño ofrece ejemplos para ayudar a un DM a asignar un tipo a un nuevo efecto.",
+      {
+        "type": "mesa",
+        "caption": "Tipos de daño",
+        "colLabels": [
+          "Tipo",
+          "Ejemplos"
+        ],
+        "colStyles": [
+          "col-3",
+          "col-9"
+        ],
+        "rows": [
+          [
+            "Ácido",
+            "Líquidos corrosivos, enzimas digestivas"
+          ],
+          [
+            "Golpes",
+            "Objetos contundentes, estrangulamiento, caída"
+          ],
+          [
+            "Frío",
+            "Agua helada, ráfagas de hielo"
+          ],
+          [
+            "Fuego",
+            "Llamas, calor insoportable"
+          ],
+          [
+            "Fuerza",
+            "Energía mágica pura"
+          ],
+          [
+            "Relámpago",
+            "Electricidad"
+          ],
+          [
+            "Necrótica",
+            "Energía que drena la vida"
+          ],
+          [
+            "Penetrante",
+            "Dientes, perforando objetos"
+          ],
+          [
+            "Veneno",
+            "Gas tóxico, veneno"
+          ],
+          [
+            "Psíquico",
+            "Energía devastadora"
+          ],
+          [
+            "Radiante",
+            "Energía sagrada, radiación intensa"
+          ],
+          [
+            "Golpes",
+            "Garras, cortar objetos"
+          ],
+          [
+            "Trueno",
+            "Sonido contundente"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Oscuridad",
+    "entries": [
+      "Una zona de Oscuridad está fuertemente oscurecida."
+    ]
+  },
+  {
+    "name": "Muerto",
+    "entries": [
+      "Una criatura muerta no tiene Puntos de Golpe y no puede recuperarlos a menos que primero sea revivida mediante magia, como los hechizos Raise Dead o Revivify. Cuando se lanza uno de estos hechizos, el espíritu sabe quién lo está lanzando y puede negarse. El espíritu de una criatura muerta ha abandonado el cuerpo y ha viajado a los Reinos Exteriores, y revivir la criatura requiere llamar al espíritu de vuelta.",
+      "Si la criatura vuelve a la vida, el efecto de resurrección determina los Puntos de Golpe actuales de la criatura. A menos que se indique lo contrario, la criatura vuelve a la vida con cualquier condición, infección mágica o maldición que la afectaba en el momento de su muerte, siempre y cuando la duración de esos efectos siga siendo válida. Si la criatura murió con cualquier nivel de Agotamiento, regresa con un nivel menos. Si la criatura tenía afinidad con uno o más objetos mágicos, ya no tiene afinidad con ellos."
+    ]
+  },
+  {
+    "name": "Lanzamiento de Salvación",
+    "entries": [
+      "Un personaje debe realizar un Lanzamiento de Salvación (también conocido como Salvación) si comienza su turno con 0 Puntos de Vida."
+    ]
+  },
+  {
+    "name": "Terreno Difícil",
+    "entries": [
+      "Si un espacio es de Terreno Difícil, cada pie de movimiento en ese espacio cuesta 1 pie adicional. Por ejemplo, moverse 5 pies a través de Terreno Difícil cuesta 10 pies de movimiento. El Terreno Difícil no se acumula; ya sea que un espacio sea de Terreno Difícil o no.",
+      "Un espacio es de Terreno Difícil si contiene alguno de los siguientes o algo similar:",
+      {
+        "type": "lista",
+        "items": [
+          "Una criatura que no sea pequeña o tu aliado",
+          "Mobiliario que esté diseñado para criaturas de tu tamaño o más grande",
+          "Nieve, hielo, escombros o vegetación densa",
+          "Un líquido que llega hasta la rodilla o la cintura",
+          "Una abertura estrecha adecuada para una criatura de un tamaño inferior al tuyo",
+          "Una pendiente de 20 grados o más"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Nivel de dificultad",
+    "entries": [
+      "Un Nivel de dificultad (ND) es el número objetivo para una comprobación de habilidad o un lanzamiento de salvación."
+    ]
+  },
+  {
+    "name": "Luz tenue",
+    "entries": [
+      "Una zona con Luz tenue es ligeramente oscura."
+    ]
+  },
+  {
+    "name": "Desventaja",
+    "entries": [
+      "Si tienes Desventaja en una prueba de D20, tira dos dados de 20 y usa el resultado más bajo. Un resultado no puede verse afectado por más de una Desventaja, y una Ventaja y una Desventaja en el mismo resultado se anulan."
+    ]
+  },
+  {
+    "name": "Emisión [Área de efecto]",
+    "entries": [
+      "Una Emanación es un área de efecto que se extiende en líneas rectas desde una criatura o un objeto en todas las direcciones. El efecto que crea una Emanación especifica la distancia que abarca.",
+      "Una Emanación se mueve con la criatura o el objeto que es su origen, a menos que sea un efecto instantáneo o estacionario.",
+      "El origen de una Emanación (criatura o objeto) no se incluye en el área de efecto, a menos que su creador decida lo contrario."
+    ]
+  },
+  {
+    "name": "Encuentro",
+    "entries": [
+      "Un encuentro es una escena en una aventura que forma parte de al menos uno de los tres pilares del juego: interacción social, exploración o combate."
+    ]
+  },
+  {
+    "name": "Enemigo",
+    "entries": [
+      "Una criatura es tu enemigo si lucha contra ti en combate, si trabaja activamente para dañarte, o si está designada como tu enemigo por las reglas o el DM."
+    ]
+  },
+  {
+    "name": "Puntos de Experiencia",
+    "entries": [
+      "A medida que los personajes superan desafíos y completan aventuras, ganan Puntos de Experiencia (XP), que son otorgados por el Dungeon Master. Cuando el total de XP de un personaje alcanza ciertos umbrales, el nivel del personaje aumenta. La Guía del Dungeon Master proporciona orientación sobre cómo otorgar XP."
+    ]
+  },
+  {
+    "name": "Experiencia",
+    "entries": [
+      "La Experiencia es una característica que mejora tu uso de una habilidad. Cuando realizas una comprobación de habilidad con una habilidad en la que tienes Experiencia, tu Bonificación de Habilidad se duplica para esa comprobación, a menos que otra característica duplique el bono.",
+      "Si obtienes Experiencia, lo obtienes en una habilidad en la que tienes experiencia. No puedes tener Experiencia en la misma habilidad con una bonificación más de una vez."
+    ]
+  },
+  {
+    "name": "Velocidad de vuelo",
+    "entries": [
+      "Una velocidad de vuelo puede usarse para viajar por el aire. Mientras tenga una velocidad de vuelo, puede permanecer en el aire hasta que aterrice, caiga o muera."
+    ]
+  },
+  {
+    "name": "Vuelo",
+    "entries": [
+      "Una variedad de efectos permiten a una criatura volar. Mientras vuela, cae si tiene la condición de 'Incapacitado' o 'En la tierra' o si su velocidad de vuelo se reduce a 0. Puede permanecer en el aire en esas circunstancias si puede mantenerse suspendido."
+    ]
+  },
+  {
+    "name": "Actitud amistosa",
+    "entries": [
+      "Una criatura amistosa lo ve de manera favorable. Tiene ventaja en una prueba de habilidad para influir en una criatura amistosa."
+    ]
+  },
+  {
+    "name": "Agarre",
+    "entries": [
+      "Una criatura puede agarrar a otra criatura. Los personajes suelen agarrar utilizando un Golpe sin Armas. Muchos monstruos tienen ataques especiales que les permiten agarrar rápidamente a sus presas. Sin embargo, una vez iniciado el agarre, se aplican estas reglas.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Condición de Agarrado",
+            "entries": [
+              "Lograr agarrar a una criatura le otorga la condición de Agarrado."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Un Agarre por Mano",
+            "entries": [
+              "Una criatura debe tener una mano libre para agarrar a otra criatura. Algunas estadísticas y efectos del juego permiten que una criatura agarre usando un tentáculo, una boca u otra parte del cuerpo. Sin importar qué parte use el agarre, solo puede agarrar a una criatura a la vez con esa parte, y el agarre no puede usarse para atacar a otra criatura a menos que se termine el agarre."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Finalizar un agarre",
+            "entries": [
+              "Una criatura agarrada puede usar su acción para realizar una prueba de Fuerza (Atletismo) o Destreza (Acrobacias) contra la CD de escape del agarre, terminando la condición sobre sí misma en caso de éxito. La condición también termina si el agarre tiene la condición de 'Incapaz' o si la distancia entre la criatura agarrada y el agarre excede el alcance del agarre. Además, el agarre puede liberar a la criatura en cualquier momento (sin necesidad de realizar una acción)."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Peligro",
+    "entries": [
+      "Un peligro es una amenaza ambiental."
+    ]
+  },
+  {
+    "name": "Curación",
+    "entries": [
+      "La curación es la forma de recuperar Puntos de Vida."
+    ]
+  },
+  {
+    "name": "Altamente Oculto",
+    "entries": [
+      "Tienes la condición de 'Ciego' mientras intentas ver algo en un espacio 'Altamente Oculto'."
+    ]
+  },
+  {
+    "name": "Inspiración Heroica",
+    "entries": [
+      "Si usted (un personaje) tiene Inspiración Heroica, puede gastarla para volver a tirar cualquier dado inmediatamente después de tirarlo, y debe utilizar el nuevo resultado.",
+      "Si obtiene Inspiración Heroica pero ya la tiene, se pierde a menos que se la dé a un personaje que no la tenga."
+    ]
+  },
+  {
+    "name": "Salto Alto",
+    "entries": [
+      "Cuando realice un Salto Alto, salta al aire una distancia de pies igual a 3 más su modificador de Fuerza (mínimo de 0 pies) si se mueve al menos 10 pies a pie inmediatamente antes del salto. Cuando realice un Salto Alto de pie, solo puede saltar la mitad de esa distancia. En cualquier caso, cada pie del salto cuesta un pie de movimiento.",
+      "Puede extender sus brazos a la mitad de su altura durante el salto. Por lo tanto, puede alcanzar una distancia igual a la altura del salto más 1,5 veces su altura."
+    ]
+  },
+  {
+    "name": "Dado de Puntos de Vida",
+    "entries": [
+      "El Dado de Puntos de Vida, o Dado de Puntos de Vida para abreviar, ayudan a determinar el máximo de Puntos de Vida de un personaje, como se explica en el capítulo 2. La mayoría de los monstruos también tienen un Dado de Puntos de Vida. Una criatura puede usar un Dado de Puntos de Vida durante un Descanso Corto para recuperar Puntos de Vida."
+    ]
+  },
+  {
+    "name": "Puntos de golpe",
+    "entries": [
+      "Los Puntos de Vida (HP) son una medida de lo difícil que es matar o destruir a una criatura o un objeto. El daño reduce los Puntos de Vida, y la curación los restaura. No puedes tener más Puntos de Vida que tu máximo, y tampoco puedes tener menos de 0."
+    ]
+  },
+  {
+    "name": "Actitud Hostil",
+    "entries": [
+      "Una criatura hostil te ve de manera desfavorable. Tienes desventaja en una tirada de habilidad para influir en una criatura hostil."
+    ]
+  },
+  {
+    "name": "Flotar",
+    "entries": [
+      "Algunas criaturas pueden flotar, como se indica en sus fichas, y algunos hechizos y otros efectos otorgan la capacidad de flotar. Flotar mientras se vuela evita que caigas en ciertas circunstancias."
+    ]
+  },
+  {
+    "name": "Ilusiones",
+    "entries": [
+      "Los hechizos y otros efectos a veces crean ilusiones mágicas. Este efecto define lo que hace la ilusión y qué sentidos o facultades mentales engaña.",
+      "Si una ilusión se manifiesta en el espacio, la ilusión es insustancial e inerte, pero parece estar afectada por el entorno como si la ilusión fuera real, a menos que el efecto que la creó lo especifique. Por ejemplo, una ilusión visual de una criatura proyecta sombras y reflejos, y el viento parece afectar a la criatura ilusoria. De forma similar, una ilusión audible resuena en un espacio resonante."
+    ]
+  },
+  {
+    "name": "Inmunidad",
+    "entries": [
+      "Si tienes Inmunidad a un tipo de daño o condición, esto no te afecta de ninguna manera."
+    ]
+  },
+  {
+    "name": "Armas improvisadas",
+    "entries": [
+      "Una arma improvisada es un objeto utilizado como arma improvisada, como vidrio roto, una pata de mesa o una sartén. Una arma simple o de combate también se considera una arma improvisada si se utiliza de una manera contraria a su diseño; si utilizas un arma de largo alcance para realizar un ataque cuerpo a cuerpo o lanzas un arma de cuerpo a cuerpo que carece de la propiedad de lanzamiento, la arma se considera una arma improvisada. Una arma improvisada sigue las reglas a continuación.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Competencia",
+            "entries": [
+              "No añadas tu bonificación de habilidad a los ataques con un arma improvisada."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Daño",
+            "entries": [
+              "En un golpe, el arma inflige 1d4 de daño de un tipo que el DM considere apropiado para el objeto."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Alcance",
+            "entries": [
+              "Si lanzas el arma, tiene un alcance normal de 20 pies y un alcance largo de 60 pies."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Equivalentes de armas",
+            "entries": [
+              "Si una arma improvisada se parece a una arma Simple o Martial, el DM puede decir que funciona como esa arma y que se aplican las reglas de esa arma. Por ejemplo, el DM podría considerar una pata de mesa como un Club."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Indiferencia [Actitud]",
+    "entries": [
+      "Una criatura indiferente no tiene deseo de ayudarte ni de obstaculizarte. Indiferencia es la actitud predeterminada de un monstruo."
+    ]
+  },
+  {
+    "name": "Iniciativa",
+    "entries": [
+      "La iniciativa determina el orden de los turnos durante el combate. Las reglas de combate en el capítulo 1 explican cómo tirar la iniciativa.",
+      "A veces, un DM puede pedir a los jugadores que utilicen sus puntuaciones de Iniciativa en lugar de tirar para determinar la iniciativa. Tu puntuación de Iniciativa es igual a 10 más tu modificador de Destreza. Si tienes Ventaja en las tiradas de Iniciativa, aumenta tu puntuación de Iniciativa en 5. Si tienes Desventaja en esas tiradas, disminuye esa puntuación en 5."
+    ]
+  },
+  {
+    "name": "Salto",
+    "entries": [
+      "Cuando saltas, haces ya sea un Salto Largo (horizontal) o un Salto Alto (vertical)."
+    ]
+  },
+  {
+    "name": "Derrotar a una Criatura",
+    "entries": [
+      "Cuando harías que una criatura obtuviera 0 puntos de golpe con un ataque cuerpo a cuerpo, puedes en su lugar reducir la criatura a 1 punto de golpe. La criatura entonces tiene la condición de inconsciencia y comienza un Descanso Corto.",
+      "La criatura permanece inconsciente hasta que recupere puntos de golpe o hasta que alguien utilice una acción para administrarle los primeros auxilios, lo que requiere un chequeo de Sabiduría (Medicina) exitoso con una dificultad de 10."
+    ]
+  },
+  {
+    "name": "Ligeramente oscurecido",
+    "entries": [
+      "Tienes desventaja en las pruebas de Sabiduría (Percepción) para ver algo en un espacio ligeramente oscurecido."
+    ]
+  },
+  {
+    "name": "Línea [Área de efecto]",
+    "entries": [
+      "Una línea es una zona de efecto que se extiende desde un punto de origen en una línea recta a lo largo de su longitud y cubre un área definida por su anchura. El efecto que crea una línea especifica su longitud y anchura.",
+      "El punto de origen de una línea no está incluido en la zona de efecto, a menos que su creador decida lo contrario."
+    ]
+  },
+  {
+    "name": "Salto Largo",
+    "entries": [
+      "Cuando realizas un Salto Largo, saltas horizontalmente un número de pies hasta tu puntuación de Fuerza, siempre y cuando te muevas al menos 10 pies inmediatamente antes del salto. Cuando realizas un Salto Largo de pie, solo puedes saltar la mitad de esa distancia. En cualquier caso, cada pie que saltas cuesta un pie de movimiento.",
+      "Si aterrizas en terreno difícil, debes superar una prueba de Destreza (Acrobacias) con dificultad 10 o tener la condición de estar acostado.",
+      "Esta regla de Salto Largo asume que la altura del salto no importa, como un salto a través de un río o un abismo. A discreción del Dungeon Master, debes superar una prueba de Fuerza (Atletismo) con dificultad 10 para superar un obstáculo bajo (sin más de un cuarto de la distancia del salto), como una valla o un muro bajo. De lo contrario, golpeas el obstáculo."
+    ]
+  },
+  {
+    "name": "Descanso Largo",
+    "entries": [
+      "Descanso Prolongado es un período de inactividad prolongada —de al menos 8 horas— disponible para cualquier criatura. Durante un Descanso Prolongado, duermes al menos 6 horas y realizas un máximo de 2 horas de actividad ligera, como leer, hablar, comer o vigilar.",
+      "Durante el sueño, tienes el estado de inconsciencia. Después de completar un Descanso Prolongado, debes esperar al menos 16 horas antes de comenzar otro.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Beneficios del Descanso",
+            "entries": [
+              "Para comenzar un Descanso Prolongado, debes tener al menos 1 punto de vida. Cuando completes el descanso, obtienes los siguientes beneficios:"
+            ]
+          },
+          {
+            "type": "lista",
+            "style": "lista-hang-notitle",
+            "items": [
+              {
+                "type": "elemento",
+                "name": "Recuperar todos los puntos de vida",
+                "entries": [
+                  "Recuperas todos los puntos de vida perdidos y todos los dados de puntos de vida gastados. Si tu máximo de puntos de vida se redujo, vuelve a la normalidad."
+                ]
+              },
+              {
+                "type": "elemento",
+                "name": "Habilidades restauradas",
+                "entries": [
+                  "Si alguna de tus habilidades se redujo, vuelve a la normalidad."
+                ]
+              },
+              {
+                "type": "elemento",
+                "name": "Reducción de la fatiga",
+                "entries": [
+                  "Si tienes la condición de Agotamiento, su nivel disminuye en 1."
+                ]
+              },
+              {
+                "type": "elemento",
+                "name": "Característica especial",
+                "entries": [
+                  "Algunas características se recargan con un Descanso Largo. Si tienes una de estas características, se recargará de la manera especificada en su descripción."
+                ]
+              }
+            ]
+          },
+          {
+            "type": "entradas",
+            "entries": [
+              {
+                "type": "entradas",
+                "name": "Interrumpir el Descanso",
+                "entries": [
+                  "Un Descanso Largo se interrumpe por las siguientes interrupciones:"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "lista",
+            "items": [
+              "Iniciar la iniciativa",
+              "Lanzar un hechizo que no sea un truco",
+              "Recibir cualquier daño.",
+              "1 hora de caminar o cualquier otro tipo de actividad física."
+            ]
+          },
+          "Si has descansado durante al menos 1 hora antes de la interrupción, obtienes los beneficios de un descanso corto.",
+          "Puedes retomar un Descanso Largo inmediatamente después de una interrupción. Si lo haces, el descanso requiere 1 hora adicional por interrupción para completarse."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Efecto Mágico",
+    "entries": [
+      "Un efecto es mágico si es creado por un hechizo, un objeto mágico o un fenómeno que una regla clasifica como mágico."
+    ]
+  },
+  {
+    "name": "Monstruo",
+    "entries": [
+      "Un monstruo es una criatura controlada por el DM, incluso si la criatura es benevolente."
+    ]
+  },
+  {
+    "name": "Personaje no jugador",
+    "entries": [
+      "Un personaje no jugador (PNJ) es una criatura que tiene un nombre y una personalidad distintiva."
+    ]
+  },
+  {
+    "name": "Objeto",
+    "entries": [
+      "Un objeto es algo no vivo y distinto. Las cosas compuestas, como los edificios, están formadas por más de un objeto."
+    ]
+  },
+  {
+    "name": "Espacio ocupado",
+    "entries": [
+      "Un espacio está ocupado si hay una criatura en él o si está completamente lleno de objetos."
+    ]
+  },
+  {
+    "name": "Percepción Pasiva",
+    "entries": [
+      "La Percepción Pasiva es una puntuación que refleja la conciencia general de una criatura sobre su entorno. El DM utiliza esta puntuación para determinar si una criatura nota algo sin realizar conscientemente una tirada de Sabiduría (Percepción).",
+      "La Percepción Pasiva de una criatura es igual a 10 más el bono de la tirada de Sabiduría (Percepción) de la criatura. Si la criatura tiene Ventaja en estas tiradas, aumenta la puntuación en 5. Si la criatura tiene Desventaja en ellas, disminuye la puntuación en 5. Por ejemplo, un personaje de nivel 1 con Sabiduría de 15 y pericia en Percepción tiene una Percepción Pasiva de 14 (10 + 2 + 2). Si ese personaje tiene Ventaja en las tiradas de Sabiduría (Percepción), la puntuación se convierte en 10 + 2 + 2 + 5|19."
+    ]
+  },
+  {
+    "name": "Por Día",
+    "entries": [
+      "Si una regla indica que se puede usar algo un cierto número de veces por día, eso significa que se debe realizar un Descanso Largo para poder usarlo de nuevo después de agotar las posibilidades."
+    ]
+  },
+  {
+    "name": "Personaje del jugador",
+    "entries": [
+      "Un personaje del jugador es un personaje controlado por un jugador"
+    ]
+  },
+  {
+    "name": "Posesión",
+    "entries": [
+      "Algunos efectos hacen que una criatura sea poseída por otra criatura o entidad. Un efecto de posesión define cómo funciona la posesión. La posesión puede ser evitada por el hechizo Protección contra el Bien y el Mal y terminada por el hechizo Disipar el Bien y el Mal."
+    ]
+  },
+  {
+    "name": "Competencia",
+    "entries": [
+      "Si tienes competencia con algo, puedes añadir tu bonificación de competencia a cualquier prueba de D20 que realices usando esa cosa. Una criatura podría tener competencia en una habilidad o tirada de salvación o con un arma o herramienta."
+    ]
+  },
+  {
+    "name": "Reacción",
+    "entries": [
+      "Una Reacción es una acción especial tomada en respuesta a un desencadenante definido en la descripción de la Reacción. Puedes realizar una Reacción en el turno de otra criatura, y si la realizas en tu turno, puedes hacerlo incluso si también realizas una acción, una Acción Adicional o ambas. Una vez que realizas una Reacción, no puedes realizar otra hasta el comienzo de tu próximo turno. El Ataque de Oportunidad es una Reacción disponible para todas las criaturas."
+    ]
+  },
+  {
+    "name": "Resistencia",
+    "entries": [
+      "Si tienes Resistencia a un tipo de daño, el daño de ese tipo se reduce a la mitad contra ti (redondeando hacia abajo). La Resistencia solo se aplica una vez a una instancia de daño."
+    ]
+  },
+  {
+    "name": "Ritual",
+    "entries": [
+      "Si tienes un hechizo preparado que tenga la etiqueta 'Ritual', puedes lanzar ese hechizo como un ritual. La versión de ritual de un hechizo tarda 10 minutos más en ser lanzada que la normal. También no consume un espacio de hechizo, lo que significa que la versión de ritual de un hechizo no puede ser lanzada a un nivel superior."
+    ]
+  },
+  {
+    "name": "Redondear hacia abajo",
+    "entries": [
+      "Siempre que divides o multiplicas un número en el juego, redondea hacia abajo si terminas con una fracción, incluso si la fracción es de un medio o mayor. Algunas reglas hacen una excepción y te indican que debes redondear hacia arriba."
+    ]
+  },
+  {
+    "name": "Guardar",
+    "entries": [
+      "Salvar es otro nombre para un lanzamiento de salvación."
+    ]
+  },
+  {
+    "name": "Lanzamiento de salvación",
+    "entries": [
+      "Un lanzamiento de salvación, también conocido como un intento de salvación, representa un intento de evitar o resistir una amenaza. Normalmente, se realiza un lanzamiento de salvación solo cuando una regla lo exige, pero puedes decidir fallar el lanzamiento sin tirar. El resultado de un lanzamiento de salvación se detalla en el efecto que lo permite. Si un objetivo se ve obligado a realizar un lanzamiento de salvación y carece de la estadística utilizada, el objetivo falla automáticamente."
+    ]
+  },
+  {
+    "name": "Transformación",
+    "entries": [
+      "Si un efecto, como Wild Shape o el hechizo Polymorph, te permite transformarte, su descripción especifica lo que ocurre contigo. A menos que la descripción diga lo contrario, cualquier efecto en curso sobre ti (condiciones, hechizos, maldiciones, etc.) se aplica a la otra forma. Regresas a tu forma original si mueres."
+    ]
+  },
+  {
+    "name": "Descanso Corto",
+    "entries": [
+      "Un Descanso Corto es un período de 1 hora de inactividad durante el cual una criatura no realiza ninguna actividad más exigente que leer, hablar, comer o vigilar. Para comenzar un Descanso Corto, debes tener al menos 1 Punto de Vida. Al finalizar el descanso, obtienes los siguientes beneficios:",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "lista",
+            "style": "lista-hang-notitle",
+            "items": [
+              {
+                "type": "elemento",
+                "name": "Usar dados de Puntos de Vida",
+                "entries": [
+                  "Puedes usar uno o más de tus dados de Puntos de Vida para recuperar Puntos de Vida. Para cada dado de Puntos de Vida que uses de esta manera, tira el dado y súmale tu modificador de Constitución. Recuperas Puntos de Vida iguales al total (mínimo de 1 Punto de Vida). Puedes decidir usar un dado de Puntos de Vida adicional después de cada tirada."
+                ]
+              },
+              {
+                "type": "elemento",
+                "name": "Característica especial",
+                "entries": [
+                  "Algunas habilidades se recargan con un Descanso Corto. Si tienes una de estas habilidades, se recarga de la manera especificada en su descripción."
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Interrumpir el Descanso",
+            "entries": [
+              "Una Descanso Corto se ve interrumpida por las siguientes interrupciones:"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "lista",
+        "items": [
+          "Iniciar la iniciativa",
+          "Lanzar un hechizo que no sea un truco",
+          "Recibir algún daño"
+        ]
+      },
+      "Una Descanso Corto interrumpida no otorga ningún beneficio."
+    ]
+  },
+  {
+    "name": "Efectos Simultáneos",
+    "entries": [
+      "Si dos o más cosas ocurren al mismo tiempo durante un turno, la persona en la mesa de juego (jugador o el DM cuyo turno es) decide el orden en que ocurren esas cosas. Por ejemplo, si dos efectos ocurren al comienzo del turno de un personaje, el jugador decide cuál de los efectos ocurre primero."
+    ]
+  },
+  {
+    "name": "Tamaño",
+    "entries": [
+      "Una criatura o un objeto pertenece a una categoría de tamaño: Pequeño, Mediano, Grande, Enorme, o Gigante. El tamaño de una criatura determina cuánto espacio ocupa la criatura en combate. El tamaño de un objeto afecta a sus Puntos de Golpe."
+    ]
+  },
+  {
+    "name": "Habilidad",
+    "entries": [
+      "Una habilidad es un área de especialización asociada a una comprobación de habilidad. Si tiene competencia en una habilidad, puede añadir su Bonificación de Competencia cuando realice una comprobación de habilidad asociada a esa habilidad."
+    ]
+  },
+  {
+    "name": "Velocidad",
+    "entries": [
+      "Una criatura tiene una Velocidad, que es la distancia en pies que puede cubrir la criatura cuando se mueve en su turno.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Velocidades especiales",
+            "entries": [
+              "Algunas criaturas tienen velocidades especiales, como una Velocidad de Excavación, Velocidad de Escalada, Velocidad de Vuelo o Velocidad de Natación, cada una de las cuales está definida en este glosario. Si tienes más de una velocidad, elige cuál usar cuando te muevas; puedes cambiar entre las velocidades durante tu movimiento. Cada vez que cambies, resta la distancia ya recorrida a la nueva velocidad. El resultado determina cuánto más puedes moverte. Si el resultado es 0 o menos, no puedes usar la nueva velocidad durante el movimiento actual. Por ejemplo, si tienes una Velocidad de 30 y una Velocidad de Vuelo de 40, puedes volar 10 pies, caminar 10 pies y saltar para volar 20 pies más."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Cambios en tus Velocidades",
+            "entries": [
+              "Si un efecto aumenta o disminuye tu Velocidad durante un tiempo, cualquier velocidad especial que tengas aumentará o disminuirá en la misma cantidad durante la misma duración. Por ejemplo, si tu Velocidad se reduce a 0 y tienes una Velocidad de Escalada, tu Velocidad de Escalada también se reduce a 0. De manera similar, si tu Velocidad se reduce a la mitad y tienes una Velocidad de Vuelo, tu Velocidad de Vuelo también se reduce a la mitad."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Hechizo",
+    "entries": [
+      "Un hechizo es un efecto mágico que tiene las características descritas en el capítulo 7."
+    ]
+  },
+  {
+    "name": "Ataque con hechizo",
+    "entries": [
+      "Un ataque con hechizo es un lanzamiento de ataque realizado como parte de un hechizo o de otro efecto mágico."
+    ]
+  },
+  {
+    "name": "Enfoque para lanzar hechizos",
+    "entries": [
+      "Un Enfoque para lanzar hechizos es un objeto que ciertas criaturas pueden usar en lugar de los componentes materiales de un hechizo, si esos materiales no son consumidos por el hechizo y no tienen un costo especificado. Algunas clases permiten que sus miembros utilicen ciertos tipos de Enfoques para lanzar hechizos."
+    ]
+  },
+  {
+    "name": "Esfera [Área de efecto]",
+    "entries": [
+      "Un Círculo es un área de efecto que se extiende en líneas rectas desde un punto de origen en todas las direcciones. El efecto que crea un Círculo especifica la distancia que abarca como el radio del Círculo.",
+      "El punto de origen de un Círculo está incluido en el área de efecto del Círculo."
+    ]
+  },
+  {
+    "name": "Estable",
+    "entries": [
+      "Una criatura está Estable si tiene 0 Puntos de Golpe, pero no es necesario que realice tiradas de salvación para la muerte."
+    ]
+  },
+  {
+    "name": "Bloque de estadísticas",
+    "entries": [
+      "Una ficha de personaje contiene las estadísticas del juego de una criatura. Cada ficha de personaje incluye la siguiente información presentada después del nombre de la criatura.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Tamaño",
+            "entries": [
+              "Una criatura puede ser Pequeña, Mediana, Grande, Enorme, Gigante o Goliata."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Tipo de criatura",
+            "entries": [
+              "Esta entrada indica la familia de seres a la que pertenece una criatura, junto con cualquier etiqueta descriptiva."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Alineamiento",
+            "entries": [
+              "Se sugiere una alineación para la criatura, y el DM determina su alineación real."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Defensa, Iniciativa y Puntos de Vida",
+            "entries": [
+              "Estas entradas indican la Clase de Armadura, la Iniciativa y los Puntos de Vida del monstruo, que se detallan en el capítulo 1. En paréntesis después de los Puntos de Vida, se indican los dados de Puntos de Vida del monstruo, junto con la contribución de su Constitución, si la tiene, a sus Puntos de Vida. Después de la modificadora de la Iniciativa, se indica la puntuación de la Iniciativa. Algunas criaturas creadas por magia carecen de información sobre los dados de Puntos de Vida y la Iniciativa."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Velocidad",
+            "entries": [
+              "Aquí se indica la Velocidad del monstruo, junto con cualquier velocidad especial."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Puntuaciones de Habilidad",
+            "entries": [
+              "Una tabla proporciona las puntuaciones de habilidad, modificadores y modificadores de tiradas de salvación del monstruo, todos los cuales se detallan en el capítulo 1."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Habilidades",
+            "entries": [
+              "Esta entrada enumera las habilidades del monstruo, si las tiene."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Resistencias y Debilidades",
+            "entries": [
+              "Esta entrada enumera las Resistencias y Debilidades del monstruo, si las tiene."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Inmunidades",
+            "entries": [
+              "Esta sección enumera las Inmunidades del monstruo contra daño y condiciones, si las tiene."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Equipo",
+            "entries": [
+              "Si el monstruo tiene algún equipo que se pueda entregar o recuperar, se indica en esta entrada."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Sentidos",
+            "entries": [
+              "Esta entrada enumera los sentidos especiales del monstruo, como la Visión en la Oscuridad, y su Percepción Pasiva."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Idiomas",
+            "entries": [
+              "Esta entrada enumera cualquier idioma que conozca la criatura."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "CR",
+            "entries": [
+              "La Tasa de Desafío resume la amenaza que representa una criatura y se detalla en el Manual de Monstruos. Los Puntos de Experiencia que reciben los personajes por derrotar a una criatura y su Bonificación de Competencia también se aplican. Algunas criaturas creadas por magia no tienen Tasa de Desafío."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Rasgos",
+            "entries": [
+              "Los rasgos de la criatura, si los tiene, son características que están activas en todo momento o en ciertas situaciones."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Acciones",
+            "entries": [
+              "Esta es una descripción de un monstruo para Dungeons & Dragons, así que tenlo en cuenta al traducirlo. Si ves un nombre extraño sin traducción directa, no lo traduzcas. Si tiene una traducción establecida, sí la traduces."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Acciones adicionales",
+            "entries": [
+              "Si el monstruo tiene opciones de Acciones adicionales, se enumeran en esta sección."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Reacciones",
+            "entries": [
+              "Si el monstruo puede realizar Reacciones especiales, se enumeran en esta sección."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Notación de Ataque",
+            "entries": [
+              "La entrada para el ataque de una criatura comienza identificando si el ataque es cuerpo a cuerpo o a distancia, y luego proporciona el bono del ataque, su alcance o rango, y lo que ocurre al golpear. Un ataque es contra un objetivo, a menos que su entrada indique lo contrario."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Notación del efecto de Salvada",
+            "entries": [
+              "Si un efecto requiere una Salvada, la entrada del efecto comienza identificando el tipo de Salvada requerida y luego proporciona el DC de la Salvada, una descripción de qué criaturas deben realizar la Salvada y qué ocurre en una Salvada fallida o exitosa."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Notación del daño",
+            "entries": [
+              "Un bloque de estadísticas generalmente proporciona tanto un número estático como una expresión de dado para cada instancia de daño. Por ejemplo, un ataque podría causar 4 (1d4 + 2) de daño al impactar. El DM determina si utilizas el número estático o la expresión del dado entre paréntesis; no debes usar ambos."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Velocidad de natación",
+    "entries": [
+      "Una velocidad de natación puede utilizarse para nadar sin gastar el movimiento adicional normalmente asociado con nadar."
+    ]
+  },
+  {
+    "name": "Natación",
+    "entries": [
+      "Mientras nadas, cada pie de movimiento cuesta 1 pie adicional (2 pies adicionales en terrenos difíciles). Ignoras este costo adicional si tienes una velocidad de natación y la utilizas para nadar. A discreción del DM, moverse cualquier distancia en aguas turbulentas podría requerir una comprobación de Fuerza (Atletismo) con una dificultad de 15."
+    ]
+  },
+  {
+    "name": "Objetivo",
+    "entries": [
+      "Un objetivo es la criatura o objeto al que se dirige un ataque, que debe realizar un salvamento debido a un efecto, o que ha sido seleccionado para recibir los efectos de un conjuro u otro fenómeno."
+    ]
+  },
+  {
+    "name": "Telepatía",
+    "entries": [
+      "La telepatía es una habilidad mágica que permite a una criatura comunicarse mentalmente con otra criatura dentro de un rango especificado. A menos que una regla indique lo contrario, la criatura contactada no necesita compartir un idioma con el telepata para entender esta comunicación, pero la criatura contactada debe ser capaz de entender al menos un idioma o ser telepática en sí misma para entender.",
+      "Un telepata no necesita ver a la criatura contactada, y el telepata puede iniciar o finalizar el contacto telepático en cualquier momento (sin necesidad de realizar una acción). El contacto telepático no puede ser iniciado y se rompe inmediatamente si ya sea el telepata o la otra criatura tiene la condición de incapacitado. El contacto telepático también se rompe si la criatura contactada ya no está dentro del rango de la telepatía o si el telepata contacta a una criatura diferente dentro del rango.",
+      "Una criatura sin telepatía puede recibir mensajes telepáticos, pero no puede iniciar una conversación telepática. Una vez que comience una conversación telepática, la persona sin telepatía puede comunicarse mentalmente con la persona telepática hasta que finalice la conexión telepática."
+    ]
+  },
+  {
+    "name": "Teletransportación",
+    "entries": [
+      "La teletransportación es un tipo especial de transporte mágico. Si te teletransportas, desapareces y reapareces instantáneamente en otro lugar, sin atravesar el espacio intermedio. Este transporte no requiere movimiento a menos que una regla diga lo contrario, y la teletransportación nunca provoca ataques de oportunidad.",
+      "Cuando te teletransportas, todo el equipo que llevas contigo se teletransporta contigo. Si estás tocando a otra criatura cuando te teletransportas, esa criatura no se teletransporta contigo a menos que el efecto de teletransportación diga lo contrario.",
+      "Si el espacio de destino de tu teletransportación está ocupado por otra criatura o bloqueado por un obstáculo sólido, en su lugar, aparecerás en el espacio más cercano y vacío que elijas.",
+      "La descripción de un efecto de teletransportación te indica si debes ver el destino de la teletransportación."
+    ]
+  },
+  {
+    "name": "Puntos de golpe temporales",
+    "entries": [
+      "Los puntos de golpe temporales son otorgados por ciertos efectos y actúan como un amortiguador para evitar perder puntos de golpe reales."
+    ]
+  },
+  {
+    "name": "Golpe sin arma",
+    "entries": [
+      "En lugar de utilizar un arma para realizar un ataque cuerpo a cuerpo, puedes utilizar un puñetazo, un patada, un golpe en la cabeza o un golpe similar. En términos del juego, esto es un Golpe sin arma: un ataque cuerpo a cuerpo que implica que uses tu cuerpo para dañar, agarrar o empujar a un objetivo a 5 pies de distancia.",
+      "Cada vez que uses tu Golpe sin Armas, elige una de las siguientes opciones para su efecto.",
+      {
+        "type": "entradas",
+        "entries": [
+          {
+            "type": "entradas",
+            "name": "Daño",
+            "entries": [
+              "Realizas un lanzamiento de ataque contra el objetivo. Tu bonificación para el lanzamiento es igual a tu modificador de Fuerza más tu bonificación de competencia. Si aciertas, el objetivo recibe daño contundente igual a 1 más tu modificador de Fuerza."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Agarre",
+            "entries": [
+              "El objetivo debe tener éxito en un lanzamiento de salvación de Fuerza o Destreza (elige cuál), o estará en estado de ser agarrado. La dificultad del lanzamiento de salvación y cualquier intento de escapar es igual a 8 más tu modificador de Fuerza y tu bonificación de competencia. Este agarre solo es posible si el objetivo es más grande que tú en un tamaño y si tienes una mano libre para agarrarlo."
+            ]
+          },
+          {
+            "type": "entradas",
+            "name": "Empujar",
+            "entries": [
+              "El objetivo debe tener éxito en un lanzamiento de salvación de Fuerza o Destreza (elija cuál), o bien lo empuje 5 pies o le causa que esté en posición acostada. La CD para el lanzamiento de salvación es igual a 8 más su modificador de Fuerza y su bonificación de competencia. Este empuje solo es posible si el objetivo es más grande que usted en una talla."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Espacio sin ocupantes",
+    "entries": [
+      "Un espacio está sin ocupantes si no hay criaturas en él y no está completamente lleno de objetos."
+    ]
+  },
+  {
+    "name": "Debilidad",
+    "entries": [
+      "Si tiene Debilidad a un tipo de daño, el daño de ese tipo se duplica contra usted. La Debilidad solo se aplica una vez a una instancia de daño."
+    ]
+  },
+  {
+    "name": "Arma",
+    "entries": [
+      "Una arma es un objeto que pertenece a la categoría de arma simple o arma de combate."
+    ]
+  },
+  {
+    "name": "Ataque con arma",
+    "entries": [
+      "Un ataque con arma es un ataque realizado con una arma."
+    ]
+  }
+]

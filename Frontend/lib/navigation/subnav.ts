@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { BookMarked, BookOpen, Building2, CalendarDays, Link2, MapPin, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
+import { BookMarked, BookOpen, Building2, CalendarDays, Link2, MapPin, Package, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
 
 import { normalizeMainNavPath } from "@/lib/navigation/main-nav"
 
@@ -26,6 +26,7 @@ export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
       { id: "monsters", value: "monsters", label: "Monstruos", icon: Swords },
       { id: "conditions", value: "conditions", label: "Condiciones", icon: ScrollText },
       { id: "spells", value: "spells", label: "Conjuros", icon: WandSparkles },
+      { id: "items", value: "items", label: "Items", icon: Package },
       { id: "feats", value: "feats", label: "Dotes", icon: Star },
       { id: "rules", value: "rules", label: "Reglas", icon: BookOpen },
       { id: "books", value: "books", label: "Libros", icon: BookMarked },
@@ -51,6 +52,7 @@ export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
     items: [
       { id: "dm-notes", value: "dm-notes", label: "Notas DM", icon: BookOpen },
       { id: "dm-events", value: "dm-events", label: "Eventos DM", icon: CalendarDays },
+      { id: "dm-relationships", value: "dm-relationships", label: "Relaciones", icon: Link2 },
     ],
   },
 ]

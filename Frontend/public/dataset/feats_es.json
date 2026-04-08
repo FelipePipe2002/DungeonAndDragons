@@ -1,0 +1,2793 @@
+[
+  {
+    "name": "Mejora de atributo",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "repeatable": true,
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ],
+          "amount": 2
+        },
+        "hidden": true
+      },
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ],
+          "count": 2
+        },
+        "hidden": true
+      }
+    ],
+    "entries": [
+      "Aumenta una estadística de habilidad de tu elección en 2, o aumenta dos estadísticas de habilidad de tu elección en 1. Esta habilidad no puede aumentar una estadística de habilidad por encima de 20.",
+      {
+        "type": "entradas",
+        "name": "Repetible",
+        "entries": [
+          "Puedes obtener esta habilidad más de una vez."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Actor",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "cha": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "cha": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Imitación",
+        "entries": [
+          "Mientras estés disfrazado de una persona real o ficticia, tienes Ventaja en las tiradas de Carisma (Engaño o Interpretación) para convencer a otros de que eres esa persona."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Imitación",
+        "entries": [
+          "Puedes imitar los sonidos de otras criaturas, incluyendo el habla. Una criatura que escuche la imitación debe superar una tirada de Sabiduría (Percepción) para determinar si el efecto es falso (DC 8 más tu modificador de Carisma y Bonificación de Pericia)."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Alerta",
+    "category": "O",
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Pericia en la Iniciativa",
+        "entries": [
+          "Cuando tires para la Iniciativa, puedes añadir tu Bonificación de Pericia al resultado."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Intercambio de Iniciativa",
+        "entries": [
+          "Inmediatamente después de tirar tu iniciativa, puedes intercambiar tu iniciativa con la de un aliado dispuesto en el mismo combate. No puedes hacer este intercambio si tú o el aliado tienen la condición de 'Incapacitado'."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Arquería",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Obtienes un bono de +2 a los dados de ataque que realices con armas de largo alcance."
+    ]
+  },
+  {
+    "name": "Atleta",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Velocidad de escalada",
+        "entries": [
+          "Obtienes una Velocidad de escalada igual a tu Velocidad."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Levantarse",
+        "entries": [
+          "Cuando tienes la condición de 'en posición fetal', puedes enderezarte con solo 1.5 metros de movimiento."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Saltar",
+        "entries": [
+          "Puedes realizar un salto largo o un salto alto después de moverte solo 1,5 metros."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Guerrero Bendecido",
+    "category": "FS:P",
+    "prerequisite": [
+      {
+        "otherSummary": {
+          "entry": "Cuando obtienes la característica del Paladín de Nivel 2 \"Estilo de Combate\"",
+          "entrySummary": "Especial"
+        }
+      }
+    ],
+    "entries": [
+      "Aprendes dos conjuros de clérigo de tu elección. Se recomienda Guidance y Sacred Flame. Los conjuros elegidos cuentan como conjuros de Paladín para ti, y la Carisma es tu habilidad para lanzar conjuros para ellos. Cada vez que obtienes un nivel de Paladín, puedes reemplazar uno de estos conjuros con otro conjuro de clérigo."
+    ]
+  },
+  {
+    "name": "Combate a ciegas",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "senses": [
+      {
+        "blindsight": 10
+      }
+    ],
+    "entries": [
+      "Tienes Blindsight con un alcance de 3 metros."
+    ]
+  },
+  {
+    "name": "Bendición de la habilidad en combate",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Objetivo infalible",
+        "entries": [
+          "Cuando fallas con un ataque, puedes golpear en su lugar. Una vez que utilices esta ventaja, no puedes volver a usarla hasta el comienzo de tu siguiente turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición del Viaje Dimensional",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Pasos de Teletransporte",
+        "entries": [
+          "Inmediatamente después de realizar la acción de Ataque o la acción Mágica, puedes teletransportarte hasta 9 metros a un espacio vacío que puedas ver."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de Resistencia a la Energía",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "resist": [
+      {
+        "choose": {
+          "from": [
+            "ácido",
+            "frío",
+            "fuego",
+            "rayo",
+            "necrótico",
+            "veneno",
+            "psíquico",
+            "radiante",
+            "trueno"
+          ],
+          "count": 2
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Resistencia a la energía",
+        "entries": [
+          "Obtienes Resistencia a dos de los siguientes tipos de daño según tu elección: Ácido, Frío, Fuego, Rayo, Necrótico, Veneno, Psíquico, Radiante o Trueno. Cada vez que completes un Descanso Largo, puedes cambiar tus opciones."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Redirección de Energía",
+        "entries": [
+          "Cuando recibes daño de uno de los tipos elegidos para el beneficio de Resistencia a la Energía, puedes realizar una Reacción para dirigir el daño del mismo tipo hacia otra criatura que puedas ver dentro de 60 pies de ti que no esté detrás de Total Cobertura. Si lo haces, esa criatura debe tener éxito en un lanzamiento de salvación de Destreza (CD 8 más tu modificador de Constitución y Bonificación de Competencia) o recibirá daño igual a 2d12 más tu modificador de Constitución."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición del Destino",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Mejora el Destino",
+        "entries": [
+          "Cuando tú o cualquier otra criatura dentro de 60 pies de ti tenga éxito o fracase en una prueba de D20, puedes tirar 2d4 y aplicar el resultado total como un bono o penalización a la tirada de D20. Una vez que uses esta ventaja, no podrás usarla de nuevo hasta que tires Iniciativa o termines un Descanso Corto o Largo."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Bendición de Fortaleza",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Salud Fortificada",
+        "entries": [
+          "Tu máximo de puntos de golpe aumenta en 40. Además, cada vez que recuperes puntos de golpe, podrás recuperar puntos de golpe adicionales iguales a tu modificador de Constitución. Una vez que hayas recuperado estos puntos de golpe adicionales, no podrás hacerlo de nuevo hasta el comienzo de tu siguiente turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de Ataque Imparable",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Superar Defensas",
+        "entries": [
+          "El daño causado por golpes, perforación y corte siempre ignora la Resistencia."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Golpe Poderoso",
+        "entries": [
+          "Cuando haces un 20 en el d20 para un ataque, puedes infligir daño adicional al objetivo igual a la puntuación de habilidad aumentada por esta habilidad. El tipo de daño adicional es el mismo que el del ataque."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de Recuperación",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Última Defensa",
+        "entries": [
+          "Cuando tu salud llegue a 0 Puntos de Vida, puedes reducirla a 1 Punto de Vida en su lugar y recuperar una cantidad de Puntos de Vida igual a la mitad de tu máximo de Puntos de Vida. Una vez que uses este beneficio, no podrás usarlo de nuevo hasta que completes un Descanso Largo."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Recuperar Vitalidad",
+        "entries": [
+          "Tienes una cantidad de 10 dados de 10 caras. Como Acción Adicional, puedes gastar dados de la cantidad, tirar esos dados y recuperar una cantidad de Puntos de Vida igual a la suma del resultado. Recuperas todos los dados gastados cuando completes un Descanso Largo."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de Habilidad",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "athletics": true,
+        "acrobatics": true,
+        "sleight of hand": true,
+        "stealth": true,
+        "arcana": true,
+        "history": true,
+        "investigation": true,
+        "nature": true,
+        "religion": true,
+        "animal handling": true,
+        "insight": true,
+        "medicine": true,
+        "perception": true,
+        "survival": true,
+        "deception": true,
+        "intimidation": true,
+        "performance": true,
+        "persuasion": true
+      }
+    ],
+    "expertise": [
+      {
+        "anyProficientSkill": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Maestro en Todas las Disciplinas",
+        "entries": [
+          "Adquieres competencia en todas las habilidades."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Experiencia",
+        "entries": [
+          "Elige una habilidad en la que no tienes Experiencia. Adquieres Experiencia en esa habilidad."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Bendición de Velocidad",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Artista de Escape",
+        "entries": [
+          "Como acción adicional, puedes realizar la acción de Disparar, lo que también termina la condición de Ser agarrado."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Velocidad",
+        "entries": [
+          "Tu velocidad aumenta en 30 pies."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de Recordar Hechizos",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19,
+        "spellcasting2020": true
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Casting gratuita",
+        "entries": [
+          "Siempre que lancés un hechizo con un espacio de hechizos de nivel 1-4, tira 1d4. Si el número que obtienes es igual al nivel del espacio, el espacio no se agota."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición del Espíritu Nocturno",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Fusionate con las Sombras",
+        "entries": [
+          "Mientras estés en Dim Light o en la oscuridad, puedes otorgarte la condición de Invisible como una Acción Adicional. La condición termina en ti inmediatamente después de que tomes una acción, una Acción Adicional o una Reacción."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Forma oscura",
+        "entries": [
+          "Mientras esté en una luz tenue o en la oscuridad, tiene resistencia a todos los tipos de daño excepto al psíquico y al radiante."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bendición de la visión verdadera",
+    "category": "EB",
+    "prerequisite": [
+      {
+        "level": 19
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        },
+        "max": 30
+      }
+    ],
+    "senses": [
+      {
+        "truesight": 60
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Visión verdadera",
+        "entries": [
+          "Tiene visión verdadera con un alcance de 18 metros."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Cargador",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Ataque de Rápidos",
+        "entries": [
+          "Cuando realices la acción de Rápidos, tu Velocidad aumenta en 3 metros por esa acción."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Ataque de Rápidos",
+        "entries": [
+          "Si te mueves al menos 3 metros en línea recta hacia un objetivo inmediatamente antes de realizar un ataque cuerpo a cuerpo como parte de la acción de ataque, elige uno de los siguientes efectos: obtén un bono de 1d8 en el resultado del daño del ataque, o empuja al objetivo hasta 3 metros de distancia si es más grande que tú en un tamaño. Puedes usar este beneficio solo una vez en cada uno de tus turnos."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Chef",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "constitucion",
+            "wis"
+          ]
+        }
+      }
+    ],
+    "toolProficiencies": [
+      {
+        "cook's utensils": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Utensilios de Cocina",
+        "entries": [
+          "Obtienes competencia con los Utensilios de Cocina si ya no los tienes."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Preparar Comida",
+        "entries": [
+          "Como parte de un Descanso Corto, puedes cocinar comida especial si tienes los ingredientes y los Utensilios de Cocina. Puedes preparar suficiente de esta comida para un número de criaturas igual a 4 más tu bonificación de competencia. Al final del Descanso Corto, cualquier criatura que coma la comida y gaste uno o más dados de golpe para recuperar puntos de golpe, recupera 1d8 puntos de golpe adicionales."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Bolstering Treats",
+        "entries": [
+          "Si dedicas 1 hora de trabajo o cuando termines un Descanso Largo, puedes cocinar un número de bocadillos igual a tu bonificación de competencia, si tienes los ingredientes y las herramientas de cocina a mano. Estos bocadillos especiales duran 8 horas después de ser preparados. Una criatura puede usar una Acción Adicional para consumir uno de estos bocadillos y obtener un número de Puntos de Golpe Temporales igual a su bonificación de competencia."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Crafter",
+    "category": "O",
+    "toolProficiencies": [
+      {
+        "choose": {
+          "from": [
+            "herramientas de carpintero",
+            "herramientas de artesano de cuero",
+            "herramientas de albañil",
+            "herramientas de alfarero",
+            "herramientas de herrero",
+            "herramientas de relojero",
+            "herramientas de tejedores",
+            "herramientas de un escultor"
+          ],
+          "count": 3
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dominio de herramienta",
+        "entries": [
+          "Obtienes dominio con tres herramientas de artesano diferentes de tu elección de la tabla de creación rápida."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Descuento",
+        "entries": [
+          "Cada vez que compres un objeto no mágico, recibirás un descuento del 20% en él."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Creación Rápida",
+        "entries": [
+          "Cuando termines un Descanso Largo, puedes crear una pieza de equipo de la tabla de Creación Rápida, siempre y cuando tengas las Herramientas del Artesano asociadas a ese objeto y tengas competencia con esas herramientas. El objeto dura hasta que termines otro Descanso Largo, momento en el que el objeto se rompe.",
+          {
+            "type": "tabla",
+            "caption": "Creación Rápida",
+            "colStyles": [
+              "col-3",
+              "col-9"
+            ],
+            "colLabels": [
+              "Herramientas del artesano",
+              "Equipo hecho a mano"
+            ],
+            "rows": [
+              [
+                "Herramientas del carpintero",
+                "Escalera, linterna"
+              ],
+              [
+                "Herramientas del trabajador de cuero",
+                "Estuche para flechas, estuche para mapas o pergaminos, bolsa"
+              ],
+              [
+                "Herramientas del albañil",
+                "Polea y bloque"
+              ],
+              [
+                "Herramientas del alfarero",
+                "Jarra, lámpara"
+              ],
+              [
+                "Herramientas de Smith",
+                "Rodamientos de bolas, cubo, caltrops, gancho de agarre, olla de hierro"
+              ],
+              [
+                "Herramientas del herrero",
+                "Campana, pala, encendedor"
+              ],
+              [
+                "Herramientas del tejedor",
+                "Cesta, Cuerda, Red, Tienda de campaña"
+              ],
+              [
+                "Herramientas del tallador de madera",
+                "Club, Gran club, Bastón"
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Experto en arcos largos",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "dex": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Ignorar la carga",
+        "entries": [
+          "Ignora la propiedad de Carga del Arco de Mano, del Arco Pesado y del Arco Ligero (todos llamados arcos en otro lugar de este conjuro). Si estás sosteniendo uno de ellos, puedes cargar una pieza de munición en él, incluso si no tienes una mano libre."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Disparar en combate cuerpo a cuerpo",
+        "entries": [
+          "Estar a 5 pies de un enemigo no impone desventaja en tus tiradas de ataque con arcos."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Uso de dos armas",
+        "entries": [
+          "Cuando realices el ataque adicional con la propiedad 'Light', puedes añadir tu modificador de habilidad al daño del ataque adicional si ese ataque es con un arco que tenga la propiedad 'Light' y no estés ya aplicando ese modificador al daño."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Crusher",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "constitucion"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Empujar",
+        "entries": [
+          "Una vez por turno, cuando golpeas a una criatura con un ataque que causa daño contundente, puedes moverla 1,5 metros a un espacio vacío si el objetivo es de tamaño no mayor que el tuyo."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Golpe Crítico Mejorado",
+        "entries": [
+          "Cuando golpeas a una criatura con un Golpe Crítico que causa daño contundente, los ataques contra esa criatura tienen ventaja hasta el comienzo de tu próximo turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Defensa",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Mientras lleves armadura ligera, media o pesada, obtienes un bono de +1 a tu Clase de Armadura."
+    ]
+  },
+  {
+    "name": "Duelista Defensivo",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "dex": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Bloquear",
+        "entries": [
+          "Si estás usando un arma de destreza y otra criatura te ataca con un ataque cuerpo a cuerpo, puedes realizar una Reacción para añadir tu bono de Pericia a tu Clase de Armadura, lo que podría hacer que el ataque te falle. Obtienes este bono a tu CA contra ataques cuerpo a cuerpo hasta el comienzo de tu siguiente turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Guerrero Druídico",
+    "category": "FS:R",
+    "prerequisite": [
+      {
+        "otherSummary": {
+          "entry": "Al obtener la característica de nivel 2 de Guardabosques \"Estilo de Combate\"",
+          "entrySummary": "Especial"
+        }
+      }
+    ],
+    "entries": [
+      "Aprendes dos conjuros de Druida de tu elección. Se recomienda Guidance y Starry Wisp. Los conjuros elegidos cuentan como hechizos de Guardabosques para ti, y Wisdom es tu habilidad para lanzarlos. Cada vez que obtienes un nivel de Guardabosques, puedes reemplazar uno de estos conjuros con otro conjuro de Druida."
+    ]
+  },
+  {
+    "name": "Usuario de Armas Dobles",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dominio Avanzado de Armas Dobles",
+        "entries": [
+          "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin traducción directa al español, no lo traduzcas. Si tiene una traducción establecida, tradúcela.\n\nPor favor, traduce el siguiente texto:\n\nCuando tomes la acción de \"Ataque\" en tu turno y ataques con un arma que tenga la propiedad \"Ligero\", podrás realizar un ataque adicional como una acción adicional más tarde en el mismo turno, utilizando un arma diferente, que debe ser un arma cuerpo a cuerpo que carezca de la propiedad \"De dos manos\". No añades tu modificador de habilidad al daño del ataque adicional, a menos que ese modificador sea negativo."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin traducción directa al español, no lo traduzcas. Si tiene una traducción establecida al español, tradúcelo.\nPor favor, traduce el siguiente texto:\n\nQuick Draw",
+        "entries": [
+          "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin una traducción directa al español, no lo traduzcas. Si tiene una traducción establecida, sí la traduces.\nPor favor, traduce el siguiente texto:\n\nPuedes sacar o guardar dos armas que carecen de la propiedad de \"dos manos\" cuando normalmente solo podrías sacar o guardar una."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Combate",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando estás sosteniendo un arma cuerpo a cuerpo con una mano y ninguna otra arma, obtienes un bono de +2 en los dados de daño con esa arma."
+    ]
+  },
+  {
+    "name": "Duradero",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "con": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Desafía la Muerte",
+        "entries": [
+          "Tienes una ventaja en los dados de salvación contra la muerte."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Recuperación Rápida",
+        "entries": [
+          "Como acción adicional, puedes gastar uno de tus dados de puntos de vida, tirar el dado y recuperar un número de puntos de vida igual al resultado."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Apto Elemental",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "spellcasting2020": true
+      }
+    ],
+    "repeatable": true,
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dominio de la Energía",
+        "entries": [
+          "Elige uno de los siguientes tipos de daño: Ácido, Frío, Fuego, Rayo o Trueno. Los hechizos que lances ignoran la Resistencia al daño del tipo elegido. Además, cuando lances un hechizo que cause daño de ese tipo, puedes considerar cualquier 1 en un dado de daño como un 2."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Repetible",
+        "entries": [
+          "Puedes obtener esta habilidad más de una vez, pero debes elegir un tipo de daño diferente cada vez para Dominio de la Energía."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Afectado por las Fae",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "La exposición a la magia del Feywild le otorga las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Magia del Feywild",
+        "entries": [
+          "Elija un hechizo de nivel 1 de las escuelas de Divinación o Encantamiento. Siempre tendrá ese hechizo y el hechizo Misty Step preparados. Puede lanzar cada uno de estos hechizos sin gastar una ranura de hechizo. Una vez que lance uno de estos hechizos de esta manera, no podrá lanzar ese hechizo de esta manera de nuevo hasta que complete un descanso largo. También puede lanzar estos hechizos utilizando las ranuras de hechizos que tenga del nivel adecuado. La capacidad de lanzar hechizos de estos hechizos es la capacidad aumentada por esta habilidad."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Agarre",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Golpe y agarre",
+        "entries": [
+          "Cuando golpeas a una criatura con un ataque sin armas como parte de la acción de ataque en tu turno, puedes utilizar tanto la opción de daño como la opción de agarre. Solo puedes utilizar este beneficio una vez por turno."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Ventaja en el ataque",
+        "entries": [
+          "Tienes ventaja en los ataques contra una criatura que estás agarrando."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Luchador rápido",
+        "entries": [
+          "No tienes que gastar movimiento adicional para mover una criatura que estás agarrando, si la criatura es del mismo tamaño o más pequeña."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Combate con armas poderosas",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin una traducción directa al español, no lo traduzcas. Si tiene una traducción establecida, sí la traduces.\n\nPor favor, traduce el siguiente texto:\n\nCuando realices un ataque con un arma cuerpo a cuerpo que sujetas con ambas manos, puedes considerar cualquier resultado de 1 o 2 en un dado de daño como un resultado de 3. El arma debe tener la propiedad \"Sujetar con ambas manos\" o \"Versátil\" para obtener este beneficio."
+    ]
+  },
+  {
+    "name": "Maestro de Armas",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "str": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dominio de armas pesadas",
+        "entries": [
+          "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin traducción directa al español, no lo traduzcas. Si tiene una traducción establecida, sí la traduces.\n\nPor favor, traduce el siguiente texto:\n\nCuando golpeas a una criatura con un arma que tenga la propiedad \"Pesada\" como parte de la acción de ataque en tu turno, puedes hacer que el arma cause daño adicional al objetivo. El daño adicional equivale a tu bonificación de competencia."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Hew",
+        "entries": [
+          "Inmediatamente después de infligir un daño crítico con un arma cuerpo a cuerpo o reducir a una criatura a 0 puntos de golpe, puedes realizar un ataque con la misma arma como una acción adicional."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sanador",
+    "category": "O",
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Médico de combate",
+        "entries": [
+          "Si tienes un kit de sanador, puedes gastar una de sus usos y curar a una criatura a 5 pies de distancia como una acción de utilización. Esa criatura puede gastar uno de sus dados de puntos de golpe, y luego tú tirarás ese dado. La criatura recupera un número de puntos de golpe igual al resultado más tu bonificación de competencia."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Reintentos de Curación",
+        "entries": [
+          "Cada vez que tires un dado para determinar el número de Puntos de Vida que restauras con un hechizo o con el beneficio de 'Médico de Batalla' de esta habilidad, puedes volver a tirar el dado si sale un 1, y debes usar el nuevo resultado."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Muy Blindado",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "proficiency": [
+          {
+            "armor": "medio"
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "constitucion",
+            "fuerza"
+          ]
+        }
+      }
+    ],
+    "armorProficiencies": [
+      {
+        "heavy": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Entrenamiento de Armadura",
+        "entries": [
+          "Obtienes entrenamiento con armadura pesada."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Maestro de Armadura Pesada",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "proficiency": [
+          {
+            "armor": "pesada"
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "constitucion",
+            "fuerza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Reducción de daño",
+        "entries": [
+          "Cuando eres alcanzado por un ataque mientras llevas puesta armadura pesada, cualquier daño contundente, perforante o de corte que te cause ese ataque se reduce en una cantidad igual a tu bonificación de competencia."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Líder inspirador",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "wis": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "cha": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Mejorar el rendimiento",
+        "entries": [
+          "Cuando termines un Descanso Corto o un Descanso Largo, puedes realizar una actuación inspiradora: un discurso, una canción o una danza. Al hacerlo, elige hasta seis aliados (que pueden incluirte) que estén a 30 pies de ti y que presencien la actuación. Cada criatura elegida obtiene Puntos de Golpe Temporales iguales al nivel de tu personaje más el modificador de la habilidad que aumentaste con este logro."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Intercepción",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando una criatura que puedas ver ataca a otra criatura que esté a 5 pies de ti, puedes realizar una Reacción para reducir el daño infligido al objetivo en 1d10 más tu bonificador de competencia. Debes estar sosteniendo un Escudo o una arma Simple o de Combate para usar esta Reacción."
+    ]
+  },
+  {
+    "name": "Mente aguda",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "int": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "int": 1
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "choose": {
+          "from": [
+            "arcano",
+            "historia",
+            "investigación",
+            "naturaleza",
+            "religión"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Conocimiento de Lore",
+        "entries": [
+          "Elija una de las siguientes habilidades: Arcana, Historia, Investigación, Naturaleza o Religión. Si carece de competencia en la habilidad elegida, obtiene competencia en ella, y si ya tiene competencia en ella, obtiene Experiencia en ella."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Aprendizaje rápido",
+        "entries": [
+          "Puede realizar la acción de Estudio como una Acción Adicional."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Ligeramente blindado",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "armorProficiencies": [
+      {
+        "light": true,
+        "shield": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Entrenamiento de Armadura",
+        "entries": [
+          "Obtienes entrenamiento con armaduras y escudos ligeros."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Afortunado",
+    "category": "O",
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Puntos de suerte",
+        "entries": [
+          "Tienes un número de Puntos de suerte igual a tu bonificador de competencia y puedes gastar los puntos en las ventajas a continuación. Recuperas tus Puntos de suerte gastados cuando termines un Descanso Largo."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Ventaja",
+        "entries": [
+          "Cuando realices una tirada de d20 para una prueba de D20, puedes gastar 1 Punto de Suerte para obtener Ventaja en la tirada."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Desventaja",
+        "entries": [
+          "Cuando una criatura realice una tirada de d20 para un ataque contra ti, puedes gastar 1 Punto de Suerte para imponer Desventaja en esa tirada."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Matador de Magos",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Concentración rota",
+        "entries": [
+          "Cuando dañas a una criatura que está concentrada, esta tiene desventaja en el tiraje de salvación que realiza para mantener la concentración."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Mente protegida",
+        "entries": [
+          "Si fallas un tiraje de salvación de Inteligencia, Sabiduría o Carisma, puedes hacer que tengas éxito en su lugar. Una vez que uses esta ventaja, no puedes volver a usarla hasta que termines un descanso corto o un descanso largo."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Iniciación a la magia",
+    "category": "O",
+    "repeatable": true,
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dos Hechizos",
+        "entries": [
+          "Aprendes dos hechizos de tu elección de la lista de hechizos de Sacerdote, Druida o Hechicero. Inteligencia, Sabiduría o Carisma son tus habilidades para lanzar hechizos para este logro (elige cuando selecciones este logro)."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Hechizo de Nivel 1",
+        "entries": [
+          "Elige un hechizo de nivel 1 de la misma lista que seleccionaste para los hechizos de este logro. Siempre tendrás ese hechizo preparado. Puedes lanzarlo una vez sin ocupar una ranura de hechizo, y recuperas la capacidad de lanzarlo de esa manera cuando termines una Descanso Largo. También puedes lanzar el hechizo utilizando cualquier ranura de hechizo que tengas."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Cambio de Hechizo",
+        "entries": [
+          "Cada vez que obtienes un nuevo nivel, puedes reemplazar uno de los conjuros que elegiste para esta habilidad con un conjuro diferente del mismo nivel de la lista de conjuros elegida."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Repetible",
+        "entries": [
+          "Puedes usar esta habilidad más de una vez, pero debes elegir una lista de conjuros diferente cada vez."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Entrenamiento en armas marciales",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "weaponProficiencies": [
+      {
+        "martial": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Dominio de arma",
+        "entries": [
+          "Obtienes dominio con armas marciales."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Maestro de Armadura Media",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "proficiency": [
+          {
+            "armor": "medio"
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Portador Ágil",
+        "entries": [
+          "Mientras lleves armadura Media, puedes añadir 3, en lugar de 2, a tu CA si tienes un valor de Destreza de 16 o superior."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Armadura Moderadamente Protegida",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "proficiency": [
+          {
+            "armor": "ligera"
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "armorProficiencies": [
+      {
+        "medium": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Entrenamiento de Armadura",
+        "entries": [
+          "Obtienes entrenamiento con armadura de tamaño medio."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Combatiente montado",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "wis"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Gol montado",
+        "entries": [
+          "Mientras estás montado, tienes Ventaja en los dados de ataque contra cualquier criatura que no esté montada y que esté a más de 1,5 metros de tu montura, y que sea al menos de un tamaño inferior al de la montura."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Salto lateral",
+        "entries": [
+          "Si tu montura es sujeta a un efecto que le permite realizar un salvamiento de Destreza para recibir solo la mitad del daño, en cambio, no recibirá daño si tiene éxito en el salvamiento y solo la mitad del daño si falla. Para que tu montura obtenga este beneficio, debes montarla, y ninguno de los dos puede tener la condición de incapacitado."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Veer",
+        "entries": [
+          "Mientras estés montado, puedes forzar un ataque que golpee a tu montura para que golpee en cambio a ti si no tienes la condición de incapacitado."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Músico",
+    "category": "O",
+    "toolProficiencies": [
+      {
+        "anyMusicalInstrument": 3
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Entrenamiento en instrumentos",
+        "entries": [
+          "Adquieres competencia con tres instrumentos musicales de tu elección."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Canción inspiradora",
+        "entries": [
+          "Cuando termines un descanso corto o un descanso largo, puedes tocar una canción en un instrumento musical con el que tienes competencia e inspirar a tus aliados con esa canción. El número de aliados que puedes afectar de esta manera es igual a tu bonificación de competencia."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Observador",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "int": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "wis": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis"
+          ]
+        }
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "choose": {
+          "from": [
+            "Perspicaz",
+            "investigación",
+            "percepción"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Observador Agudo",
+        "entries": [
+          "Elige una de las siguientes habilidades: Intuición, Investigación o Percepción. Si carece de dominio en la habilidad elegida, adquiere dominio en ella, y si ya tiene dominio en ella, adquiere Experiencia en ella."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Búsqueda Rápida",
+        "entries": [
+          "Puedes realizar la acción de Búsqueda como una Acción de Bónus."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Perforar",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Punzón",
+        "entries": [
+          "Una vez por turno, cuando ataques a una criatura con un ataque que causa daño perforante, puedes volver a tirar uno de los dados de daño del ataque, y debes usar el nuevo resultado."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Golpe Crítico Mejorado",
+        "entries": [
+          "Cuando causes un golpe crítico que causa daño perforante a una criatura, puedes tirar un dado de daño adicional al determinar el daño perforante adicional que recibe el objetivo."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Envenenador",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "destreza",
+            "inteligencia"
+          ]
+        }
+      }
+    ],
+    "toolProficiencies": [
+      {
+        "poisoner's kit": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Veneno Poderoso",
+        "entries": [
+          "Cuando realices un lanzamiento de daño que cause daño por veneno, este ignora la resistencia al daño por veneno."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Preparar Veneno",
+        "entries": [
+          "Obtienes competencia con el Kit del Envenenador. Con 1 hora de trabajo utilizando dicho kit y gastando materiales por valor de 50 GP, puedes crear un número de dosis de veneno igual a tu bonificación de competencia. Como acción adicional, puedes aplicar una dosis de veneno a una arma o munición. Una vez aplicada, el veneno mantiene su potencia durante 1 minuto o hasta que causes daño con el objeto envenenado, lo que sea más corto. Cuando una criatura recibe daño del objeto envenenado, esa criatura debe tener éxito en un lanzamiento de salvación de Constitución (CD 8 más el modificador de la habilidad aumentada por este logro y tu bonificación de competencia) o recibirá 2d8 de daño por veneno y tendrá la condición de envenenado hasta el final de tu siguiente turno."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Maestro de Arma de Largo",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "destreza",
+            "fuerza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Gol de Palo",
+        "entries": [
+          "Inmediatamente después de que realices la acción de Ataque y ataques con un Bastón, una Lanza o un arma que tenga las propiedades de Peso y Alcance, puedes usar una Acción Adicional para realizar un ataque cuerpo a cuerpo con el extremo opuesto del arma. El arma inflige daño contundente, y el dado de daño del arma para este ataque es un d4."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Ataque Reactivo",
+        "entries": [
+          "Mientras mantienes un Bastón, una Lanza o un arma que tenga las propiedades de Peso y Alcance, puedes realizar una Respuesta para realizar un ataque cuerpo a cuerpo contra una criatura que entre en el alcance que tienes con ese arma."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Protección",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando una criatura que puedes ver ataca a un objetivo que no eres tú y que está a 5 pies de ti, puedes realizar una Reacción para interponer tu Escudo si lo estás sosteniendo. Impones Desventaja en el lanzamiento de ataque que desencadena y en todos los demás lanzamientos de ataque contra el objetivo hasta el comienzo de tu siguiente turno, si permaneces a 5 pies del objetivo."
+    ]
+  },
+  {
+    "name": "Resistente",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ],
+          "amount": 1,
+          "entry": "Elige una habilidad en la que careces de competencia en la tirada de salvación. Aumenta el nivel de la habilidad elegida en 1, hasta un máximo de 20."
+        }
+      }
+    ],
+    "savingThrowProficiencies": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Competencia en la tirada de salvación",
+        "entries": [
+          "Obtienes competencia en la tirada de salvación con la habilidad elegida."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Caster de Rituales",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "int": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "wis": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "cha": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Hechizos de Rituales",
+        "entries": [
+          "Este es un archivo JSON de Dungeons & Dragons, así que ten en cuenta esto al traducirlo. Si ves un nombre extraño sin una traducción directa al español, no lo traduzcas. Si tiene una traducción establecida, tradúcela.\nPor favor, traduce el siguiente texto:\n\nElige un número de conjuros de nivel 1 que sean iguales a tu bonificación de competencia y que tengan la etiqueta \"Ritual\". Siempre tendrás esos conjuros preparados, y puedes lanzarlos con cualquier ranura de conjuro que tengas. La capacidad de lanzamiento de conjuros de estos conjuros es la capacidad aumentada por esta habilidad. Cada vez que tu bonificación de competencia aumente, puedes añadir un conjuro de nivel 1 con la etiqueta \"Ritual\" a los conjuros que siempre tengas preparados con esta característica."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Ritual Rápido",
+        "entries": [
+          "Con este beneficio, puedes lanzar un conjuro de Ritual que hayas preparado utilizando su tiempo de lanzamiento normal, en lugar del tiempo extendido para un Ritual. Hacerlo no requiere un espacio de conjuro. Una vez que hayas lanzado el conjuro de esta manera, no podrás usar este beneficio de nuevo hasta que hayas completado un Descanso Largo."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Ataque Salvaje",
+    "category": "O",
+    "entries": [
+      "Has entrenado para realizar golpes particularmente dañinos. Una vez por turno, cuando golpeas a un objetivo con un arma, puedes tirar los dados de daño del arma dos veces y usar cualquiera de los resultados contra el objetivo."
+    ]
+  },
+  {
+    "name": "Guardián",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "str": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Sentinela",
+        "entries": [
+          "Inmediatamente después de que una criatura dentro de 5 pies de ti realice la acción de 'Despegar' o golpee a un objetivo que no sea tú con un ataque, puedes realizar un ataque de oportunidad contra esa criatura."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Alto",
+        "entries": [
+          "Cuando golpeas a una criatura con un ataque de oportunidad, la velocidad de la criatura se convierte en 0 para el resto del turno actual."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Afectado por las Sombras",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Tu exposición a la magia del Shadowfell te otorga los siguientes beneficios.",
+      {
+        "type": "entradas",
+        "name": "Magia de las Sombras",
+        "entries": [
+          "Elija un hechizo de nivel 1 de la escuela de Ilusión o Necromancia. Siempre tendrá ese hechizo y el hechizo de Invisibilidad preparados. Puede lanzar cada uno de estos hechizos sin gastar un espacio de hechizo. Una vez que lance cualquiera de estos hechizos de esta manera, no podrá lanzar ese hechizo de esta manera de nuevo hasta que termine un Descanso Largo. También puede lanzar estos hechizos utilizando espacios de hechizos que tenga del nivel apropiado. La capacidad de lanzamiento de hechizos de estos hechizos es la capacidad aumentada por esta habilidad."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sharpshooter",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "dex": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Bypass Cover",
+        "entries": [
+          "Sus ataques a distancia con armas ignoran la cobertura de la mitad y los tres cuartos."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Disparar en combate cuerpo a cuerpo",
+        "entries": [
+          "Estar dentro de 5 pies de un enemigo no impone desventaja en sus tiradas de ataque con armas a distancia."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Disparos a larga distancia",
+        "entries": [
+          "Atacar a larga distancia no impone Desventaja en tus tiradas de ataque con armas de largo alcance."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Maestro de Escudos",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "proficiency": [
+          {
+            "armor": "Escudo"
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "str": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Golpear con el escudo",
+        "entries": [
+          "Si atacas a una criatura a 5 pies de distancia y golpeas con un arma cuerpo a cuerpo, puedes golpear inmediatamente al objetivo con tu escudo, si está equipado, obligando al objetivo a realizar un tirada de salvación de Fuerza (CD 8 más tu modificador de Fuerza y Bonificación de Pericia). En una tirada fallida, o empujas al objetivo 5 pies de distancia o le haces quedar en posición vulnerable (a tu elección). Puedes usar este beneficio solo una vez por turno."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Escudo de Intervención",
+        "entries": [
+          "Si estás sujeto a un efecto que te permite realizar una tirada de salvación de Destreza para recibir solo la mitad del daño, puedes realizar una reacción para no recibir daño si tienes éxito en la tirada y estás sujetando un escudo."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Experto en Habilidad",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza",
+            "constitucion",
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "skillProficiencies": [
+      {
+        "any": 1
+      }
+    ],
+    "expertise": [
+      {
+        "anyProficientSkill": 1
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Pericia en Habilidad",
+        "entries": [
+          "Adquieres competencia en una habilidad de tu elección."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Experiencia",
+        "entries": [
+          "Elige una habilidad en la que ya tienes competencia, pero careces de Experiencia. Adquieres Experiencia en esa habilidad."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Experto",
+    "category": "O",
+    "repeatable": true,
+    "skillToolLanguageProficiencies": [
+      {
+        "choose": [
+          {
+            "from": [
+              "anySkill",
+              "anyTool"
+            ],
+            "count": 3
+          }
+        ]
+      }
+    ],
+    "entries": [
+      "Obtienes competencia en cualquier combinación de tres habilidades o herramientas de tu elección.",
+      {
+        "type": "entradas",
+        "name": "Repetible",
+        "entries": [
+          "Puedes obtener esta habilidad más de una vez."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Skulker",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "dex": 1
+      }
+    ],
+    "senses": [
+      {
+        "blindsight": 10
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Blindsight",
+        "entries": [
+          "Tienes Blindsight con un alcance de 3 metros."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Niebla de la Guerra",
+        "entries": [
+          "Aprovechas las distracciones del combate, obteniendo Ventaja en cualquier tirada de Destreza (Sigilo) que realices como parte de la acción de Esconder durante el combate."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Francotirador",
+        "entries": [
+          "Si realizas un ataque mientras estás oculto y la tirada falla, realizar la tirada de ataque no revela tu ubicación."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Slasher",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Lesionar",
+        "entries": [
+          "Una vez por turno, cuando ataques a una criatura con un ataque que cause daño de corte, puedes reducir la Velocidad de esa criatura en 10 pies hasta el comienzo de tu próximo turno."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Golpe Crítico Mejorado",
+        "entries": [
+          "Cuando causas un golpe crítico que cause daño de corte a una criatura, esta tiene desventaja en los ataques hasta el comienzo de tu próximo turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Veloz",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "ability": [
+          {
+            "dex": 13
+          }
+        ]
+      },
+      {
+        "level": 4,
+        "ability": [
+          {
+            "con": 13
+          }
+        ]
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "destreza",
+            "constitucion"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Aumento de velocidad",
+        "entries": [
+          "Tu velocidad aumenta en 10 pies."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Avanzar sobre terreno difícil",
+        "entries": [
+          "Cuando realices la acción de Avanzar en tu turno, el terreno difícil no te cuesta más movimiento durante el resto de ese turno."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Movimiento ágil",
+        "entries": [
+          "Los ataques de la Oportunidad tienen desventaja contra ti."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sniper de conjuros",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "spellcasting2020": true
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Bypass Cover",
+        "entries": [
+          "Tus tiradas de ataque para conjuros ignoran la cobertura parcial y la cobertura de tres cuartos."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Realizar conjuros en combate cuerpo a cuerpo",
+        "entries": [
+          "Estar a 5 pies de distancia de un enemigo no impone desventaja en tus tiradas de ataque con conjuros."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Mayor Alcance",
+        "entries": [
+          "Cuando lances un hechizo que tenga un alcance de al menos 3 metros y requiera que realices un lanzamiento de ataque, puedes aumentar el alcance del hechizo en 18 metros."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Brawler del Taberna",
+    "category": "O",
+    "weaponProficiencies": [
+      {
+        "improvised": true
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Golpe sin Armas Mejorado",
+        "entries": [
+          "Cuando golpeas con tu golpe sin armas y causas daño, puedes causar daño contundente igual a 1d4 más tu modificador de Fuerza en lugar del daño normal de un golpe sin armas."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Rebobinar Daño",
+        "entries": [
+          "Cada vez que tires un dado de daño para tu Golpe sin Armas, puedes re tirar el dado si sale un 1, y debes usar el nuevo resultado."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Armas Improvisadas",
+        "entries": [
+          "Tienes competencia con armas improvisadas."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Empujar",
+        "entries": [
+          "Cuando golpeas a una criatura con un Golpe sin Armas como parte de la acción de Ataque en tu turno, puedes infligir daño al objetivo y también empujarlo 5 pies de distancia. Puedes usar este beneficio solo una vez por turno."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Telequinesis",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Telequinesis menor",
+        "entries": [
+          "Aprendes el hechizo de la Mano Mágica. Puedes lanzarlo sin componentes verbales o somáticos, puedes hacer que la mano espectral sea invisible, y su alcance y la distancia que puede estar de ti aumentan en 30 pies cuando lo lances. La capacidad del hechizo es la capacidad aumentada por esta habilidad."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Empujar con telequinesis",
+        "entries": [
+          "Como una acción adicional, puedes empujar a una criatura que puedas ver dentro de 30 pies de ti con telequinesis. Cuando lo hagas, el objetivo debe tener éxito en un lanzamiento de salvación de Fuerza (CD 8 más el modificador de habilidad de la puntuación aumentada por esta habilidad y tu bonificación de competencia) o debe ser movido 5 pies hacia o lejos de ti."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Telepático",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Expresión telepática",
+        "entries": [
+          "Puedes comunicarte telepáticamente con cualquier criatura que puedas ver dentro de 60 pies de ti. Tus expresiones telepáticas están en un idioma que conoces, y la criatura solo te entiende si conoce ese idioma. Tu comunicación no da a la criatura la capacidad de responderte telepáticamente."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Detectar pensamientos",
+        "entries": [
+          "Siempre tienes el hechizo Detectar pensamientos preparado. Puedes lanzarlo sin ocupar un espacio de hechizo o componentes de hechizo, y debes completar un Descanso Largo antes de poder lanzarlo de esta manera de nuevo. También puedes lanzarlo utilizando espacios de hechizo que tengas del nivel adecuado. Tu habilidad para lanzar hechizos para este hechizo es la habilidad aumentada por este logro."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Combate con arma arrojada",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando atacas con un ataque a distancia utilizando un arma que tiene la propiedad de ser arrojada, obtienes un bono de +2 al tirada de daño."
+    ]
+  },
+  {
+    "name": "Resistente",
+    "category": "O",
+    "entries": [
+      "Tu máximo de Puntos de Vida aumenta en una cantidad igual a dos veces tu nivel de personaje cuando obtienes esta habilidad. Cada vez que obtienes un nivel de personaje después, tu máximo de Puntos de Vida aumenta en 2 Puntos de Vida adicionales."
+    ]
+  },
+  {
+    "name": "Combate con dos armas",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando realizas un ataque adicional como resultado de utilizar un arma que tiene la propiedad de 'Luz', puedes añadir tu modificador de habilidad al daño de ese ataque si ya no lo estás añadiendo al daño."
+    ],
+    "hasFluffImages": true
+  },
+  {
+    "name": "Combate sin armas",
+    "category": "FS",
+    "prerequisite": [
+      {
+        "feature": [
+          "Estilo de Combate"
+        ]
+      }
+    ],
+    "entries": [
+      "Cuando golpeas con tu ataque sin armas y causas daño, puedes causar daño contundente igual a 1d6 más tu modificador de Fuerza en lugar del daño normal de un ataque sin armas. Si no estás sosteniendo ninguna arma ni escudo al realizar el lanzamiento de ataque, el d6 se convierte en un d8.",
+      "Al comienzo de cada uno de tus turnos, puedes causar 1d4 de daño contundente a una criatura que estés agarrando."
+    ]
+  },
+  {
+    "name": "Hechicero de guerra",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4,
+        "spellcasting2020": true
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "inteligencia",
+            "wis",
+            "cha"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Concentración",
+        "entries": [
+          "Tienes ventaja en las tiradas de salvación de Constitución que realices para mantener la Concentración."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Hechizo Reactivo",
+        "entries": [
+          "Cuando una criatura provoca un ataque de oportunidad de ti al salir de tu alcance, puedes realizar una reacción para lanzar un hechizo a la criatura en lugar de realizar un ataque de oportunidad. El hechizo debe tener un tiempo de lanzamiento de una acción y debe dirigirse solo a esa criatura."
+        ]
+      },
+      {
+        "type": "entradas",
+        "name": "Componentes Sóricos",
+        "entries": [
+          "Puedes realizar los componentes sutiles de los hechizos incluso cuando tienes armas o un Escudo en una o ambas manos."
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Maestro de Armas",
+    "category": "G",
+    "prerequisite": [
+      {
+        "level": 4
+      }
+    ],
+    "ability": [
+      {
+        "choose": {
+          "from": [
+            "fuerza",
+            "destreza"
+          ]
+        }
+      }
+    ],
+    "entries": [
+      "Obtienes las siguientes ventajas.",
+      {
+        "type": "entradas",
+        "name": "Propiedad de Dominio",
+        "entries": [
+          "Tu entrenamiento con armas te permite utilizar la propiedad de dominio de un tipo de arma Simple o Martial de tu elección, siempre y cuando tengas competencia con ella. Cada vez que termines un Descanso Largo, puedes cambiar el tipo de arma por otro tipo de arma compatible."
+        ]
+      }
+    ],
+    "hasFluffImages": true
+  }
+]

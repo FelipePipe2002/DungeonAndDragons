@@ -348,7 +348,13 @@ export interface MentionFieldProps {
 
 const getMentionQuery = (text: string, caret: number) => {
   let start = caret - 1
-  while (start >= 0 && text[start] !== "@" && text[start] !== "\n" && text[start] !== "\r") {
+  while (
+    start >= 0 &&
+    text[start] !== "@" &&
+    text[start] !== "\n" &&
+    text[start] !== "\r" &&
+    !/\s/.test(text[start])
+  ) {
     start -= 1
   }
   if (start < 0 || text[start] !== "@") {

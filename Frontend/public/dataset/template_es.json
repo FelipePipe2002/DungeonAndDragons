@@ -1,0 +1,1054 @@
+[
+  {
+    "name": "Aarakocra",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            "aarakocra"
+          ]
+        },
+        "speed": {
+          "walk": 30,
+          "fly": 50
+        }
+      }
+    }
+  },
+  {
+    "name": "Despertado",
+    "prerequisite": {
+      "size": {
+        "max": "H"
+      },
+      "type": {
+        "oneOf": [
+          "bestia",
+          "planta"
+        ]
+      },
+      "int": {
+        "max": 3
+      }
+    },
+    "apply": {
+      "_root": {
+        "int": 10
+      },
+      "_mod": {
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "un idioma conocido por su creador"
+        }
+      }
+    }
+  },
+  {
+    "name": "Gnomo Profundo",
+    "apply": {
+      "_root": {
+        "size": [
+          "S"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "gnomo",
+              "prefix": "Profundo",
+              "prefixHidden": true
+            }
+          ]
+        },
+        "speed": {
+          "walk": 20
+        }
+      },
+      "_mod": {
+        "_": {
+          "mode": "addSenses",
+          "senses": {
+            "type": "visión en la oscuridad",
+            "range": 120
+          }
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": [
+            "gnomístico",
+            "terrestre",
+            "subterráneo"
+          ]
+        },
+        "spellcasting": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "habilidad innata para lanzar hechizos",
+              "headerEntries": [
+                "La capacidad innata de <$title_short_name$> para lanzar hechizos es Inteligencia (CD de salvación de hechizos <$spell_dc__int$>) <$title_short_name$> puede lanzar innatamente los siguientes hechizos, sin necesidad de componentes materiales:"
+              ],
+              "will": [
+                "no detección (solo para él/ella)"
+              ],
+              "daily": {
+                "1e": [
+                  "blindness/deafness",
+                  "ocultamiento",
+                  "disguise self"
+                ]
+              },
+              "ability": "int"
+            }
+          ]
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Gnomo Astuto",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en todas las tiradas de salvación de Inteligencia, Sabiduría y Carisma contra la magia."
+              ]
+            },
+            {
+              "name": "Camuflaje de Piedra",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de Destreza (Sigilo) para esconderse en terrenos rocosos."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Dracolico",
+    "apply": {
+      "_root": {
+        "type": {
+          "type": "no muerto"
+        }
+      },
+      "_mod": {
+        "*": {
+          "mode": "replaceTxt",
+          "replace": "dragón",
+          "with": "dracolíc"
+        },
+        "resist": {
+          "mode": "appendIfNotExistsArr",
+          "items": "necrótico"
+        },
+        "immune": {
+          "mode": "appendIfNotExistsArr",
+          "items": "veneno"
+        },
+        "conditionImmune": {
+          "mode": "appendIfNotExistsArr",
+          "items": [
+            "encantado",
+            "asustado",
+            "paralizado",
+            "envenenado",
+            "agotamiento"
+          ]
+        },
+        "trait": [
+          {
+            "mode": "appendArr",
+            "items": [
+              {
+                "name": "Resistencia a la magia",
+                "entries": [
+                  "El dracolico tiene ventaja en las tiradas de salvación contra hechizos y otros efectos mágicos."
+                ]
+              }
+            ]
+          },
+          {
+            "mode": "removeArr",
+            "names": "Amfibio",
+            "force": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "Drow",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "elfo",
+              "prefix": "Drow",
+              "prefixHidden": true
+            }
+          ]
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 120
+            }
+          },
+          {
+            "mode": "addSkills",
+            "skills": {
+              "perception": 1
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": [
+            "Elfo",
+            "subterráneo"
+          ]
+        },
+        "spellcasting": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "habilidad innata para lanzar hechizos",
+              "headerEntries": [
+                "La habilidad innata de <$title_short_name$> para lanzar hechizos es Carisma (CD de salvación de hechizos <$spell_dc__cha$>). <$title_short_name$> puede lanzar innatamente los siguientes hechizos, sin necesidad de componentes materiales:"
+              ],
+              "will": [
+                "luces danzantes"
+              ],
+              "daily": {
+                "1e": [
+                  "oscuridad",
+                  "fuego de hadas"
+                ]
+              },
+              "ability": "cha"
+            }
+          ]
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Origen Fey",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de salvación contra la encantación, y la magia no puede dormir a <$short_name>."
+              ]
+            },
+            {
+              "name": "Sensibilidad a la luz solar",
+              "entries": [
+                "Mientras esté expuesto a la luz solar, <$short_name$> tiene desventaja en las tiradas de ataque, así como en las tiradas de Sabiduría (Percepción) que dependen de la vista."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Drow (Levitación)",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "elfo",
+              "prefix": "Drow",
+              "prefixHidden": true
+            }
+          ]
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 120
+            }
+          },
+          {
+            "mode": "addSkills",
+            "skills": {
+              "perception": 1
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": [
+            "Elfo",
+            "subterráneo"
+          ]
+        },
+        "spellcasting": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "habilidad innata para lanzar hechizos",
+              "headerEntries": [
+                "La habilidad innata de <$title_short_name$> para lanzar hechizos es Carisma (CD de salvación de hechizos <$spell_dc__cha$>). <$title_short_name$> puede lanzar innatamente los siguientes hechizos, sin necesidad de componentes materiales:"
+              ],
+              "will": [
+                "luces danzantes"
+              ],
+              "daily": {
+                "1e": [
+                  "oscuridad",
+                  "fuego de hadas",
+                  "levitación (solo el personaje)"
+                ]
+              },
+              "ability": "cha"
+            }
+          ]
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Origen Fey",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de salvación contra la encantación, y la magia no puede dormir a <$short_name>."
+              ]
+            },
+            {
+              "name": "Sensibilidad a la luz solar",
+              "entries": [
+                "Mientras esté expuesto a la luz solar, <$short_name$> tiene desventaja en las tiradas de ataque, así como en las tiradas de Sabiduría (Percepción) que dependen de la vista."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Goblin",
+    "apply": {
+      "_root": {
+        "size": [
+          "S"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            "goblinóide"
+          ]
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 60
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Goblin"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Nimble Escape",
+              "entries": [
+                "<$title_short_name$> puede realizar las acciones de 'Desengajar' o 'Esconderse' como una acción adicional en cada uno de sus turnos."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Kobold",
+    "apply": {
+      "_root": {
+        "size": [
+          "S"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            "kobold"
+          ]
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 60
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Dracónico"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Sensibilidad a la luz solar",
+              "entries": [
+                "Mientras esté a la luz del sol, <$title_short_name$> tiene desventaja en las tiradas de ataque, así como en las pruebas de Sabiduría (Percepción) que dependen de la vista."
+              ]
+            },
+            {
+              "name": "Tácticas de Grupo",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en un ataque contra una criatura si al menos uno de sus aliados está a 5 pies de la criatura y el aliado no está incapacitado."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Dragón Medio o Pequeño de Color Azul",
+    "crMin": "2",
+    "apply": {
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": [
+              {
+                "type": "visión en la oscuridad",
+                "range": 10
+              },
+              {
+                "type": "visión en la oscuridad",
+                "range": 60
+              }
+            ]
+          }
+        ],
+        "resist": {
+          "mode": "appendIfNotExistsArr",
+          "items": "rayo"
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Dracónico"
+        },
+        "action": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Aliento de Rayo 5",
+              "entries": [
+                "La criatura, mitad dragón, exhala rayos en una línea de 15 metros de longitud y 3 metros de ancho. Cada criatura en esa línea debe realizar una tirada de salvación de Destreza CD 12, sufriendo 22 (daño 4d10) de daño por rayos en caso de fallo, o la mitad de ese daño en caso de éxito."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Dragón Verde Medio o Pequeño",
+    "crMin": "2",
+    "apply": {
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": [
+              {
+                "type": "visión en la oscuridad",
+                "range": 10
+              },
+              {
+                "type": "visión en la oscuridad",
+                "range": 60
+              }
+            ]
+          }
+        ],
+        "resist": {
+          "mode": "appendIfNotExistsArr",
+          "items": "veneno"
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Dracónico"
+        },
+        "action": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Aliento de Veneno 5",
+              "entries": [
+                "La criatura, mitad dragón, exhala gas venenoso en un cono de 7,5 metros de longitud y 3 metros de ancho. Cada criatura en esa área debe realizar una tirada de salvación de Constitución CD 11, sufriendo 21 (daño 6d6) de daño por veneno en caso de fallo, o la mitad de ese daño en caso de éxito."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Dragón rojo grande o pequeño",
+    "crMin": "2",
+    "apply": {
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": [
+              {
+                "type": "visión en la oscuridad",
+                "range": 10
+              },
+              {
+                "type": "visión en la oscuridad",
+                "range": 60
+              }
+            ]
+          }
+        ],
+        "resist": {
+          "mode": "appendIfNotExistsArr",
+          "items": "fuego"
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Dracónico"
+        },
+        "action": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Aliento de fuego 5",
+              "entries": [
+                "El dragón exhala fuego en un cono de 15 pies. Cada criatura en esa área debe realizar una tirada de salvación de Destreza con CD 13, recibiendo 24 (daño 7d6) de daño por fuego en caso de fallo, o la mitad de ese daño en caso de éxito."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Halfling de pies ligeros",
+    "apply": {
+      "_root": {
+        "size": [
+          "S"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "halfling",
+              "prefix": "Lightfoot",
+              "prefixHidden": true
+            }
+          ]
+        },
+        "speed": {
+          "walk": 25
+        }
+      },
+      "_mod": {
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Halfling"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Agilidad del Halfling",
+              "entries": [
+                "<$title_short_name$> puede moverse a través de un espacio ocupado por una criatura de tamaño Mediano o superior."
+              ]
+            },
+            {
+              "name": "Valiente",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de salvación contra el miedo."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Merfolk",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            "merfolk"
+          ]
+        },
+        "speed": {
+          "walk": 10,
+          "swim": 40
+        }
+      },
+      "_mod": {
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Aquan"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Amfibio",
+              "entries": [
+                "<$title_short_name$> puede respirar aire y agua."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Enano de montaña",
+    "alias": [
+      "Enano guerrero"
+    ],
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "enano",
+              "prefix": "Montaña",
+              "prefixHidden": true
+            }
+          ]
+        },
+        "speed": {
+          "walk": 25
+        }
+      },
+      "_mod": {
+        "_": {
+          "mode": "addSenses",
+          "senses": {
+            "type": "visión en la oscuridad",
+            "range": 60
+          }
+        },
+        "resist": {
+          "mode": "appendIfNotExistsArr",
+          "items": "veneno"
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Dwarvish"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Resistencia de los Enanos",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de salvación contra veneno, y tiene resistencia al daño por veneno."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Orc",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            "orc"
+          ]
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 60
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Orc"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Agresivo",
+              "entries": [
+                "Como acción adicional, <$short_name$> puede moverse hasta su velocidad hacia una criatura hostil que pueda ver."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Reducción de amenaza",
+    "apply": {
+      "_mod": {
+        "_": [
+          {
+            "mode": "maxSize",
+            "max": "L"
+          },
+          {
+            "mode": "scalarMultXp",
+            "scalar": 0.5,
+            "floor": true
+          }
+        ],
+        "hp": [
+          {
+            "mode": "scalarMultProp",
+            "prop": "promedio",
+            "scalar": 0.5,
+            "floor": true
+          },
+          {
+            "mode": "prefixSuffixStringProp",
+            "prop": "fórmula",
+            "prefix": "floor((",
+            "suffix": ") ÷ 2)"
+          }
+        ],
+        "save": {
+          "mode": "scalarAddProp",
+          "scalar": -2,
+          "prop": "*"
+        },
+        "skill": {
+          "mode": "scalarAddProp",
+          "scalar": -2,
+          "prop": "*"
+        },
+        "spellcasting": [
+          {
+            "mode": "scalarAddHit",
+            "scalar": -2
+          },
+          {
+            "mode": "scalarAddDc",
+            "scalar": -2
+          }
+        ],
+        "trait": [
+          {
+            "mode": "scalarAddHit",
+            "scalar": -2
+          },
+          {
+            "mode": "scalarAddDc",
+            "scalar": -2
+          },
+          {
+            "mode": "prependArr",
+            "items": {
+              "name": "Reducción de amenaza",
+              "entries": [
+                "Un monstruo con menor amenaza recibe una penalización de −2 en las tiradas de ataque (incluida en la ficha estadística), en las pruebas de habilidad (incluida en la ficha estadística para las habilidades), en los lanzamientos de salvación (incluidos en la ficha estadística para las habilidades de salvación) y en los DC de los lanzamientos de salvación (incluidos en la ficha estadística)."
+              ]
+            }
+          }
+        ],
+        "action": [
+          {
+            "mode": "scalarAddHit",
+            "scalar": -2
+          },
+          {
+            "mode": "scalarAddDc",
+            "scalar": -2
+          }
+        ],
+        "reaction": [
+          {
+            "mode": "scalarAddHit",
+            "scalar": -2
+          },
+          {
+            "mode": "scalarAddDc",
+            "scalar": -2
+          }
+        ],
+        "legendary": [
+          {
+            "mode": "scalarAddHit",
+            "scalar": -2
+          },
+          {
+            "mode": "scalarAddDc",
+            "scalar": -2
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "Gnomo de Piedra",
+    "apply": {
+      "_root": {
+        "size": [
+          "S"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "gnomo",
+              "prefix": "Piedra",
+              "prefixHidden": true
+            }
+          ]
+        },
+        "speed": {
+          "walk": 25
+        }
+      },
+      "_mod": {
+        "_": {
+          "mode": "addSenses",
+          "senses": {
+            "type": "visión en la oscuridad",
+            "range": 60
+          }
+        },
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "gnomístico"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Gnomo Astuto",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en todas las tiradas de salvación de Inteligencia, Sabiduría y Carisma contra la magia."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Enano guerrero",
+    "_copy": {
+      "name": "Enano de montaña",
+      "_mod": {
+        "_": {
+          "mode": "setProp",
+          "prop": "apply._root.type",
+          "value": {
+            "type": "humanóide",
+            "tags": [
+              {
+                "tag": "enano",
+                "prefix": "Escudo",
+                "prefixHidden": true
+              }
+            ]
+          }
+        }
+      },
+      "_preserve": {}
+    }
+  },
+  {
+    "name": "Esqueleto",
+    "apply": {
+      "_root": {
+        "type": {
+          "type": "no muerto"
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 60
+            }
+          }
+        ],
+        "immune": {
+          "mode": "appendIfNotExistsArr",
+          "items": "veneno"
+        },
+        "vulnerable": {
+          "mode": "appendIfNotExistsArr",
+          "items": "golpe"
+        },
+        "conditionImmune": [
+          {
+            "mode": "appendIfNotExistsArr",
+            "items": [
+              "agotamiento",
+              "envenenado"
+            ]
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "entiende todos los idiomas en los que habló en vida, pero no puede hablar"
+        }
+      }
+    }
+  },
+  {
+    "name": "Vistana",
+    "apply": {
+      "_mod": {
+        "action": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Maldición (Recarga después de un largo descanso)",
+              "entries": [
+                "El Vistana ataca a una criatura que pueda ver dentro de 9 metros de él. La criatura debe superar una tirada de salvación de Sabiduría con una dificultad de <$spell_dc__cha$>, o será maldita. El Vistana elige el efecto de la maldición de las siguientes opciones; otras maldiciones de los Vistana son posibles. Todos estos efectos causan daño psíquico al Vistana que los pronuncia cuando terminan:",
+                {
+                  "type": "lista",
+                  "items": [
+                    "La criatura no puede realizar un cierto tipo de acción que requiera un control fino de los movimientos, como atar nudos, escribir, tocar un instrumento, coser, o lanzar hechizos que tengan componentes somáticos. Cuando esta maldición termina, el Vistana recibe 1d6 de daño psíquico.",
+                    "La apariencia de la criatura cambia de una manera siniestra pero puramente estética. Por ejemplo, la maldición puede colocar una cicatriz en la cara de la criatura, convertir los dientes de la criatura en colmillos amarillos, o dar a la criatura aliento maloliente. Cuando esta maldición termina, el Vistana recibe 1d6 de daño psíquico.",
+                    "Un objeto no mágico que posee la criatura (elegido por el DM) desaparece y no puede ser encontrado hasta que termina la maldición. El objeto perdido no puede pesar más de 0,45 kilogramos. Cuando esta maldición termina, el Vistana recibe 1d6 de daño psíquico.",
+                    "El objetivo gana vulnerabilidad a un tipo de daño elegido por el Vistana. Cuando este maleficio termina, el Vistana recibe 3d6 de daño psíquico.",
+                    "El objetivo tiene desventaja en las pruebas de habilidad y las tiradas de salvación relacionadas con una de las habilidades del Vistana. Cuando este maleficio termina, el Vistana recibe 3d6 de daño psíquico.",
+                    "El afinamiento del objetivo con un objeto mágico (elegido por el DM) termina, y el objetivo no puede afinarse con el objeto elegido hasta que termine la maldición. Cuando termine esta maldición, la Vistana recibe 5d6 de daño psíquico.",
+                    "El objetivo está ciego, sordo o ambos. Cuando termine esta maldición, la Vistana recibe 5d6 de daño psíquico."
+                  ]
+                },
+                "La maldición dura hasta que se termina con un hechizo de mayor restauración, un hechizo de quitar maldiciones, o hechizos similares. No termina cuando el objetivo muere. Si un objetivo maldito es devuelto a la vida, la maldición permanece en vigencia."
+              ]
+            },
+            {
+              "name": "Ojo Maligno (Recarga después de un Descanso Corto o Largo)",
+              "entries": [
+                "Como acción, un Vistano puede dirigirse a una criatura dentro de 9 metros que el Vistano pueda ver. Esta habilidad mágica, que los Vistanos llaman Ojo Maligno, duplica la duración y el efecto del hechizo de amistad con animal, encantar persona o sujetar persona (la elección del Vistano; CD del hechizo <$spell_dc__cha$>), pero no requiere componentes somáticos ni materiales. Si el objetivo tiene éxito en la tirada, el Vistano queda ciego hasta el final del siguiente turno del Vistano.",
+                "Un Vistano que utiliza el Ojo Maligno no puede volver a usarlo antes de terminar un descanso corto o largo. Una vez que un objetivo tiene éxito en una tirada de salvación contra el Ojo Maligno de un Vistano, queda inmune al Ojo Maligno de todos los Vistanos durante 24 horas."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "Elfo del Bosque",
+    "apply": {
+      "_root": {
+        "size": [
+          "M"
+        ],
+        "type": {
+          "type": "humanóide",
+          "tags": [
+            {
+              "tag": "elfo",
+              "prefix": "Bosque",
+              "prefixHidden": true
+            }
+          ]
+        },
+        "speed": {
+          "walk": 35
+        }
+      },
+      "_mod": {
+        "_": [
+          {
+            "mode": "addSenses",
+            "senses": {
+              "type": "visión en la oscuridad",
+              "range": 60
+            }
+          },
+          {
+            "mode": "addSkills",
+            "skills": {
+              "perception": 1
+            }
+          }
+        ],
+        "languages": {
+          "mode": "appendIfNotExistsArr",
+          "items": "Elfo"
+        },
+        "trait": {
+          "mode": "appendArr",
+          "items": [
+            {
+              "name": "Origen Fey",
+              "entries": [
+                "<$title_short_name$> tiene ventaja en las tiradas de salvación contra la encantación, y la magia no puede dormir a <$short_name>."
+              ]
+            },
+            {
+              "name": "Máscara de la Naturaleza",
+              "entries": [
+                "<$title_short_name$> puede intentar ocultarse incluso cuando solo está parcialmente cubierta por vegetación, lluvia intensa, nieve, niebla y otros fenómenos naturales."
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+]

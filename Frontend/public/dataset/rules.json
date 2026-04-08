@@ -1,142 +1,142 @@
 [
   {
-    "name": "Prueba de habilidad",
+    "name": "Ability Check",
     "entries": [
-      "Una prueba de habilidad es una prueba de D20 que representa el uso de una de las seis habilidades—o una habilidad específica asociada con una habilidad—para superar un desafío."
+      "An ability check is a D20 Test that represents using one of the six abilities—or a specific skill associated with an ability—to overcome a challenge."
     ]
   },
   {
-    "name": "Puntaje de habilidad y modificador",
+    "name": "Ability Score and Modifier",
     "entries": [
-      "Una criatura tiene seis puntajes de habilidad—Fuerza, Destreza, Constitución, Inteligencia, Sabiduría y Carisma—cada uno de los cuales tiene un modificador correspondiente. Añade el modificador cuando hagas una prueba de D20 con la habilidad correspondiente o cuando una regla te lo pide."
+      "A creature has six ability scores—Strength, Dexterity, Constitution, Intelligence, Wisdom, and Charisma—each of which has a corresponding modifier. Add the modifier when you make a D20 Test with the corresponding ability or when a rule asks you to do so."
     ]
   },
   {
-    "name": "Acción",
+    "name": "Action",
     "entries": [
-      "En tu turno, puedes realizar una acción. Elige la acción que deseas realizar de las que se encuentran a continuación o de las acciones especiales proporcionadas por tus características. Estas acciones están definidas en otro lugar de este glosario:",
+      "On your turn, you can take one action. Choose which action to take from those below or from the special actions provided by your features. These actions are defined elsewhere in this glossary:",
       {
         "type": "list",
         "style": "list-hang-notitle",
         "columns": 4,
         "items": [
-          "Atacar",
-          "Evadir",
-          "Correr",
-          "Ayuda",
-          "Desactivar",
-          "Ocultar",
-          "Influir",
-          "Magia",
-          "Listo",
-          "Buscar",
-          "Estudiar",
-          "Usar"
+          "Attack",
+          "Dodge",
+          "Dash",
+          "Help",
+          "Disengage",
+          "Hide",
+          "Influence",
+          "Magic",
+          "Ready",
+          "Search",
+          "Study",
+          "Utilize"
         ]
       }
     ]
   },
   {
-    "name": "Ventaja",
+    "name": "Advantage",
     "entries": [
-      "Si tienes Ventaja en una prueba de D20, tira dos dados de 20 y usa el resultado más alto. Un resultado no puede ser afectado por más de una Ventaja, y la Ventaja y la Desventaja en el mismo resultado se anulan."
+      "If you have Advantage on a D20 Test, roll two d20s, and use the higher roll. A roll can't be affected by more than one Advantage, and Advantage and Disadvantage on the same roll cancel each other."
     ]
   },
   {
-    "name": "Aventura",
+    "name": "Adventure",
     "entries": [
-      "Una aventura es una serie de encuentros. Una historia emerge a través de ellos."
+      "An adventure is a series of encounters. A story emerges through playing them."
     ]
   },
   {
-    "name": "Alineamiento",
+    "name": "Alignment",
     "entries": [
-      "El alineamiento de una criatura describe ampliamente sus actitudes y ideales éticos. El alineamiento es una combinación de dos factores: uno identifica la moralidad (bueno, malo o neutral), y el otro describe las actitudes hacia el orden (leal, caótico o neutral). Estos factores permiten nueve combinaciones posibles, como Bueno y Mal."
+      "A creature's alignment broadly describes its ethical attitudes and ideals. Alignment is a combination of two factors: one identifies morality (good, evil, or neutral), and the other describes attitudes toward order (lawful, chaotic, or neutral). These factors allow for nine possible combinations, such as Lawful Good and Neutral Evil."
     ]
   },
   {
-    "name": "Aliado",
+    "name": "Ally",
     "entries": [
-      "Una criatura es tu aliado si es miembro de tu grupo de aventuras, tu amigo, está a tu lado en combate, o una criatura que las reglas o el DM designan como tu aliado."
+      "A creature is your ally if it is a member of your adventuring party, your friend, on your side in combat, or a creature that the rules or the DM designates as your ally."
     ]
   },
   {
-    "name": "Área de efecto",
+    "name": "Area of Effect",
     "entries": [
-      "Las descripciones de muchas hechizos y otras características especifican que tienen un área de efecto, que típicamente tiene una de seis formas. Estas formas están definidas en otro lugar en este glosario:",
+      "The descriptions of many spells and other features specify that they have an area of effect, which typically has one of six shapes. These shapes are defined elsewhere in this glossary:",
       {
         "type": "list",
         "style": "list-hang-notitle",
         "columns": 3,
         "items": [
-          "Cono [Área de efecto]",
-          "Cubo [Área de efecto]",
-          "Cilindro [Área de Efecto]",
-          "Emisión [Área de Efecto]",
-          "Línea [Área de Efecto]",
-          "Esfera [Área de Efecto]"
+          "Cone [Area of Effect]",
+          "Cube [Area of Effect]",
+          "Cylinder [Area of Effect]",
+          "Emanation [Area of Effect]",
+          "Line [Area of Effect]",
+          "Sphere [Area of Effect]"
         ]
       },
-      "Un área de efecto tiene un punto de origen, un lugar desde donde la energía del efecto irrumpe. Las reglas para cada forma especifican cómo posicionar su punto de origen. Si todas las líneas rectas que se extienden desde el punto de origen hasta un lugar dentro del área de efecto están bloqueadas, ese lugar no está incluido en el área de efecto. Para bloquear una línea, un obstáculo debe proporcionar Cobertura Total.",
-      "Si el creador de un efecto de área lo coloca en un punto no visible y hay un obstáculo—como una pared—entre el creador y ese punto, el punto de origen surge en el lado cercano del obstáculo."
+      "An area of effect has a point of origin, a location from which the effect's energy erupts. The rules for each shape specify how to position its point of origin. If all straight lines extending from the point of origin to a location in the area of effect are blocked, that location isn't included in the area of effect. To block a line, an obstruction must provide Total Cover.",
+      "If the creator of an area of effect places it at an unseen point and an obstruction—such as a wall—is between the creator and that point, the point of origin comes into being on the near side of the obstruction."
     ]
   },
   {
-    "name": "Clase de Armadura",
+    "name": "Armor Class",
     "entries": [
-      "Una Clase de Armadura (CA) es el número objetivo para un lanzamiento de ataque. La CA representa cuán difícil es golpear a un objetivo.",
-      "Tu cálculo base de CA es 10 más tu modificador de Destreza. Si una regla te da otro cálculo base de CA, eliges cuál usar; no puedes usar más de uno."
+      "An Armor Class (AC) is the target number for an attack roll. AC represents how difficult it is to hit a target.",
+      "Your base AC calculation is 10 plus your Dexterity modifier. If a rule gives you another base AC calculation, you choose which calculation to use; you can't use more than one."
     ]
   },
   {
-    "name": "Entrenamiento en Armadura",
+    "name": "Armor Training",
     "entries": [
-      "El entrenamiento con armadura te permite usar armaduras de una categoría específica sin las siguientes desventajas. Si usas armadura Ligera, Media o Pesada y no tienes entrenamiento con ella, tienes Desventaja en cualquier prueba de D20 que involucre Fuerza o Destreza, y no puedes lanzar hechizos. Si usas un Escudo y no tienes entrenamiento con él, no obtienes su bonificación de CA."
+      "Armor training allows you to use armor of a certain category without the following drawbacks. If you wear Light, Medium, or Heavy armor and lack training with it, you have Disadvantage on any D20 Test that involves Strength or Dexterity, and you can't cast spells. If you use a Shield and lack training with it, you don't gain its AC bonus."
     ]
   },
   {
-    "name": "Lanzamiento de ataque",
+    "name": "Attack Roll",
     "entries": [
-      "Un lanzamiento de ataque es una prueba de D20 que representa realizar un ataque con un arma, un golpe sin armas o un hechizo."
+      "An attack roll is a D20 Test that represents making an attack with a weapon, an Unarmed Strike, or a spell."
     ]
   },
   {
-    "name": "Actitud",
+    "name": "Attitude",
     "entries": [
-      "Un monstruo tiene una actitud inicial hacia un Personaje Jugador: Amigable, Hostil o Indiferente."
+      "A monster has a starting attitude toward a Player Character: Friendly, Hostile, or Indifferent."
     ]
   },
   {
-    "name": "Afinamiento",
+    "name": "Attunement",
     "entries": [
-      "Algunos objetos mágicos requieren que una criatura forme un vínculo—llamado Afinamiento—con ellos antes de que la criatura pueda usar las propiedades mágicas del objeto. Una criatura puede tener Afinamiento con no más de tres objetos mágicos a la vez."
+      "Some magic items require a creature to form a bond—called Attunement—with them before the creature can use an item's magical properties. A creature can have Attunement with no more than three magic items at a time."
     ]
   },
   {
-    "name": "Acción Adicional",
+    "name": "Bonus Action",
     "entries": [
-      "Una Acción Adicional es una acción especial que puedes tomar en el mismo turno que tomas una acción. No puedes realizar más de una Acción Adicional en un turno, y tienes una Acción Adicional disponible solo si una regla lo especifica explícitamente."
+      "A Bonus Action is a special action that you can take on the same turn that you take an action. You can't take more than one Bonus Action on a turn, and you have a Bonus Action to take only if a rule explicitly says so."
     ]
   },
   {
-    "name": "Romper Objetos",
+    "name": "Breaking Objects",
     "entries": [
-      "Los objetos pueden ser dañados por ataques y por algunos hechizos, usando las reglas a continuación. Si un objeto es extremadamente frágil, el DM puede permitir que una criatura lo rompa automáticamente con la acción de Ataque o Utilizar.",
+      "Objects can be harmed by attacks and by some spells, using the rules below. If an object is exceedingly fragile, the DM may allow a creature to break it automatically with the Attack or Utilize action.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Clase de Armadura",
+            "name": "Armor Class",
             "entries": [
-              "La tabla de Clase de Armadura de Objetos sugiere valores de AC para diversas sustancias."
+              "The Object Armor Class table suggests ACs for various substances."
             ]
           }
         ]
       },
       {
         "type": "table",
-        "caption": "Clase de Armadura de Objetos",
+        "caption": "Object Armor Class",
         "colLabels": [
           "AC",
           "Substance"
@@ -148,23 +148,23 @@
         "rows": [
           [
             "11",
-            "Tela, papel, cuerda"
+            "Cloth, paper, rope"
           ],
           [
             "13",
-            "Cristal, vidrio, hielo"
+            "Crystal, glass, ice"
           ],
           [
             "15",
-            "Madera"
+            "Wood"
           ],
           [
             "17",
-            "Piedra"
+            "Stone"
           ],
           [
             "19",
-            "Hierro, acero"
+            "Iron, steel"
           ],
           [
             "21",
@@ -172,7 +172,7 @@
           ],
           [
             "23",
-            "Adamantita"
+            "Adamantite"
           ]
         ]
       },
@@ -181,16 +181,16 @@
         "entries": [
           {
             "type": "entries",
-            "name": "Puntos de Vida",
+            "name": "Hit Points",
             "entries": [
-              "Un objeto se destruye cuando tiene 0 Puntos de Vida. La tabla de Puntos de Vida sugiere Puntos de Vida para objetos frágiles y resistentes que son Grandes o más pequeños. Para rastrear Puntos de Vida para un objeto Enorme o Gigante, divídelo en secciones Grandes o más pequeñas, y rastrea los Puntos de Vida de cada sección por separado. El DM determina si destruir parte de un objeto causa que todo se derrumbe."
+              "An object is destroyed when it has 0 Hit Points. The Object Hit Points table suggests Hit Points for fragile and resilient objects that are Large or smaller. To track Hit Points for a Huge or Gargantuan object, divide it into Large or smaller sections, and track each section's Hit Points separately. The DM determines whether destroying part of an object causes the whole thing to collapse."
             ]
           }
         ]
       },
       {
         "type": "table",
-        "caption": "Puntos de Vida",
+        "caption": "Object Hit Points",
         "colLabels": [
           "Size",
           "Fragile",
@@ -203,22 +203,22 @@
         ],
         "rows": [
           [
-            "Pequeño (botella, candado)",
+            "Tiny (bottle, lock)",
             "2 (1d4)",
             "5 (2d4)"
           ],
           [
-            "Mediano (caja, laúd)",
+            "Small (chest, lute)",
             "3 (1d6)",
             "10 (3d6)"
           ],
           [
-            "Mediano (botella, candelabro)",
+            "Medium (barrel, chandelier)",
             "4 (1d8)",
             "18 (4d8)"
           ],
           [
-            "Grande (cesta, mesa de comedor)",
+            "Large (cart, dining table)",
             "5 (1d10)",
             "27 (5d10)"
           ]
@@ -229,23 +229,23 @@
         "entries": [
           {
             "type": "entries",
-            "name": "Tipos y Objetos de Daño",
+            "name": "Damage Types and Objects",
             "entries": [
-              "Los objetos tienen inmunidad al daño de veneno y psíquico. El DM puede decidir que algunos tipos de daño son más o menos efectivos contra un objeto. Por ejemplo, el daño contundente funciona bien para romper cosas, pero no para cortar. Los objetos de papel o tela podrían tener vulnerabilidad al daño de fuego."
+              "Objects have Immunity to Poison and Psychic damage. The DM might decide that some damage types are more or less effective against an object. For example, Bludgeoning damage works well for smashing things but not for cutting. Paper or cloth objects might have Vulnerability to Fire damage."
             ]
           },
           {
             "type": "entries",
-            "name": "Umbral de Daño",
+            "name": "Damage Threshold",
             "entries": [
-              "Objetos grandes, como las murallas de un castillo, a menudo tienen una resistencia adicional representada por un umbral de daño."
+              "Big objects, such as castle walls, often have extra resilience represented by a damage threshold."
             ]
           },
           {
             "type": "entries",
-            "name": "Sin Modificadores de Habilidad",
+            "name": "No Ability Scores",
             "entries": [
-              "Un objeto carece de modificadores de habilidad a menos que una regla asigne los modificadores al objeto. Sin modificadores de habilidad, un objeto no puede realizar pruebas de habilidad y falla todas las tiradas de salvación."
+              "An object lacks ability scores unless a rule assigns scores to the object. Without ability scores, an object can't make ability checks, and it fails all saving throws."
             ]
           }
         ]
@@ -253,37 +253,37 @@
     ]
   },
   {
-    "name": "Luz brillante",
+    "name": "Bright Light",
     "entries": [
-      "La luz brillante es una iluminación normal."
+      "Bright Light is normal illumination."
     ]
   },
   {
-    "name": "Velocidad de Excavación",
+    "name": "Burrow Speed",
     "entries": [
-      "Una criatura con Velocidad de Excavación puede usar esa velocidad para moverse a través de arena, tierra, lodo o hielo. La criatura no puede excavar a través de roca sólida a menos que la criatura tenga una característica que le permita hacerlo."
+      "A creature that has a Burrow Speed can use that speed to move through sand, earth, mud, or ice. The creature can't burrow through solid rock unless the creature has a trait that allows it to do so."
     ]
   },
   {
-    "name": "Campaña",
+    "name": "Campaign",
     "entries": [
-      "Una campaña es una serie de aventuras."
+      "A campaign is a series of adventures."
     ]
   },
   {
-    "name": "Hechizo",
+    "name": "Cantrip",
     "entries": [
-      "Un truco es un hechizo de nivel 0, que se lanza sin usar un espacio de hechizo."
+      "A cantrip is a level 0 spell, which is cast without a spell slot."
     ]
   },
   {
-    "name": "Capacidad de Carga",
+    "name": "Carrying Capacity",
     "entries": [
-      "Tu tamaño y puntuación de Fuerza determinan el peso máximo que puedes llevar, según la tabla de Capacidad de Carga. La tabla también muestra el peso máximo que puedes arrastrar, levantar o empujar.",
-      "Mientras arrastras, levantas o empujas un peso que exceda el peso máximo que puedes llevar, tu velocidad no puede ser mayor a 5 pies.",
+      "Your size and Strength score determines the maximum weight in pounds that you can carry, as shown in the Carrying Capacity table. The table also shows the maximum weight you can drag, lift or push.",
+      "While dragging, lifting, or pushing weight in excess of the maximum weight you can carry, your Speed can be no more than 5 feet.",
       {
         "type": "table",
-        "caption": "Capacidad de Carga",
+        "caption": "Carrying Capacity",
         "colLabels": [
           "Creature Size",
           "Carry",
@@ -296,196 +296,196 @@
         ],
         "rows": [
           [
-            "Pequeño",
-            "Cuerda × 7.5 lb.",
-            "Cuerda × 15 lb."
+            "Tiny",
+            "Str. × 7.5 lb.",
+            "Str. × 15 lb."
           ],
           [
-            "Pequeño/Mediano",
-            "Cuerda × 15 lb.",
-            "Cuerda × 30 lb."
+            "Small/Medium",
+            "Str. × 15 lb.",
+            "Str. × 30 lb."
           ],
           [
-            "Grande",
-            "Cuerda × 30 lb.",
-            "Hilo × 60 lb"
+            "Large",
+            "Str. × 30 lb.",
+            "Str. × 60 lb."
           ],
           [
-            "Enorme",
-            "Hilo × 60 lb",
-            "Hilo × 120 lb"
+            "Huge",
+            "Str. × 60 lb.",
+            "Str. × 120 lb."
           ],
           [
-            "Gigantesco",
-            "Hilo × 120 lb",
-            "Hilo × 240 lb"
+            "Gargantuan",
+            "Str. × 120 lb.",
+            "Str. × 240 lb."
           ]
         ]
       }
     ]
   },
   {
-    "name": "Nivel de Desafío",
+    "name": "Challenge Rating",
     "entries": [
-      "El Nivel de Desafío (ND) resume la amenaza que un monstruo representa para un grupo de cuatro personajes jugadores. Compara el ND de un monstruo con el nivel de los personajes. Si el ND es más alto, el monstruo probablemente representa un peligro. Si el ND es más bajo, el monstruo probablemente no representa una gran amenaza. Pero las circunstancias y el número de personajes jugadores pueden alterar significativamente la amenaza que representa un monstruo en el juego. La Guía para el Dungeon Master proporciona orientación al DM sobre el uso del ND al planificar posibles encuentros de combate."
+      "Challenge Rating (CR) summarizes the threat a monster poses to a group of four player characters. Compare a monster's CR to the characters' level. If the CR is higher, the monster is likely a danger. If the CR is lower, the monster likely poses little threat. But circumstances and the number of player characters can significantly alter how threatening a monster is in actual play. The Dungeon Master's Guide provides guidance to the DM on using CR while planning potential combat encounters."
     ]
   },
   {
-    "name": "Hoja de Personaje",
+    "name": "Character Sheet",
     "entries": [
-      "Una hoja de personaje es un registro en papel o digital que utilizas para registrar la información de tu personaje."
+      "A character sheet is a paper or digital record that you use to track your character's information."
     ]
   },
   {
-    "name": "Velocidad de Escalada",
+    "name": "Climb Speed",
     "entries": [
-      "La velocidad de ascenso puede usarse en lugar de la velocidad para atravesar una superficie vertical sin gastar el movimiento extra normalmente asociado con la escalada."
+      "A Climb Speed can be used in place of Speed to traverse a vertical surface without expending the extra movement normally associated with climbing."
     ]
   },
   {
-    "name": "Escalada",
+    "name": "Climbing",
     "entries": [
-      "Mientras estás escalando, cada pie de movimiento cuesta un pie extra (2 pies extra en terreno difícil). Ignoras este costo extra si tienes una velocidad de escalada y la usas para escalar. A discreción del DM, escalar una superficie resbaladiza o con pocos puntos de apoyo podría requerir una tirada de éxito de Fuerza (Atletismo) de 15."
+      "While you're climbing, each foot of movement costs 1 extra foot (2 extra feet in difficult terrain). You ignore this extra cost if you have a Climb Speed and use it to climb. At the DM's option, climbing a slippery surface or one with few handholds might require a successful DC 15 Strength (Athletics) check."
     ]
   },
   {
-    "name": "Condición",
+    "name": "Condition",
     "entries": [
-      "Una condición es un estado temporal del juego. La definición de una condición dice cómo afecta a su destinatario, y varias reglas definen cómo terminar una condición. Este glosario define estas condiciones:",
+      "A condition is a temporary game state. The definition of a condition says how it affects its recipient, and various rules define how to end a condition. This glossary defines these conditions:",
       {
         "type": "list",
         "style": "list-hang-notitle",
         "columns": 3,
         "items": [
-          "Ciego",
-          "Encantado",
-          "Sordo",
-          "Exhausto",
-          "Asustado",
-          "Atascado",
-          "Incapaz",
+          "Blinded",
+          "Charmed",
+          "Deafened",
+          "Exhaustion",
+          "Frightened",
+          "Grappled",
+          "Incapacitated",
           "Invisible",
-          "Paralizado",
-          "Petrificado",
-          "Envenenado",
-          "En decúbito",
-          "Controlado",
-          "Aturdido",
-          "Inconsciente"
+          "Paralyzed",
+          "Petrified",
+          "Poisoned",
+          "Prone",
+          "Restrained",
+          "Stunned",
+          "Unconscious"
         ]
       },
-      "Una condición no se acumula con sí misma; un receptor o tiene una condición o no la tiene. La condición de Exhaustion es una excepción a esa regla."
+      "A condition doesn't stack with itself; a recipient either has a condition or doesn't. The Exhaustion condition is an exception to that rule."
     ]
   },
   {
-    "name": "Cono [Área de efecto]",
+    "name": "Cone [Area of Effect]",
     "entries": [
-      "Un Cone es un área de efecto que se extiende en líneas rectas desde un punto de origen en una dirección que su creador elige. El ancho de un Cone en cualquier punto a lo largo de su longitud es igual a la distancia de ese punto al punto de origen. Por ejemplo, un Cone tiene 15 pies de ancho en un punto a lo largo de su longitud que está a 15 pies del punto de origen. El efecto que crea un Cone especifica su máxima longitud.",
-      "El punto de origen de un Cone no está incluido en el área de efecto a menos que su creador decida lo contrario."
+      "A Cone is an area of effect that extends in straight lines from a point of origin in a direction its creator chooses. A Cone's width at any point along its length is equal to that point's distance from the point of origin. For example, a Cone is 15 feet wide at a point along its length that is 15 feet from the point of origin. The effect that creates a Cone specifies its maximum length.",
+      "A Cone's point of origin isn't included in the area of effect unless its creator decides otherwise."
     ]
   },
   {
-    "name": "Capa",
+    "name": "Cover",
     "entries": [
-      "La Capa proporciona un grado de protección a un objetivo detrás de ella. Hay tres grados de protección, cada uno de los cuales proporciona un beneficio diferente a un objetivo: Capa Parcial (+2 de bonificación en la CA y las tiradas de salvación de Destreza), Capa Casi Total (+5 de bonificación en la CA y las tiradas de salvación de Destreza), y Capa Total (no puede ser dirigida directamente). Si está detrás de más de un grado de cobertura, un objetivo solo se beneficia del grado de protección más fuerte."
+      "Cover provides a degree of protection to a target behind it. There are three degrees of cover, each of which provides a different benefit to a target: Half Cover (+2 bonus to AC and Dexterity saving throws), Three-Quarters Cover (+5 bonus to AC and Dexterity saving throws), and Total Cover (can't be targeted directly). If behind more than one degree of cover, a target benefits only from the most protective degree."
     ]
   },
   {
-    "name": "Caminando",
+    "name": "Crawling",
     "entries": [
-      "Mientras caminas, cada pie de movimiento cuesta 1 pie adicional (2 pies adicionales en terreno difícil)."
+      "While you're crawling, each foot of movement costs 1 extra foot (2 extra feet in difficult terrain)."
     ]
   },
   {
-    "name": "Criatura",
+    "name": "Creature",
     "entries": [
-      "Cualquier ser en el juego, incluyendo el personaje de un jugador, es una criatura."
+      "Any being in the game, including a player's character, is a creature."
     ]
   },
   {
-    "name": "Tipo de criatura",
+    "name": "Creature Type",
     "entries": [
-      "Cada criatura, incluyendo cada personaje, tiene una etiqueta en las reglas que identifica el tipo de criatura. La mayoría de los personajes son del tipo Humanoide. Estos son los tipos de criaturas del juego:",
+      "Every creature, including every player character, has a tag in the rules that identifies the type of creature it is. Most player characters are of the Humanoid type. These are the game's creature types:",
       {
         "type": "list",
         "style": "list-hang-notitle",
         "columns": 3,
         "items": [
-          "Aberración",
-          "Bestia",
+          "Aberration",
+          "Beast",
           "Celestial",
-          "Constructo",
-          "Dragón",
+          "Construct",
+          "Dragon",
           "Elemental",
           "Fey",
-          "Demonio",
-          "Gigante",
-          "Humanoide",
-          "Monstruosidad",
-          "Fluido",
-          "Planta",
-          "No muerto"
+          "Fiend",
+          "Giant",
+          "Humanoid",
+          "Monstrosity",
+          "Ooze",
+          "Plant",
+          "Undead"
         ]
       },
-      "Los tipos no tienen reglas por sí mismos, pero algunas reglas del juego afectan a las criaturas de ciertos tipos de diferentes maneras."
+      "The types don't have rules themselves, but some rules in the game affect creatures of certain types in different ways."
     ]
   },
   {
-    "name": "Gol Crítico",
+    "name": "Critical Hit",
     "entries": [
-      "Si tiras un 20 en el d20 para un ataque, obtienes un Gol Crítico, y el ataque impacta sin importar ningún modificador o la CA del objetivo. Un Gol Crítico te permite tirar dados adicionales para el daño del ataque contra el objetivo. Tira todas las fichas de daño del ataque dos veces y súmalas. Luego, añade cualquier modificador relevante."
+      "If you roll a 20 on the d20 for an attack roll, you score a Critical Hit, and the attack hits regardless of any modifiers or the target's AC. A Critical Hit lets you roll extra dice for the attack's damage against the target. Roll all of the attack's damage dice twice and add them together. Then add any relevant modifiers."
     ]
   },
   {
-    "name": "Cubo [Área de efecto]",
+    "name": "Cube [Area of Effect]",
     "entries": [
-      "Un Cubo es un área de efecto que se extiende en líneas rectas desde un punto de origen ubicado en cualquier parte de una cara del Cubo. El efecto que crea un Cubo especifica su tamaño, que es la longitud de cada lado. El punto de origen del Cubo no está incluido en el área de efecto a menos que su creador decida lo contrario."
+      "A Cube is an area of effect that extends in straight lines from a point of origin located anywhere on a face of the Cube. The effect that creates a Cube specifies its size, which is the length of each side. A Cube's point of origin isn't included in the area of effect unless its creator decides otherwise."
     ]
   },
   {
-    "name": "Malas",
+    "name": "Curses",
     "entries": [
-      "Algunos efectos de juego, como una maldición, afectan a un ser o un objeto. El efecto que causa la maldición define lo que hace la maldición. Las maldiciones pueden ser eliminadas con los hechizos Remover Maldición y Restauración Mayor, o con cualquier otra magia que elimine explícitamente las maldiciones."
+      "Some game effects curse a creature or an object. The effect that confers a curse defines what the curse does. Curses can be removed by the Remove Curse and Greater Restoration spells or other magic that explicitly ends curses."
     ]
   },
   {
-    "name": "Cilindro [Área de Efecto]",
+    "name": "Cylinder [Area of Effect]",
     "entries": [
-      "Un Cilindro es un área de efecto que se extiende en líneas rectas desde un punto de origen ubicado en el centro de la parte superior o inferior circular del Cilindro. El efecto que crea un Cilindro especifica el radio de la base del Cilindro y la altura del Cilindro.",
-      "El punto de origen de un Cilindro está incluido en el área de efecto."
+      "A Cylinder is an area of effect that extends in straight lines from a point of origin located at the center of the circular top or bottom of the Cylinder. The effect that creates a Cylinder specifies the radius of the Cylinder's base and the Cylinder's height.",
+      "A Cylinder's point of origin is included in the area of effect."
     ]
   },
   {
-    "name": "Prueba con D20",
+    "name": "D20 Test",
     "entries": [
-      "Las pruebas con D20 abarcan las tres pruebas principales con D20 del juego: chequeos de habilidad, ataques y pruebas de salvación. Si algo en el juego afecta a las pruebas con D20, afecta a todas estas pruebas. El DM determina si una prueba con D20 es necesaria en una situación determinada."
+      "D20 Tests encompass the three main d20 rolls of the game: ability checks, attack rolls, and saving throws. If something in the game affects D20 Tests, it affects all three of these rolls. The DM determines whether a D20 Test is warranted in a given circumstance."
     ]
   },
   {
-    "name": "Daño",
+    "name": "Damage",
     "entries": [
-      "Daño representa daño que causa que una criatura o un objeto pierda Puntos de Vida."
+      "Damage represents harm that causes a creature or an object to lose Hit Points."
     ]
   },
   {
-    "name": "Lanzamiento de daño",
+    "name": "Damage Roll",
     "entries": [
-      "Un lanzamiento de daño es un lanzamiento de dado, ajustado por cualquier modificador aplicable, que inflige daño a un objetivo."
+      "A damage roll is a die roll, adjusted by any applicable modifiers, that deals damage to a target."
     ]
   },
   {
-    "name": "Umbral de Daño",
+    "name": "Damage Threshold",
     "entries": [
-      "Una criatura o un objeto que tiene un umbral de daño tiene Inmunidad a todo el daño a menos que reciba una cantidad de daño de un solo ataque o efecto igual o superior a su umbral de daño, en cuyo caso recibe esa instancia completa de daño. Cualquier daño que no cumpla o exceda el umbral de daño es superficial y no reduce Puntos de Vida. Por ejemplo, si un objeto tiene un umbral de daño de 10, el objeto no recibe daño si se le infligen 9 puntos de daño, ya que ese daño no excede el umbral. Si al mismo objeto se le infligen 11 puntos de daño, recibe todo ese daño."
+      "A creature or an object that has a damage threshold has Immunity to all damage unless it takes an amount of damage from a single attack or effect equal to or greater than its damage threshold, in which case it takes that entire instance of damage. Any damage that fails to meet or exceed the damage threshold is superficial and doesn't reduce Hit Points. For example, if an object has a damage threshold of 10, the object takes no damage if 9 damage is dealt to it, since that damage fails to exceed the threshold. If the same object is dealt 11 damage, it takes all of that damage."
     ]
   },
   {
-    "name": "Tipos de daño",
+    "name": "Damage Types",
     "entries": [
-      "Los ataques y otros efectos dañinos causan diferentes tipos de daño. Los tipos de daño no tienen reglas propias, pero otras reglas, como la Resistencia, se basan en los tipos. La tabla de Tipos de Daño ofrece ejemplos para ayudar a un DM a asignar un tipo a un nuevo efecto.",
+      "Attacks and other harmful effects deal different types of damage. Damage types have no rules of their own, but other rules, such as Resistance, rely on the types. The Damage Types table offers examples to help a DM assign a type to a new effect.",
       {
         "type": "table",
-        "caption": "Tipos de daño",
+        "caption": "Damage Types",
         "colLabels": [
           "Type",
           "Examples"
@@ -496,193 +496,193 @@
         ],
         "rows": [
           [
-            "Ácido",
-            "Líquidos corrosivos, enzimas digestivas"
+            "Acid",
+            "Corrosive liquids, digestive enzymes"
           ],
           [
-            "Golpes",
-            "Objetos afilados, construcción, caída"
+            "Bludgeoning",
+            "Blunt objects, constriction, falling"
           ],
           [
-            "Frío",
-            "Agua helada, ráfagas de hielo"
+            "Cold",
+            "Freezing water, icy blasts"
           ],
           [
-            "Fuego",
-            "Llamas, calor insoportable"
+            "Fire",
+            "Flames, unbearable heat"
           ],
           [
-            "Fuerza",
-            "Energía mágica pura"
+            "Force",
+            "Pure magical energy"
           ],
           [
-            "Relámpago",
-            "Electricidad"
+            "Lightning",
+            "Electricity"
           ],
           [
-            "Necrótica",
-            "Energía que agota"
+            "Necrotic",
+            "Life-draining energy"
           ],
           [
-            "Punzante",
-            "Dientes, objetos que atraviesan"
+            "Piercing",
+            "Fangs, puncturing objects"
           ],
           [
-            "Veneno",
-            "Gas tóxico, veneno"
+            "Poison",
+            "Toxic gas, venom"
           ],
           [
-            "Psíquico",
-            "Energía que desgaja la mente"
+            "Psychic",
+            "Mind-rending energy"
           ],
           [
-            "Radiante",
-            "Energía sagrada, radiación intensa"
+            "Radiant",
+            "Holy energy, searing radiation"
           ],
           [
-            "Corta",
-            "Garras, objetos cortantes"
+            "Slashing",
+            "Claws, cutting objects"
           ],
           [
-            "Trueno",
-            "Sonido contundente"
+            "Thunder",
+            "Concussive sound"
           ]
         ]
       }
     ]
   },
   {
-    "name": "Oscuridad",
+    "name": "Darkness",
     "entries": [
-      "Una zona de Oscuridad está fuertemente oscurecida."
+      "An area of Darkness is Heavily Obscured."
     ]
   },
   {
-    "name": "Muerto",
+    "name": "Dead",
     "entries": [
-      "Una criatura muerta no tiene Puntos de Vida y no puede recuperarlos a menos que primero sea revivida por magia, como los hechizos Resucitar o Revivir. Cuando se lanza un hechizo de este tipo, el espíritu sabe quién lo está lanzando y puede negarse. El espíritu de una criatura muerta ha abandonado el cuerpo y se ha ido a los planos exteriores, y revivir la criatura requiere llamar al espíritu de vuelta.",
-      "Si la criatura regresa a la vida, el efecto de revivir determina los Puntos de Vida actuales de la criatura. A menos que se indique lo contrario, la criatura regresa a la vida con cualquier condición, contagio mágico o maldición que la afectara al momento de su muerte, si la duración de esos efectos aún está en curso. Si la criatura murió con algún nivel de Agotamiento, regresa con un nivel menos. Si la criatura tenía afinidad con uno o más objetos mágicos, ya no tiene afinidad con ellos."
+      "A dead creature has no Hit Points and can't regain them unless it is first revived by magic such as the Raise Dead or Revivify spell. When such a spell is cast, the spirit knows who is casting it and can refuse. The spirit of a dead creature has left the body and departed for the Outer Planes, and reviving the creature requires calling the spirit back.",
+      "If the creature returns to life, the revival effect determines the creature's current Hit Points. Unless otherwise stated, the creature returns to life with any conditions, magical contagions, or curses that were affecting it at death if the durations of those effects are still ongoing. If the creature died with any Exhaustion levels, it returns with 1 fewer level. If the creature had Attunement to one or more magic items, it is no longer attuned to them."
     ]
   },
   {
-    "name": "Lanzamiento de Salvación por Muerte",
+    "name": "Death Saving Throw",
     "entries": [
-      "Un personaje debe realizar un Lanzamiento de Salvación por Muerte (también conocido como Salvación por Muerte) si comienza su turno con 0 Puntos de Vida."
+      "A player character must make a Death Saving Throw (also called a Death Save) if they start their turn with 0 Hit Points."
     ]
   },
   {
-    "name": "Terreno Difícil",
+    "name": "Difficult Terrain",
     "entries": [
-      "Si un espacio es Terreno Difícil, cada pie de movimiento en ese espacio cuesta 1 pie extra. Por ejemplo, mover 5 pies a través de Terreno Difícil cuesta 10 pies de movimiento. El Terreno Difícil no se acumula; ya sea que un espacio sea Terreno Difícil o no.",
-      "Un espacio es Terreno Difícil si contiene alguno de los siguientes o algo similar:",
+      "If a space is Difficult Terrain, every foot of movement in that space costs 1 extra foot. For example, moving 5 feet through Difficult Terrain costs 10 feet of movement. Difficult Terrain isn't cumulative; either a space is Difficult Terrain or it isn't.",
+      "A space is Difficult Terrain if the space contains any of the following or something similar:",
       {
         "type": "list",
         "items": [
-          "Una criatura que no sea Pequeña o tu aliado",
-          "Mobiliario que está dimensionado para criaturas de tu tamaño o más grande",
-          "Gran nevada, hielo, escombros o vegetación",
-          "Líquido que está entre la altura de la rodilla y la cintura",
-          "Un hueco estrecho de tamaño adecuado para una criatura de un tamaño inferior al tuyo",
-          "Una pendiente de 20 grados o más"
+          "A creature that isn't Tiny or your ally",
+          "Furniture that is sized for creatures of your size or larger",
+          "Heavy snow, ice, rubble, or undergrowth",
+          "Liquid that's between shin- and waist-deep",
+          "A narrow opening sized for a creature one size smaller than you",
+          "A slope of 20 degrees or more"
         ]
       }
     ]
   },
   {
-    "name": "Clase de dificultad",
+    "name": "Difficulty Class",
     "entries": [
-      "Una Clase de Dificultad (CD) es el número objetivo para una tirada de habilidad o un lanzamiento de salvación."
+      "A Difficulty Class (DC) is the target number for an ability check or a saving throw."
     ]
   },
   {
-    "name": "Luz tenue",
+    "name": "Dim Light",
     "entries": [
-      "Una zona con Luz tenue está parcialmente oculta."
+      "An area with Dim Light is Lightly Obscured."
     ]
   },
   {
-    "name": "Desventaja",
+    "name": "Disadvantage",
     "entries": [
-      "Si tienes Desventaja en una tirada de D20, tira dos dados de D20 y usa el resultado más bajo. Un resultado no puede ser afectado por más de una Desventaja, y la Ventaja y la Desventaja en el mismo resultado se anulan mutuamente."
+      "If you have Disadvantage on a D20 Test, roll two d20s and use the lower roll. A roll can't be affected by more than one Disadvantage, and Advantage and Disadvantage on the same roll cancel each other."
     ]
   },
   {
-    "name": "Emisión [Área de Efecto]",
+    "name": "Emanation [Area of Effect]",
     "entries": [
-      "Una Emanación es un área de efecto que se extiende en líneas rectas desde una criatura o un objeto en todas las direcciones. El efecto que crea la Emanación especifica la distancia que se extiende.",
-      "Una Emanación se mueve con la criatura o el objeto que es su origen, a menos que sea un efecto instantáneo o estático.",
-      "El origen de una Emanación (criatura o objeto) no está incluido en el área de efecto, a menos que su creador decida lo contrario."
+      "An Emanation is an area of effect that extends in straight lines from a creature or an object in all directions. The effect that creates an Emanation specifies the distance it extends.",
+      "An Emanation moves with the creature or object that is its origin unless it is an instantaneous or a stationary effect.",
+      "An Emanation's origin (creature or object) isn't included in the area of effect unless its creator decides otherwise."
     ]
   },
   {
-    "name": "Encuentro",
+    "name": "Encounter",
     "entries": [
-      "Un encuentro es una escena en una aventura que forma parte de al menos uno de los tres pilares del juego: interacción social, exploración o combate."
+      "An encounter is a scene in an adventure that is part of at least one of the game's three pillars: social interaction, exploration, or combat."
     ]
   },
   {
-    "name": "Enemigo",
+    "name": "Enemy",
     "entries": [
-      "Un ser es tu enemigo si lucha contra ti en combate, trabaja activamente para dañarte, o está designado como tu enemigo por las reglas o el DM."
+      "A creature is your enemy if it fights against you in combat, actively works to harm you, or is designated as your enemy by the rules or DM."
     ]
   },
   {
-    "name": "Puntos de Experiencia",
+    "name": "Experience Points",
     "entries": [
-      "Al superar desafíos y completar aventuras, los personajes ganan Puntos de Experiencia (XP), que son otorgados por el Dungeon Master. Cuando el total de XP de un personaje cruza ciertos umbrales, el nivel del personaje aumenta. La Guía del Dungeon Master proporciona orientación sobre la concesión de XP."
+      "As they overcome challenges and complete adventures, characters earn Experience Points (XP) which are awarded by the Dungeon Master. When a character's XP total crosses certain thresholds, the character's level increases. The Dungeon Master's Guide provides guidance on awarding XP."
     ]
   },
   {
-    "name": "Experiencia",
+    "name": "Expertise",
     "entries": [
-      "La experiencia es una característica que mejora tu uso de una habilidad. Cuando haces una prueba de habilidad con una habilidad en la que tienes experiencia, tu bonificación de habilidad se duplica para esa prueba, a menos que otra característica ya haya duplicado el bono.",
-      "Si obtienes experiencia, lo obtienes en una habilidad en la que tienes habilidad. No puedes tener experiencia en la misma habilidad en más de una vez."
+      "Expertise is a feature that enhances your use of a skill proficiency. When you make an ability check with a skill proficiency in which you have Expertise, your Proficiency Bonus is doubled for that check unless the bonus is doubled by another feature.",
+      "If you gain Expertise, you gain it in one skill in which you have proficiency. You can't have Expertise in the same skill proficiency more than once."
     ]
   },
   {
-    "name": "Velocidad de vuelo",
+    "name": "Fly Speed",
     "entries": [
-      "Una velocidad de vuelo se puede utilizar para viajar por el aire. Mientras tienes una velocidad de vuelo, puedes permanecer en el aire hasta que aterrizes, caigas o mueras."
+      "A Fly Speed can be used to travel through the air. While you have a Fly Speed, you can stay aloft until you land, fall, or die."
     ]
   },
   {
-    "name": "Vuelo",
+    "name": "Flying",
     "entries": [
-      "Una variedad de efectos permiten a una criatura volar. Mientras vuela, caes si tienes la condición de 'Incapacitado' o 'Posturado' o si tu Velocidad de Vuelo es reducida a 0. Puedes mantenerte en el aire en esas circunstancias si puedes mantenerte suspendido."
+      "A variety of effects allow a creature to fly. While flying, you fall if you have the Incapacitated or Prone condition or your Fly Speed is reduced to 0. You can stay aloft in those circumstances if you can hover."
     ]
   },
   {
-    "name": "Actitud Amigable",
+    "name": "Friendly [Attitude]",
     "entries": [
-      "Una criatura Amigable te ve de manera favorable. Tienes ventaja en una tirada de habilidad para influir en una criatura Amigable."
+      "A Friendly creature views you favorably. You have advantage on an ability check to influence a Friendly creature."
     ]
   },
   {
-    "name": "Agarre",
+    "name": "Grappling",
     "entries": [
-      "Una criatura puede agarrar a otra criatura. Los personajes suelen agarrar usando un Golpe sin Armas. Muchos monstruos tienen ataques especiales que les permiten agarrar rápidamente a sus presas. Sin embargo, el agarre se inicia siguiendo estas reglas.",
+      "A creature can grapple another creature. Characters typically grapple by using an Unarmed Strike. Many monsters have special attacks that allow them to quickly grapple prey. However a grapple is initiated, it follows these rules.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Condición de agarre",
+            "name": "Grappled Condition",
             "entries": [
-              "Lograr el agarre de una criatura le otorga la condición de agarre."
+              "Successfully grappling a creature gives it the Grappled condition."
             ]
           },
           {
             "type": "entries",
-            "name": "Un solo agarre por mano",
+            "name": "One Grapple per Hand",
             "entries": [
-              "Una criatura debe tener una mano libre para agarrar a otra criatura. Algunos bloques de estadísticas y efectos de juego permiten que una criatura agarre usando un tentáculo, una boca u otra parte del cuerpo. Cualquiera que sea la parte que use el agarre, solo puede agarrar a una criatura a la vez con esa parte, y el agarre no puede usar esa parte para atacar a otra criatura a menos que termine el agarre."
+              "A creature must have a hand free to grapple another creature. Some stat blocks and game effects allow a creature to grapple using a tentacle, a maw, or another body part. Whatever part a grappler uses, it can grapple only one creature at a time with that part, and the grappler can't use that part to target another creature unless it ends the grapple."
             ]
           },
           {
             "type": "entries",
-            "name": "Finalizar un agarre",
+            "name": "Ending a Grapple",
             "entries": [
-              "Una criatura atrapada puede usar su acción para realizar una tirada de Fuerza (Atletismo) o Destreza (Acrobacias) contra la dificultad de escape del agarre, terminando la condición sobre sí misma en caso de éxito."
+              "A Grappled creature can use its action to make a Strength (Athletics) or Dexterity (Acrobatics) check against the grapple's escape DC, ending the condition on itself on a success. The condition also ends if the grappler has the Incapacitated condition or if the distance between the Grappled target and the grappler exceeds the grapple's range. In addition, the grappler can release the target at any time (no action required)."
             ]
           }
         ]
@@ -690,107 +690,107 @@
     ]
   },
   {
-    "name": "Peligro",
+    "name": "Hazard",
     "entries": [
-      "Un peligro es un riesgo ambiental."
+      "A hazard is an environmental danger."
     ]
   },
   {
-    "name": "Curación",
+    "name": "Healing",
     "entries": [
-      "La curación es la forma de recuperar Puntos de Golpe."
+      "Healing is how you regain Hit Points."
     ]
   },
   {
-    "name": "Muy Oculto",
+    "name": "Heavily Obscured",
     "entries": [
-      "Tienes la condición de 'Ciego' al intentar ver algo en un espacio 'Muy Oculto'."
+      "You have the Blinded condition while trying to see something in a Heavily Obscured space."
     ]
   },
   {
-    "name": "Inspiración Heroica",
+    "name": "Heroic Inspiration",
     "entries": [
-      "Si tú (un personaje jugable) tienes 'Inspiración Heroica', puedes gastarla para volver a tirar cualquier dado inmediatamente después de tirarlo, y debes usar el nuevo resultado.",
-      "Si obtienes 'Inspiración Heroica' pero ya la tienes, se pierde a menos que la des a un personaje jugable que no la tenga."
+      "If you (a player character) have Heroic Inspiration, you can expend it to reroll any die immediately after rolling it, and you must use the new roll.",
+      "If you gain Heroic Inspiration but already have it, it's lost unless you give it to a player character who lacks it."
     ]
   },
   {
-    "name": "Salto de altura",
+    "name": "High Jump",
     "entries": [
-      "Cuando haces un Salto de altura, saltas al aire una cantidad de pies igual a 3 más tu modificador de Fuerza (mínimo de 0 pies) si te mueves al menos 10 pies a pie inmediatamente antes del salto. Cuando haces un Salto de altura de pie, solo puedes saltar la mitad de esa distancia. En cualquier caso, cada pie del salto cuesta un pie de movimiento.",
-      "Puedes extender tus brazos a la mitad de tu altura durante el salto. Por lo tanto, puedes alcanzar una distancia igual a la altura del salto más 1½ veces tu altura."
+      "When you make a High Jump, you leap into the air a number of feet equal to 3 plus your Strength modifier (minimum of 0 feet) if you move at least 10 feet on foot immediately before the jump. When you make a standing High Jump, you can jump only half that distance. Either way, each foot of the jump costs a foot of movement.",
+      "You can extend your arms half your height above yourself during the jump. Thus, you can reach a distance equal to the height of the jump plus 1½ times your height."
     ]
   },
   {
-    "name": "Dado de Puntos de Vida",
+    "name": "Hit Point Dice",
     "entries": [
-      "Dado de Puntos de Vida, o Dado de Vida para abreviar, ayudan a determinar el máximo de Puntos de Vida de un personaje, según se explica en el capítulo 2. La mayoría de los monstruos también tienen Dados de Vida. Una criatura puede gastar Dados de Vida durante un Descanso Corto para recuperar Puntos de Vida."
+      "Hit Point Dice, or Hit Dice for short, help determine a player character's Hit Point maximum, as explained in chapter 2. Most monsters also have Hit Dice. A creature can spend Hit Dice during a Short Rest to regain Hit Points."
     ]
   },
   {
-    "name": "Puntos de Vida",
+    "name": "Hit Points",
     "entries": [
-      "Los Puntos de Vida (HP) son una medida de lo difícil que es matar o destruir una criatura o un objeto. El daño reduce los Puntos de Vida, y la curación los restaura. No puedes tener más Puntos de Vida que tu máximo, y no puedes tener menos de 0."
+      "Hit Points (HP) are a measure of how difficult it is to kill or destroy a creature or an object. Damage reduces Hit Points, and healing restores them. You can't have more Hit Points than your Hit Point maximum, and you can't have less than 0."
     ]
   },
   {
-    "name": "Actitud Hostil",
+    "name": "Hostile [Attitude]",
     "entries": [
-      "Una criatura hostil te ve desfavorablemente. Tienes desventaja en una tirada de habilidad para influir en una criatura hostil."
+      "A Hostile creature views you unfavorably. You have Disadvantage on an ability check to influence a Hostile creature."
     ]
   },
   {
-    "name": "Flotar",
+    "name": "Hover",
     "entries": [
-      "Algunas criaturas pueden flotar, como se indica en sus hojas de personaje, y algunos hechizos y otros efectos otorgan la capacidad de flotar. Flotar mientras vuelas te impide caer en ciertas circunstancias."
+      "Some creatures can hover, as noted in their stat blocks, and some spells and other effects grant the ability to hover. Hovering while flying prevents you from falling in certain circumstances."
     ]
   },
   {
-    "name": "Ilusiones",
+    "name": "Illusions",
     "entries": [
-      "Los hechizos y otros efectos a veces crean ilusiones mágicas. Un efecto de este tipo define lo que hace la ilusión y qué sentidos o facultades mentales engaña.",
-      "Si una ilusión se manifiesta en el espacio, la ilusión es insustancial y sin peso, pero parece estar afectada por el entorno como si fuera real, a menos que el efecto que la creó lo especifique. Por ejemplo, una ilusión visual de una criatura proyecta sombras y reflejos, y parece que el viento afecta a la criatura ilusoria. De forma similar, una ilusión auditiva resuena en un espacio resonante."
+      "Spells and other effects sometimes create magical illusions. Such an effect defines what the illusion does and which senses or mental faculties it deceives.",
+      "If an illusion manifests in space, the illusion is insubstantial and weightless, yet it seems to be affected by the environment as if the illusion were real unless the effect that created it specifies otherwise. For example, a visual illusion of a creature casts shadows and reflections, and wind appears to affect the illusory creature. Similarly, an audible illusion echoes in an echoey space."
     ]
   },
   {
-    "name": "Inmunidad",
+    "name": "Immunity",
     "entries": [
-      "Si tienes Inmunidad a un tipo de daño o condición, no te afecta de ninguna manera."
+      "If you have Immunity to a damage type or a condition, it doesn't affect you in any way."
     ]
   },
   {
-    "name": "Armas Improvisadas",
+    "name": "Improvised Weapons",
     "entries": [
-      "Una arma improvisada es un objeto utilizado como arma improvisada, como vidrio roto, una pata de mesa o una sartén. Un arma simple o de combate también se considera una arma improvisada si se utiliza de manera contraria a su diseño; si usa un arma a distancia para realizar un ataque cuerpo a cuerpo o lanza un arma de combate que carece de la propiedad de lanzamiento, la arma se considera una arma improvisada. Una arma improvisada sigue las reglas de abajo.",
+      "An improvised weapon is an object wielded as a makeshift weapon, such as broken glass, a table leg, or a frying pan. A Simple or Martial weapon also counts as an improvised weapon if it's wielded in a way contrary to its design; if you use a Ranged weapon to make a melee attack or throw a Melee weapon that lacks the Thrown property, the weapon counts as an improvised weapon. An improvised weapon follows the rules below.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Nivel de Habilidad",
+            "name": "Proficiency",
             "entries": [
-              "No agregues tu bonificación de habilidad a los tiradas de ataque con una arma improvisada."
+              "Don't add your Proficiency Bonus to attack rolls with an improvised weapon."
             ]
           },
           {
             "type": "entries",
-            "name": "Daño",
+            "name": "Damage",
             "entries": [
-              "En un golpe, el arma inflige 1d4 de daño de un tipo que el DM considera apropiado para el objeto."
+              "On a hit, the weapon deals 1d4 damage of a type the DM thinks is appropriate for the object."
             ]
           },
           {
             "type": "entries",
-            "name": "Rango",
+            "name": "Range",
             "entries": [
-              "Si lanzas la arma, tiene un rango normal de 20 pies y un rango largo de 60 pies."
+              "If you throw the weapon, it has a normal range of 20 feet and a long range of 60 feet."
             ]
           },
           {
             "type": "entries",
-            "name": "Equivalentes de Armas",
+            "name": "Weapon Equivalents",
             "entries": [
-              "Si una arma improvisada se parece a una arma Simple o Martial, el DM puede decir que funciona como esa arma y usa las reglas de esa arma. Por ejemplo, el DM podría tratar una pata de mesa como un Club."
+              "If an improvised weapon resembles a Simple or Martial weapon, the DM may say it functions as that weapon and uses that weapon's rules. For example, the DM could treat a table leg as a Club."
             ]
           }
         ]
@@ -798,65 +798,65 @@
     ]
   },
   {
-    "name": "Indiferente [Actitud]",
+    "name": "Indifferent [Attitude]",
     "entries": [
-      "Una criatura indiferente no tiene deseo de ayudarte ni de obstaculizarte. Indiferente es la actitud por defecto de un monstruo."
+      "An Indifferent creature has no desire to help or hinder you. Indifferent is the default attitude of a monster."
     ]
   },
   {
-    "name": "Iniciativa",
+    "name": "Initiative",
     "entries": [
-      "La Iniciativa determina el orden de turnos durante el combate. Las reglas de combate en el capítulo 1 explican cómo tirar la Iniciativa.",
-      "A veces, un DM puede hacer que los combatientes usen sus puntuaciones de Iniciativa en lugar de tirar la Iniciativa. Tu puntuación de Iniciativa es igual a 10 más tu modificador de Destreza. Si tienes Ventaja en los tiradas de Iniciativa, aumenta tu puntuación de Iniciativa en 5. Si tienes Desventaja en esas tiradas, reduce esa puntuación en 5."
+      "Initiative determines the order of turns during combat. The combat rules in chapter 1 explain how to roll Initiative.",
+      "Sometimes a DM might have combatants use their Initiative scores instead of rolling Initiative. Your Initiative score equals 10 plus your Dexterity modifier. If you have Advantage on Initiative rolls, increase your Initiative score by 5. If you have Disadvantage on those rolls, decrease that score by 5."
     ]
   },
   {
-    "name": "Saltar",
+    "name": "Jumping",
     "entries": [
-      "Cuando saltas, haces ya sea un Salto Largo (horizontal) o un Salto Alto (vertical)."
+      "When you jump, you make either a Long Jump (horizontal) or a High Jump (vertical)."
     ]
   },
   {
-    "name": "Derrotar a una Criatura",
+    "name": "Knocking Out a Creature",
     "entries": [
-      "Cuando reducirías a una criatura a 0 Puntos de Golpe con un ataque cuerpo a cuerpo, puedes en su lugar reducir la criatura a 1 Punto de Golpe. La criatura entonces tiene la condición de Desmayada y comienza un Descanso Corto.",
-      "La criatura permanece Desmayada hasta que recupere cualquier Punto de Golpe o hasta que alguien use una acción para administrar primeros auxilios a ella, lo cual requiere una prueba de Sabiduría (Medicina) con una CD de 10."
+      "When you would reduce a creature to 0 Hit Points with a melee attack, you can instead reduce the creature to 1 Hit Point. The creature then has the Unconscious condition and starts a Short Rest.",
+      "The creature remains Unconscious until it regains any Hit Points or until someone uses an action to administer first aid to it, which requires a successful DC 10 Wisdom (Medicine) check."
     ]
   },
   {
-    "name": "Ligeramente Obscurado",
+    "name": "Lightly Obscured",
     "entries": [
-      "Tienes desventaja en las pruebas de Sabiduría (Percepción) para ver algo en un espacio ligeramente oscuro."
+      "You have Disadvantage on Wisdom (Perception) checks to see something in a Lightly Obscured space."
     ]
   },
   {
-    "name": "Línea [Área de Efecto]",
+    "name": "Line [Area of Effect]",
     "entries": [
-      "Una Línea es un área de efecto que se extiende desde un punto de origen en una trayectoria recta a lo largo de su longitud y cubre un área definida por su ancho. El efecto que crea una Línea especifica su longitud y ancho.",
-      "El punto de origen de una Línea no está incluido en el área de efecto a menos que su creador decida lo contrario."
+      "A Line is an area of effect that extends from a point of origin in a straight path along its length and covers an area defined by its width. The effect that creates a Line specifies its length and width.",
+      "A Line's point of origin isn't included in the area of effect unless its creator decides otherwise."
     ]
   },
   {
-    "name": "Salto largo",
+    "name": "Long Jump",
     "entries": [
-      "Cuando haces un Salto largo, saltas horizontalmente un número de pies hasta tu puntuación de Fuerza si te mueves al menos 10 pies inmediatamente antes del salto. Cuando haces un Salto largo de pie, puedes saltar solo la mitad de esa distancia. En cualquier caso, cada pie que saltas cuesta un pie de movimiento.",
-      "Si aterrizas en terreno difícil, debes superar una tirada de Destreza (Acrobacias) de CD 10 o tener la condición de estar acostado.",
-      "Esta regla de Salto Largo asume que la altura del salto no importa, como un salto a través de un río o un abismo. A discreción del DM, debes superar una tirada de Fuerza (Atletismo) de CD 10 para superar un obstáculo bajo (no más alto que un cuarto de la distancia del salto), como un seto o una pared baja. De lo contrario, golpeas el obstáculo."
+      "When you make a Long Jump, you leap horizontally a number of feet up to your Strength score if you move at least 10 feet immediately before the jump. When you make a standing Long Jump, you can leap only half that distance. Either way, each foot you jump costs a foot of movement.",
+      "If you land in difficult terrain, you must succeed on a DC 10 Dexterity (Acrobatics) check or have the Prone condition.",
+      "This Long Jump rule assumes that the height of the jump doesn't matter, such as a jump across a stream or chasm. At your DM's option, you must succeed on a DC 10 Strength (Athletics) check to clear a low obstacle (no taller than a quarter of the jump's distance), such as a hedge or low wall. Otherwise, you hit the obstacle."
     ]
   },
   {
-    "name": "Descanso Largo",
+    "name": "Long Rest",
     "entries": [
-      "Un Descanso Largo es un período de descanso prolongado —de al menos 8 horas— disponible para cualquier criatura. Durante un Descanso Largo, duermes al menos 6 horas y realizas no más de 2 horas de actividad ligera, como leer, hablar, comer o estar de guardia.",
-      "Durante el sueño, tienes la condición de estar inconsciente. Después de completar un Descanso Largo, debes esperar al menos 16 horas antes de comenzar otro.",
+      "A Long Rest is a period of extended downtime—at least 8 hours—available to any creature. During a Long Rest, you sleep for at least 6 hours and perform no more than 2 hours of light activity, such as reading, talking, eating, or standing watch.",
+      "During sleep, you have the Unconscious condition. After you finish a Long Rest, you must wait at least 16 hours before starting another one.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Beneficios del Descanso",
+            "name": "Benefits of the Rest",
             "entries": [
-              "Para comenzar un Descanso Largo, debes tener al menos 1 Punto de Vida. Al finalizar el descanso, obtienes los siguientes beneficios:"
+              "To start a Long Rest, you must have at least 1 Hit Point. When you finish the rest, you gain the following benefits:"
             ]
           },
           {
@@ -865,30 +865,30 @@
             "items": [
               {
                 "type": "item",
-                "name": "Recuperar Todos los Puntos de Vida",
+                "name": "Regain All HP",
                 "entries": [
-                  "Recuperas todos los Puntos de Vida perdidos y todos los dados de Puntos de Vida gastados. Si tu máximo de Puntos de Vida fue reducido, vuelve a la normalidad."
+                  "You regain all lost Hit Points and all spent Hit Point Dice. If your Hit Point maximum was reduced, it returns to normal."
                 ]
               },
               {
                 "type": "item",
-                "name": "Puntos de Habilidad Restaurados",
+                "name": "Ability Scores Restored",
                 "entries": [
-                  "Si alguna de tus estadísticas de habilidad fueron reducidas, regresan a la normal."
+                  "If any of your ability scores were reduced, they return to normal."
                 ]
               },
               {
                 "type": "item",
-                "name": "Fatiga Reducida",
+                "name": "Exhaustion Reduced",
                 "entries": [
-                  "Si tienes la condición de Fatiga, su nivel disminuye en 1."
+                  "If you have the Exhaustion condition, its level decreases by 1."
                 ]
               },
               {
                 "type": "item",
-                "name": "Característica Especial",
+                "name": "Special Feature",
                 "entries": [
-                  "Algunas características se recargan con un Descanso Largo. Si tienes una de estas características, se recarga de la manera especificada en su descripción."
+                  "Some features are recharged by a Long Rest. If you have such a feature, it recharges in the way specified in its description."
                 ]
               }
             ]
@@ -898,9 +898,9 @@
             "entries": [
               {
                 "type": "entries",
-                "name": "Interrumpir lo Resto",
+                "name": "Interrupting the Rest",
                 "entries": [
-                  "Un Descanso Largo es interrumpido por las siguientes interrupciones:"
+                  "A Long Rest is stopped by the following interruptions:"
                 ]
               }
             ]
@@ -908,125 +908,125 @@
           {
             "type": "list",
             "items": [
-              "Iniciar con Iniciativa",
-              "Lanzar un hechizo que no sea un truco",
-              "Recibir cualquier daño.",
-              "1 hora de caminata o cualquier otra actividad física."
+              "Rolling Initiative",
+              "Casting a spell other than a cantrip",
+              "Taking any damage.",
+              "1 hour of walking or other physical exertion."
             ]
           },
-          "Si descansaste al menos 1 hora antes de la interrupción, obtienes los beneficios de un Descanso Corto.",
-          "Puedes retomar un Descanso Largo inmediatamente después de una interrupción. Si lo haces, el descanso requiere 1 hora adicional por interrupción para completarse."
+          "If you rested at least 1 hour before the interruption you gain the benefits of a Short Rest.",
+          "You can resume a Long Rest immediately after an interruption. If you do so, the rest requires 1 additional hour per interruption to finish."
         ]
       }
     ]
   },
   {
-    "name": "Efecto Mágico",
+    "name": "Magical Effect",
     "entries": [
-      "Un efecto es mágico si es creado por un hechizo, un objeto mágico o un fenómeno que una regla etiqueta como mágico."
+      "An effect is magical if it is created by a spell, a magic item, or a phenomenon that a rule labels as magical."
     ]
   },
   {
-    "name": "Monstruo",
+    "name": "Monster",
     "entries": [
-      "Un monstruo es una criatura controlada por el DM, incluso si la criatura es benevolente."
+      "A monster is a creature controlled by the DM, even if the creature is benevolent."
     ]
   },
   {
-    "name": "Personaje no jugador",
+    "name": "Nonplayer Character",
     "entries": [
-      "Un personaje no jugador (PNJ) es un monstruo que tiene un nombre personal y una personalidad distinta."
+      "A nonplayer character (NPC) is a monster that has a personal name and a distinct personality."
     ]
   },
   {
-    "name": "Objeto",
+    "name": "Object",
     "entries": [
-      "Un objeto es una cosa inanimada y distinta."
+      "An object is a nonliving, distinct thing. Composite things, like buildings, comprise more than one object."
     ]
   },
   {
-    "name": "Espacio ocupado",
+    "name": "Occupied Space",
     "entries": [
-      "Un espacio está ocupado si hay una criatura dentro o si está completamente lleno de objetos."
+      "A space is occupied if a creature is in it or if it is completely filled by objects."
     ]
   },
   {
-    "name": "Percepción pasiva",
+    "name": "Passive Perception",
     "entries": [
-      "La percepción pasiva es una puntuación que refleja la conciencia general de una criatura sobre su entorno. El DM utiliza esta puntuación para determinar si una criatura nota algo sin realizar conscientemente una tirada de Sabiduría (Percepción).",
-      "La Percepción Pasiva de la criatura es igual a 10 más el bono de la Percepción de la Sabiduría de la criatura. Si la criatura tiene Ventaja en estas pruebas, aumenta la puntuación en 5. Si la criatura tiene Desventaja, disminuye la puntuación en 5. Por ejemplo, un personaje de nivel 1 con Sabiduría de 15 y competencia en Percepción tiene una Percepción Pasiva de 14 (10 + 2 + 2). Si ese personaje tiene Ventaja en las pruebas de Sabiduría (Percepción), la puntuación se convierte en 10 + 2 + 2 + 5|19."
+      "Passive Perception is a score that reflects a creature's general awareness of its surroundings. The DM uses this score when determining whether a creature notices something without consciously making a Wisdom (Perception) check.",
+      "A creature's Passive Perception equals 10 plus the creature's Wisdom (Perception) check bonus. If the creature has Advantage on such checks, increase the score by 5. If the creature has Disadvantage on them, decrease the score by 5. For example, a level 1 character with a Wisdom of 15 and proficiency in Perception has a Passive Perception of 14 (10 + 2 + 2). If that character has Advantage on Wisdom (Perception) checks, the score becomes 10 + 2 + 2 + 5|19."
     ]
   },
   {
-    "name": "Por Día",
+    "name": "Per Day",
     "entries": [
-      "Si una regla dice que puedes usar algo un cierto número de veces por día, eso significa que debes terminar un Descanso Largo para volver a usarlo después de que te quedes sin usos."
+      "If a rule says you can use something a certain number of times per day, that means you must finish a Long Rest to use it again after you run out of uses."
     ]
   },
   {
-    "name": "Personaje de Jugador",
+    "name": "Player Character",
     "entries": [
-      "Un personaje de jugador es un personaje controlado por un jugador"
+      "A player character is a character controlled by a player"
     ]
   },
   {
-    "name": "Posesión",
+    "name": "Possession",
     "entries": [
-      "Algunos efectos causan que una criatura sea poseída por otra criatura o entidad. Un efecto de posesión define cómo funciona la posesión. La posesión puede ser evitada por el hechizo Protección contra el Bien y el Mal y terminada por el hechizo Disipar el Bien y el Mal."
+      "Some effects cause a creature to be possessed by another creature or entity. A possessing effect defines how the possession operates. Possession can be prevented by the Protection from Evil and Good spell and ended by the Dispel Evil and Good spell."
     ]
   },
   {
-    "name": "Nivel de Habilidad",
+    "name": "Proficiency",
     "entries": [
-      "Si tienes competencia con algo, puedes añadir tu Bonificación de Competencia a cualquier prueba de D20 que realices usando esa cosa. Una criatura podría tener competencia en una habilidad o tirada de salvación o con una arma o herramienta."
+      "If you have proficiency with something, you can add your Proficiency Bonus to any D20 Test you make using that thing. A creature might have proficiency in a skill or saving throw or with a weapon or tool."
     ]
   },
   {
-    "name": "Reacción",
+    "name": "Reaction",
     "entries": [
-      "Una Reacción es una acción especial tomada en respuesta a un detonador definido en la descripción de la Reacción. Puedes realizar una Reacción en el turno de otra criatura, y si la realizas en tu turno, puedes hacerlo incluso si también realizas una acción, una Acción Adicional o ambas. Una vez que realizas una Reacción, no puedes realizar otra hasta el inicio de tu próximo turno. El Ataque de Oportunidad es una Reacción disponible para todas las criaturas."
+      "A Reaction is a special action taken in response to a trigger defined in the Reaction's description. You can take a Reaction on another creature's turn, and if you take it on your turn, you can do so even if you also take an action, a Bonus Action, or both. Once you take a Reaction, you can't take another one until the start of your next turn. The Opportunity Attack is a Reaction available to all creatures."
     ]
   },
   {
-    "name": "Resistencia",
+    "name": "Resistance",
     "entries": [
-      "Si tienes Resistencia a un tipo de daño, el daño de ese tipo se reduce a la mitad contra ti (redondeando hacia abajo). La Resistencia se aplica solo una vez a una instancia de daño."
+      "If you have Resistance to a damage type, damage of that type is halved against you (round down). Resistance is applied only once to an instance of damage."
     ]
   },
   {
     "name": "Ritual",
     "entries": [
-      "Si tienes un hechizo preparado que tiene la etiqueta 'Ritual', puedes lanzar ese hechizo como un Ritual. La versión del Ritual de un hechizo tarda 10 minutos más en lanzarse que lo normal. También no consume un espacio de hechizo, lo que significa que la versión del Ritual de un hechizo no puede lanzarse a un nivel más alto."
+      "If you have a spell prepared that has the Ritual tag, you can cast that spell as a Ritual. The Ritual version of a spell takes 10 minutes longer to cast than normal. It also doesn't expend a spell slot, which means the ritual version of a spell can't be cast at a higher level."
     ]
   },
   {
-    "name": "Redondear hacia abajo",
+    "name": "Round Down",
     "entries": [
-      "Cuando divides o multiplicas un número en el juego, redondea hacia abajo si terminas con una fracción, incluso si la fracción es uno medio o mayor. Algunas reglas hacen una excepción y te dicen que redondees hacia arriba."
+      "Whenever you divide or multiply a number in the game, round down if you end up with a fraction, even if the fraction is one-half or greater. Some rules make an exception and tell you to round up."
     ]
   },
   {
-    "name": "Guardar",
+    "name": "Save",
     "entries": [
-      "Guardar es otro nombre para un lanzamiento de salvación."
+      "Save is another name for a saving throw."
     ]
   },
   {
-    "name": "Lanzamiento de salvación",
+    "name": "Saving Throw",
     "entries": [
-      "Un lanzamiento de salvación, también llamado un salvaje, representa un intento de evitar o resistir una amenaza. Normalmente haces un lanzamiento de salvación solo cuando una regla te lo exige, pero puedes decidir fallar el salvaje sin tirar. El resultado de un salvaje se detalla en el efecto que lo permite. Si un objetivo se ve obligado a hacer un salvaje y carece de la estadística de habilidad utilizada, el objetivo falla automáticamente."
+      "A saving throw—also called a save—represents an attempt to avoid or resist a threat. You normally make a saving throw only when a rule requires you to do so, but you can decide to fail the save without rolling. The result of a save is detailed in the effect that allowed it. If a target is forced to make a save and lacks the ability score used by it, the target automatically fails."
     ]
   },
   {
-    "name": "Cambio de forma",
+    "name": "Shape-Shifting",
     "entries": [
-      "Si un efecto, como la forma salvaje o el hechizo de polimorfia, te permite cambiar de forma, su descripción especifica lo que te sucede. A menos que la descripción diga lo contrario, cualquier efecto que te afecte—condiciones, hechizos, maldiciones y similares—se aplica a la otra forma. Regresas a tu forma original si mueres."
+      "If an effect, such as Wild Shape or the Polymorph spell, lets you shape-shift, its description specifies what happens to you. Unless that description says otherwise, any ongoing effects on you—conditions, spells, curses, and the like—carry over from one form to the other. You revert to your true form if you die."
     ]
   },
   {
-    "name": "Descanso corto",
+    "name": "Short Rest",
     "entries": [
-      "Un descanso corto es un período de 1 hora en el que una criatura no realiza ninguna actividad más estresante que leer, hablar, comer o vigilar. Para iniciar un descanso corto, debes tener al menos 1 punto de vida. Cuando termines el descanso, obtendrás los siguientes beneficios:",
+      "A Short Rest is a 1-hour period of downtime, during which a creature does nothing more strenuous than reading, talking, eating, or standing watch. To start a Short Rest, you must have at least 1 Hit  Point. When you finish the rest, you gain the following benefits:",
       {
         "type": "entries",
         "entries": [
@@ -1036,16 +1036,16 @@
             "items": [
               {
                 "type": "item",
-                "name": "Gasta dados de puntos de vida",
+                "name": "Spend Hit Point Dice",
                 "entries": [
-                  "Puedes gastar uno o más dados de Puntos de Vida para recuperar Puntos de Vida. Para cada dado de Puntos de Vida que gastes de esta manera, lanza el dado y suma tu modificador de Constitución a él. Recuperas Puntos de Vida iguales al total (mínimo de 1 Punto de Vida). Puedes decidir gastar un dado de Puntos de Vida adicional después de cada lanzamiento."
+                  "You can spend one or more of your Hit Point Dice to regain Hit Points. For each Hit Point Die you spend in this way, roll the die and add your Constitution modifier to it. You regain Hit Points equal to the total (minimum of 1 Hit Point). You can decide to spend an additional Hit Point Die after each roll."
                 ]
               },
               {
                 "type": "item",
-                "name": "Característica Especial",
+                "name": "Special Feature",
                 "entries": [
-                  "Algunas habilidades se recargan con un Descanso Corto. Si tienes una de estas habilidades, se recarga de la manera especificada en su descripción."
+                  "Some features are recharged by a Short Rest. If you have such a feature, it recharges in the way specified in its description."
                 ]
               }
             ]
@@ -1057,9 +1057,9 @@
         "entries": [
           {
             "type": "entries",
-            "name": "Interrumpir lo Resto",
+            "name": "Interrupting the Rest",
             "entries": [
-              "Un Descanso Corto se interrumpe por lo siguiente:"
+              "A Short Rest is stopped by the following interruptions:"
             ]
           }
         ]
@@ -1067,51 +1067,51 @@
       {
         "type": "list",
         "items": [
-          "Iniciar con Iniciativa",
-          "Lanzar un hechizo que no sea un truco",
-          "Recibir cualquier daño"
+          "Rolling Initiative",
+          "Casting a spell other than a cantrip",
+          "Taking any damage"
         ]
       },
-      "Un Descanso Corto interrumpido no otorga ningún beneficio."
+      "An interrupted Short Rest confers no benefits."
     ]
   },
   {
-    "name": "Efectos Simultáneos",
+    "name": "Simultaneous Effects",
     "entries": [
-      "Si dos o más cosas ocurren al mismo tiempo en un turno, la persona en la mesa de juego—jugador o DM cuyo turno es—decide el orden en que ocurren esas cosas. Por ejemplo, si dos efectos ocurren al comienzo del turno de un personaje del jugador, el jugador decide cuál de los efectos ocurre primero."
+      "If two or more things happen at the same time on a turn, the person at the game table—player or DM whose turn it is decides the order in which those things happen. For example, if two effects occur at the start of a player character's turn, the player decides which of the effects happens first."
     ]
   },
   {
-    "name": "Tamaño",
+    "name": "Size",
     "entries": [
-      "Una criatura o un objeto pertenece a una categoría de tamaño: Pequeño, Mediano, Grande, Enorme, o Gigante. El tamaño de una criatura determina cuánto espacio ocupa la criatura en combate. El tamaño de un objeto afecta sus Puntos de Golpe."
+      "A creature or an object belongs to a size category: Tiny, Small, Medium, Large, Huge, or Gargantuan. A creature's size determines how much space the creature occupies in combat. An object's size affects its Hit Points."
     ]
   },
   {
-    "name": "Habilidad",
+    "name": "Skill",
     "entries": [
-      "Una habilidad es un área de especialización asociada con una tirada de habilidad. Si tienes competencia en una habilidad, puedes agregar tu bono de competencia cuando realices una tirada de habilidad asociada a esa habilidad."
+      "A skill is an area of specialization associated with an ability check. If you have proficiency in a skill, you can add your Proficiency Bonus when you make an ability check associated with that skill."
     ]
   },
   {
-    "name": "Velocidad",
+    "name": "Speed",
     "entries": [
-      "Una criatura tiene una velocidad, que es la distancia en pies que la criatura puede cubrir cuando se mueve en su turno.",
+      "A creature has a Speed, which is the distance in feet the creature can cover when it moves on its turn.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Velocidades especiales",
+            "name": "Special Speeds",
             "entries": [
-              "Algunas criaturas tienen velocidades especiales, como una velocidad de Excavación, velocidad de Escalada, velocidad de Vuelo o velocidad de Natación, cada una de las cuales está definida en este glosario. Si tienes más de una velocidad, elige cuál usar cuando te muevas; puedes cambiar entre las velocidades durante tu movimiento. Siempre que cambies, resta la distancia ya recorrida a la nueva velocidad. El resultado determina cuánto más puedes mover. Si el resultado es 0 o menos, no puedes usar la nueva velocidad durante el movimiento actual. Por ejemplo, si tienes una velocidad de 30 y una velocidad de Vuelo de 40, podrías volar 10 pies, caminar 10 pies y saltar al aire para volar otros 20 pies."
+              "Some creatures have special speeds, such as a Burrow Speed, Climb Speed, Fly Speed, or Swim Speed, each of which is defined in this glossary. If you have more than one speed, choose which one to use when you move; you can switch between the speeds during your move. Whenever you switch, subtract the distance already moved from the new speed. The result determines how much farther you can move. If the result is 0 or less, you can't use the new speed during the current move. For example, if you have a Speed of 30 and a Fly Speed of 40, you could fly 10 feet, walk 10 feet, and leap into the air to fly 20 feet more."
             ]
           },
           {
             "type": "entries",
-            "name": "Cambios en tus velocidades",
+            "name": "Changes to Your Speeds",
             "entries": [
-              "Si un efecto aumenta o disminuye tu Velocidad por un tiempo, cualquier velocidad especial que tengas también aumenta o disminuye por la misma duración. Por ejemplo, si tu Velocidad se reduce a 0 y tienes una Velocidad de Ascenso, tu Velocidad de Ascenso también se reduce a 0. De manera similar, si tu Velocidad se reduce a la mitad y tienes una Velocidad de Vuelo, tu Velocidad de Vuelo también se reduce a la mitad."
+              "If an effect increases or decreases your Speed for a time, any special speed you have increases or decreases by an equal amount for the same duration. For example, if your Speed is reduced to 0 and you have a Climb Speed, your Climb Speed is also reduced to 0. Similarly, if your Speed is halved and you have a Fly Speed, your Fly Speed is also halved."
             ]
           }
         ]
@@ -1119,181 +1119,181 @@
     ]
   },
   {
-    "name": "Hechizo",
+    "name": "Spell",
     "entries": [
-      "Un hechizo es un efecto mágico que tiene las características descritas en el capítulo 7."
+      "A spell is a magical effect that has the characteristics described in chapter 7."
     ]
   },
   {
-    "name": "Ataque con Hechizo",
+    "name": "Spell Attack",
     "entries": [
-      "Un ataque mágico es un lanzamiento de ataque realizado como parte de un hechizo o otro efecto mágico."
+      "A spell attack is an attack roll made as part of a spell or another magical effect."
     ]
   },
   {
-    "name": "Enfoque para lanzar hechizos",
+    "name": "Spellcasting Focus",
     "entries": [
-      "Un Enfoque para lanzar hechizos es un objeto que ciertas criaturas pueden usar en lugar de los componentes materiales de un hechizo si esos materiales no se consumen por el hechizo y no tienen un costo especificado. Algunas clases permiten a sus miembros usar ciertos tipos de Enfoques para lanzar hechizos."
+      "A Spellcasting Focus is an object that certain creatures can use in place of a spell's Material components if those materials aren't consumed by the spell and don't have a cost specified. Some classes allow its members to use certain types of Spellcasting Focuses."
     ]
   },
   {
-    "name": "Esfera [Área de Efecto]",
+    "name": "Sphere [Area of Effect]",
     "entries": [
-      "Una esfera es un área de efecto que se extiende en líneas rectas desde un punto de origen en todas las direcciones. El efecto que crea una esfera especifica la distancia que se extiende como el radio de la esfera.",
-      "El punto de origen de una esfera está incluido en el área de efecto de la esfera."
+      "A Sphere is an area of effect that extends in straight lines from a point of origin outward in all directions. The effect that creates a Sphere specifies the distance it extends as the radius of the Sphere.",
+      "A Sphere's point of origin is included in the Sphere's area of effect."
     ]
   },
   {
-    "name": "Estable",
+    "name": "Stable",
     "entries": [
-      "Una criatura es Estable si tiene 0 Puntos de Vida, pero no está obligada a realizar tiradas de Salvación por la Muerte."
+      "A creature is Stable if it has 0 Hit Points but isn't required to make Death Death Saving Throws."
     ]
   },
   {
-    "name": "Bloque de Estadísticas",
+    "name": "Stat Block",
     "entries": [
-      "Un bloque de estadísticas contiene las estadísticas del juego de una criatura. Cada bloque de estadísticas incluye la siguiente información presentada después del nombre de la criatura.",
+      "A stat block contains the game statistics of a monster. Each stat block includes the following information presented after the monster's name.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Tamaño",
+            "name": "Size",
             "entries": [
-              "Una criatura es Pequeña, Mediana, Grande, Enorme o Gigante."
+              "A monster is Tiny, Small, Med ium, Large, Huge, or Gargantuan."
             ]
           },
           {
             "type": "entries",
-            "name": "Tipo de criatura",
+            "name": "Creature Type",
             "entries": [
-              "Esta entrada indica la familia de seres a la que pertenece un monstruo, junto con cualquier etiqueta descriptiva."
+              "This entry notes the family of beings a monster belongs to, along with any descriptive tags."
             ]
           },
           {
             "type": "entries",
-            "name": "Alineamiento",
+            "name": "Alignment",
             "entries": [
-              "Se sugiere una alineación para el monstruo, donde el DM determina su alineación real."
+              "An alignment is suggested for the monster, with the DM determining its actual alignment."
             ]
           },
           {
             "type": "entries",
-            "name": "Clase de Armadura, Iniciativa y Puntos de Vida",
+            "name": "AC, Initiative, and HP",
             "entries": [
-              "Estas entradas dan la Clase de Armadura, Iniciativa y Puntos de Vida del monstruo, que se detallan en el capítulo 1. Dentro del paréntesis después de los Puntos de Vida, se proporciona el dado de Puntos de Vida del monstruo, junto con la contribución de su Constitución, si la tiene, a sus Puntos de Vida. Después del modificador de Iniciativa, se indica la puntuación de Iniciativa. Algunas criaturas creadas por magia carecen de información sobre Dados de Puntos de Vida e Iniciativa."
+              "These entries give the monster's Armor Class, Initiative, and Hit Points, which are detailed in chapter 1. In parentheses after the Hit Points, the monster's Hit Point Dice are provided, along with the contribution of its Constitution, if any, to its Hit Points. Following the Initiative modifier is an Initiative score. Some creatures that are created by magic lack Hit Dice and Initiative information."
             ]
           },
           {
             "type": "entries",
-            "name": "Velocidad",
+            "name": "Speed",
             "entries": [
-              "Aquí se proporciona la Velocidad del monstruo, junto con cualquier velocidad especial."
+              "Here the monster's Speed is provided, along with any special speeds."
             ]
           },
           {
             "type": "entries",
-            "name": "Atributos",
+            "name": "Ability Scores",
             "entries": [
-              "Una tabla muestra los atributos del monstruo, los modificadores y los modificadores de las tiradas de salvación, todos los cuales están detallados en el capítulo 1."
+              "A table provides the monster's ability scores, modifiers, and saving throw modifiers, all of which are detailed in chapter 1."
             ]
           },
           {
             "type": "entries",
-            "name": "Habilidades",
+            "name": "Skills",
             "entries": [
-              "Esta entrada lista las habilidades del monstruo, si las tiene."
+              "This entry lists the monster's skill proficiencies, if any."
             ]
           },
           {
             "type": "entries",
-            "name": "Resistencias y Debilidades",
+            "name": "Resistances and Vulnerabilities",
             "entries": [
-              "Estas entradas listan las Resistencias y Debilidades del monstruo, si las tiene."
+              "These entries list the monster's Resistances and Vulnerabilities, if any."
             ]
           },
           {
             "type": "entries",
-            "name": "Inmunidades",
+            "name": "Immunities",
             "entries": [
-              "Esta sección lista las inmunidades del monstruo a los daños y condiciones, si las tiene."
+              "This section lists the monster's damage and condition Immunities, if any."
             ]
           },
           {
             "type": "entries",
-            "name": "Equipo",
+            "name": "Gear",
             "entries": [
-              "Si el monstruo tiene algún equipo que se pueda entregar o recuperar, se lista en esta entrada."
+              "If the monster has any equipment that can be given away or retrieved, it's listed in this entry."
             ]
           },
           {
             "type": "entries",
-            "name": "Sentidos",
+            "name": "Senses",
             "entries": [
-              "Este registro enumera los sentidos especiales del monstruo, como la visión en la oscuridad, y su Percepción Pasiva."
+              "This entry lists the monster's special senses, such as Darkvision, and its Passive Perception."
             ]
           },
           {
             "type": "entries",
-            "name": "Idiomas",
+            "name": "Languages",
             "entries": [
-              "Este registro enumera los idiomas que conoce el monstruo."
+              "This entry lists any languages the monster knows."
             ]
           },
           {
             "type": "entries",
             "name": "CR",
             "entries": [
-              "La Tasa de Dificultad resume la amenaza que representa una criatura y se detalla en el Manual de Monstruos. Los Puntos de Experiencia que los personajes reciben por derrotar a una criatura y su Bonificación de Competencia también se aplican. Algunas criaturas creadas por magia no tienen Tasa de Dificultad."
+              "Challenge Rating summarizes the threat a monster poses and is detailed in the Monster Manual. The Experience Points characters receive for defeating a monster and its Proficiency Bonus follow. Some creatures that are created by magic have no CR."
             ]
           },
           {
             "type": "entries",
-            "name": "Características",
+            "name": "Traits",
             "entries": [
-              "Las características de la criatura, si las tiene, son elementos activos en todo momento o en ciertas situaciones."
+              "The monster's traits, if any, are features that are active at all times or in certain situations."
             ]
           },
           {
             "type": "entries",
-            "name": "Acciones",
+            "name": "Actions",
             "entries": [
-              "La criatura puede realizar estas acciones además de las detalladas en este glosario."
+              "The monster can take these actions in addition to those detailed in this glossary."
             ]
           },
           {
             "type": "entries",
-            "name": "Acciones Adicionales",
+            "name": "Bonus Actions",
             "entries": [
-              "Si el monstruo tiene Acciones Adicionales, están listadas en esta sección."
+              "If the monster has Bonus Action options, they are listed in this section."
             ]
           },
           {
             "type": "entries",
-            "name": "Reacciones",
+            "name": "Reactions",
             "entries": [
-              "Si el monstruo puede realizar Reacciones especiales, están listadas en esta sección."
+              "If the monster can take special Reactions, those are listed in this section."
             ]
           },
           {
             "type": "entries",
-            "name": "Notación de Ataque",
+            "name": "Attack Notation",
             "entries": [
-              "La entrada para el ataque de una criatura comienza identificando si el ataque es cuerpo a cuerpo o a distancia, y luego proporciona el bono del ataque, su alcance o rango, y lo que sucede en caso de acierto. Un ataque es contra un solo objetivo, a menos que su entrada diga lo contrario."
+              "The entry for a monster's attack starts by identifying whether the attack is a melee or a ranged attack and then provides the attack roll's bonus, its reach or range, and what happens on a hit. An attack is against one target unless its entry says otherwise."
             ]
           },
           {
             "type": "entries",
-            "name": "Notación del efecto de salvación",
+            "name": "Saving Throw Effect Notation",
             "entries": [
-              "Si un efecto obliga a un lanzamiento de salvación, la entrada del efecto comienza identificando el tipo de lanzamiento de salvación requerido y luego proporciona el DC del lanzamiento, una descripción de qué criaturas deben realizar el lanzamiento, y lo que sucede en caso de fallo o éxito."
+              "If an effect forces a saving throw, the effect's entry starts by identifying the kind of saving throw required and then provides the save's DC, a description of which creatures must make the save, and what happens on a failed or a successful save."
             ]
           },
           {
             "type": "entries",
-            "name": "Notación de daño",
+            "name": "Damage Notation",
             "entries": [
-              "Un bloque de estadísticas generalmente proporciona tanto un número estático como una expresión de dado para cada instancia de daño. Por ejemplo, un ataque podría causar 4 (1d4 + 2) puntos de daño en caso de acierto. El DM determina si usas el número estático o la expresión del dado entre paréntesis; no debes usar ambos."
+              "A stat block usually provides both a static number and a die expression for each instance of damage. For example, an attack might deal 4 (1d4 + 2) damage on a hit. The DM determines whether you use the static number or the die expression in parentheses; you don't use both."
             ]
           }
         ]
@@ -1301,73 +1301,73 @@
     ]
   },
   {
-    "name": "Velocidad de natación",
+    "name": "Swim Speed",
     "entries": [
-      "Una Velocidad de natación puede usarse para nadar sin gastar el extra movimiento normalmente asociado a nadar."
+      "A Swim Speed can be used to swim without expending the extra movement normally associated with swimming."
     ]
   },
   {
-    "name": "Nadar",
+    "name": "Swimming",
     "entries": [
-      "Mientras estás nadando, cada pie de movimiento cuesta 1 pie extra (2 pies extra en terreno difícil). Ignoras este extra costo si tienes una Velocidad de natación y la usas para nadar. A discreción del DM, moverse cualquier distancia en aguas turbulentas podría requerir una tirada exitosa de Fuerza (Atletismo) de DC 15."
+      "While you're swimming, each foot of movement costs 1 extra foot (2 extra feet in difficult terrain). You ignore this extra cost if you have a Swim Speed and use it to swim. At the DM's option, moving any distance in rough water might require a successful DC 15 Strength (Athletics) check."
     ]
   },
   {
-    "name": "Objetivo",
+    "name": "Target",
     "entries": [
-      "Un objetivo es la criatura o objeto que es atacado, obligado a realizar una tirada de salvación por un efecto, o seleccionado para recibir los efectos de un conjuro o otro fenómeno."
+      "A target is the creature or object targeted by an attack roll, forced to make a saving throw by an effect, or selected to receive the effects of a spell or another phenomenon."
     ]
   },
   {
-    "name": "Telepatía",
+    "name": "Telepathy",
     "entries": [
-      "La telepatía es una habilidad mágica que permite a una criatura comunicarse mentalmente con otra criatura dentro de un rango especificado. A menos que una regla indique lo contrario, la criatura contactada no necesita compartir un idioma con el telepata para entender esta comunicación, pero la criatura contactada debe ser capaz de entender al menos un idioma o ser telepática para entender.",
-      "Un telepata no necesita ver a la criatura contactada, y el telepata puede iniciar o finalizar el contacto telepático en cualquier momento (no se requiere una acción). El contacto telepático no puede iniciarse y se interrumpe inmediatamente si el telepata o la otra criatura tiene la condición de incapacitado. El contacto telepático también se interrumpe si la criatura contactada ya no está dentro del rango de la telepatía o si el telepata contacta a otra criatura dentro del rango.",
-      "Una criatura sin telepatía puede recibir mensajes telepáticos, pero no puede iniciar una conversación telepática. Una vez que comienza una conversación telepática, la persona sin telepatía puede comunicarse mentalmente con el telepata hasta que finalice la conexión telepática."
+      "Telepathy is a magical ability that allows a creature to communicate mentally with another creature within a specified range. Unless a rule states otherwise, the contacted creature doesn't need to share a language with the telepath to understand this communication, but the contacted creature must be able to understand at least one language or be telepathic itself to understand.",
+      "A telepath doesn't need to see a contacted creature, and the telepath can start or end the telepathic contact at any time (no action required). Telepathic contact can't be initiated and is immediately broken if either the telepath or the other creature has the Incapacitated condition. Telepathic contact is also broken if the contacted creature is no longer within the telepathy's range or if the telepath contacts a different creature within range.",
+      "A creature without telepathy can receive telepathic messages but can't initiate a telepathic conversation. Once a telepathic conversation starts, the non-telepath can communicate mentally to the telepath until the telepathic connection ends."
     ]
   },
   {
-    "name": "Teleportación",
+    "name": "Teleportation",
     "entries": [
-      "La teletransportación es un tipo especial de transporte mágico. Si te teletransportas, desapareces y reapareces en otro lugar instantáneamente, sin moverte a través del espacio intermedio. Este transporte no requiere movimiento a menos que una regla diga lo contrario, y la teletransportación nunca provoca ataques de oportunidad.",
-      "Cuando te teletransportas, todo el equipo que llevas contigo se teletransporta contigo. Si estás tocando a otra criatura cuando te teletransportas, esa criatura no se teletransporta contigo a menos que el efecto de teletransportación diga lo contrario.",
-      "Si el espacio de destino de tu teletransportación está ocupado por otra criatura o bloqueado por un obstáculo sólido, en su lugar aparecerás en el espacio no ocupado más cercano de tu elección.",
-      "La descripción de un efecto de teletransportación te dice si debes ver el destino de la teletransportación."
+      "Teleportation is a special kind of magical transportation. If you teleport, you disappear and reappear elsewhere instantly, without moving through the intervening space. This transportation doesn't expend movement unless a rule tells you otherwise, and teleportation never provokes Opportunity Attacks.",
+      "When you teleport, all the equipment you're wearing and carrying teleports with you. If you're touching another creature when you teleport, that creature doesn't teleport with you unless the teleportation effect says otherwise.",
+      "If the destination space of your teleportation is occupied by another creature or blocked by a solid obstacle, you instead appear in the nearest unoccupied space of your choice.",
+      "The description of a teleportation effect tells you if you must see the teleportation's destination."
     ]
   },
   {
-    "name": "Puntos de golpe temporales",
+    "name": "Temporary Hit Points",
     "entries": [
-      "Los puntos de golpe temporales son otorgados por ciertos efectos y actúan como un amortiguador contra la pérdida de puntos de golpe reales."
+      "Temporary Hit Points are granted by certain effects and act as a buffer against losing real Hit Points."
     ]
   },
   {
-    "name": "Golpe sin arma",
+    "name": "Unarmed Strike",
     "entries": [
-      "En lugar de usar un arma para realizar un ataque cuerpo a cuerpo, puedes usar un puñetazo, una patada, un golpe de cabeza o un golpe similar de fuerza. En términos del juego, esto es un Golpe sin arma: un ataque cuerpo a cuerpo que implica usar tu cuerpo para dañar, sujetar o empujar a un objetivo a 5 pies de ti.",
-      "Siempre que uses tu Golpe sin arma, elige una de las siguientes opciones para su efecto.",
+      "Instead of using a weapon to make a melee attack, you can use a punch, kick, head-butt, or similar forceful blow. In game terms, this is an Unarmed Strike—a melee attack that involves you using your body to damage, grapple, or shove a target within 5 feet of you.",
+      "Whenever you use your Unarmed Strike, choose one of the following options for its effect.",
       {
         "type": "entries",
         "entries": [
           {
             "type": "entries",
-            "name": "Daño",
+            "name": "Damage",
             "entries": [
-              "Realizas un ataque contra el objetivo. Tu bonificación para el ataque es igual a tu modificador de Fuerza más tu bonificación de competencia. Si aciertas, el objetivo recibe daño contundente igual a 1 más tu modificador de Fuerza."
+              "You make an attack roll against the target. Your bonus to the roll equals your Strength modifier plus your Proficiency Bonus. On a hit, the target takes Bludgeoning damage equal to 1 plus your Strength modifier."
             ]
           },
           {
             "type": "entries",
-            "name": "Agarre",
+            "name": "Grapple",
             "entries": [
-              "El objetivo debe superar una tirada de salvación de Fuerza o Destreza (elige cuál), o se encuentra en condición de 'Agarrado'. La dificultad para la tirada de salvación y cualquier intento de escapar es igual a 8 más tu modificador de Fuerza y tu bonificación de competencia. Este agarre es posible solo si el objetivo es de tamaño no mayor que el tuyo y si tienes una mano libre para agarrarlo."
+              "The target must succeed on a Strength or Dexterity saving throw (it chooses which), or it has the Grappled condition. The DC for the saving throw and any escape attempts equals 8 plus your Strength modifier and Proficiency Bonus. This grapple is possible only if the target is no more than one size larger than you and if you have a hand free to grab it."
             ]
           },
           {
             "type": "entries",
-            "name": "Empujar",
+            "name": "Shove",
             "entries": [
-              "El objetivo debe superar una tirada de salvación de Fuerza o Destreza (elige cuál), o tú lo empujas 5 pies o le haces caer al suelo. La dificultad para la tirada de salvación es igual a 8 más tu modificador de Fuerza y tu bonificación de competencia. Este empuje es posible solo si el objetivo es de tamaño no mayor que el tuyo."
+              "The target must succeed on a Strength or Dexterity saving throw (it chooses which), or you either push it 5 feet away or cause it to have the Prone condition. The DC for the saving throw equals 8 plus your Strength modifier and Proficiency Bonus. This shove is possible only if the target is no more than one size larger than you."
             ]
           }
         ]
@@ -1375,27 +1375,27 @@
     ]
   },
   {
-    "name": "Espacio sin ocupar",
+    "name": "Unoccupied Space",
     "entries": [
-      "Un espacio está sin ocupar si no hay criaturas en él y no está completamente lleno de objetos."
+      "A space is unoccupied if no creatures are in it and it isn't completely filled by objects."
     ]
   },
   {
-    "name": "Vulnerabilidad",
+    "name": "Vulnerability",
     "entries": [
-      "Si tienes Vulnerabilidad a un tipo de daño, el daño de ese tipo se duplica contra ti. La Vulnerabilidad se aplica solo una vez a una instancia de daño."
+      "If you have Vulnerability to a damage type, damage of that type is doubled against you. Vulnerability is applied only once to an instance of damage."
     ]
   },
   {
-    "name": "Arma",
+    "name": "Weapon",
     "entries": [
-      "Una arma es un objeto que pertenece a la categoría de armas simples o armas de combate."
+      "A weapon is an object that is in the Simple weapon or Martial weapon weapon category."
     ]
   },
   {
-    "name": "Ataque con arma",
+    "name": "Weapon Attack",
     "entries": [
-      "Un ataque con arma es un ataque realizado con una arma."
+      "A weapon attack is an attack roll made with a weapon."
     ]
   }
 ]

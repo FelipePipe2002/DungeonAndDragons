@@ -7,6 +7,7 @@ import {
   openCreateBuildingDialog,
   openCreateCharacterDialog,
   openCreateDmEventDialog,
+  openCreateDmRelationshipDialog,
   openCreateOrganizationDialog,
 } from "@/lib/navigation/global-create-events"
 import { getMainNavItemByShortcut, normalizeMainNavPath } from "@/lib/navigation/main-nav"
@@ -84,6 +85,12 @@ export function GlobalNavigationShortcuts() {
       if (event.key.toLocaleLowerCase("es") === "e") {
         event.preventDefault()
         openCreateDmEventDialog()
+        return
+      }
+
+      if (event.key.toLocaleLowerCase("es") === "r") {
+        event.preventDefault()
+        openCreateDmRelationshipDialog()
         return
       }
 

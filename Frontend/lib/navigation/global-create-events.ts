@@ -2,11 +2,13 @@ export const OPEN_CREATE_CHARACTER_EVENT = "dm-codex:open-create-character"
 export const OPEN_CREATE_BUILDING_EVENT = "dm-codex:open-create-building"
 export const OPEN_CREATE_ORGANIZATION_EVENT = "dm-codex:open-create-organization"
 export const OPEN_CREATE_DM_EVENT = "dm-codex:open-create-dm-event"
+export const OPEN_CREATE_DM_RELATIONSHIP_EVENT = "dm-codex:open-create-dm-relationship"
 
 export const CHARACTERS_CHANGED_EVENT = "dm-codex:characters-changed"
 export const BUILDINGS_CHANGED_EVENT = "dm-codex:buildings-changed"
 export const ORGANIZATIONS_CHANGED_EVENT = "dm-codex:organizations-changed"
 export const DM_EVENTS_CHANGED_EVENT = "dm-codex:dm-events-changed"
+export const DM_RELATIONSHIPS_CHANGED_EVENT = "dm-codex:dm-relationships-changed"
 
 function dispatchWindowEvent(eventName: string) {
   if (typeof window === "undefined") {
@@ -32,6 +34,10 @@ export function openCreateDmEventDialog() {
   dispatchWindowEvent(OPEN_CREATE_DM_EVENT)
 }
 
+export function openCreateDmRelationshipDialog() {
+  dispatchWindowEvent(OPEN_CREATE_DM_RELATIONSHIP_EVENT)
+}
+
 export function notifyCharactersChanged() {
   dispatchWindowEvent(CHARACTERS_CHANGED_EVENT)
 }
@@ -46,4 +52,8 @@ export function notifyOrganizationsChanged() {
 
 export function notifyDmEventsChanged() {
   dispatchWindowEvent(DM_EVENTS_CHANGED_EVENT)
+}
+
+export function notifyDmRelationshipsChanged() {
+  dispatchWindowEvent(DM_RELATIONSHIPS_CHANGED_EVENT)
 }

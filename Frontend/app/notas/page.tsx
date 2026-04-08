@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
 import { CharacterDetailDialog, type CharacterDetailData } from "@/components/dialog/detailed/CharacterDetailDialog"
+import { DmRelationshipsSection } from "@/components/dm/DmRelationshipsSection"
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
@@ -16,7 +17,10 @@ import { fetchCharacters } from "@/lib/services/character-api.service"
 import { deleteDmEvent, fetchDmEvents } from "@/lib/services/dm-events-api.service"
 import { fetchDmNotes, updateDmNotes } from "@/lib/services/dm-notes-api.service"
 import { fetchLandmarks } from "@/lib/services/landmark-api.service"
-import { openCreateDmEventDialog, DM_EVENTS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
+import {
+  openCreateDmEventDialog,
+  DM_EVENTS_CHANGED_EVENT,
+} from "@/lib/navigation/global-create-events"
 import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
 import type { Building, Character, DmEvent, Landmark, Organization } from "@/lib/types"
@@ -24,7 +28,7 @@ import { Trash2 } from "lucide-react"
 
 const DM_NOTES_SAVE_DEBOUNCE_MS = 450
 
-type NotesSection = "dm-notes" | "dm-events"
+type NotesSection = "dm-notes" | "dm-events" | "dm-relationships"
 
 type ReferenceIndexes = {
   landmarksById: Map<number, Landmark>
@@ -339,7 +343,11 @@ function NotasPageContent() {
     }
   }, [])
 
-  const pageTitle = useMemo(() => (activeSection === "dm-events" ? "Eventos DM" : "Notas DM"), [activeSection])
+  const pageTitle = useMemo(() => {
+    if (activeSection === "dm-events") return "Eventos DM"
+    if (activeSection === "dm-relationships") return "Relaciones"
+    return "Notas DM"
+  }, [activeSection])
 
   const handleConfirmDeleteEvent = useCallback(async () => {
     if (!deleteTargetEvent || isDeletingEvent) return
@@ -369,11 +377,11 @@ function NotasPageContent() {
           <Button type="button" variant="outline" onClick={() => setIsEditing((prevState) => !prevState)}>
             {isEditing ? "Ver menciones" : "Editar notas"}
           </Button>
-        ) : (
+        ) : activeSection === "dm-events" ? (
           <Button type="button" onClick={openCreateDmEventDialog}>
             Agregar Evento
           </Button>
-        )}
+        ) : null}
       </div>
 
       {activeSection === "dm-notes" ? (
@@ -418,7 +426,7 @@ function NotasPageContent() {
             </div>
           )}
         </>
-      ) : (
+      ) : activeSection === "dm-events" ? (
         <div className="space-y-4">
           {eventsError ? <p className="text-sm text-destructive">{eventsError}</p> : null}
 
@@ -467,6 +475,8 @@ function NotasPageContent() {
             })
           )}
         </div>
+      ) : (
+        <DmRelationshipsSection />
       )}
 
       <LandmarkDetailDialog

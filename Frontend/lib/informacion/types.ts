@@ -1,9 +1,10 @@
 import type { Feat, FeatEntryBlock } from "@/lib/feats/feat-store"
+import type { Item, ItemEntryBlock } from "@/lib/items/item-store"
 import type { MonsterListItem, MonsterRecord } from "@/lib/monster/types"
 import type { Rule, RuleEntryBlock } from "@/lib/rules/rule-store"
 import type { Spell } from "@/lib/spells/spell-store"
 
-export type InformationSection = "monsters" | "conditions" | "spells" | "feats" | "rules" | "books" | "pages"
+export type InformationSection = "monsters" | "conditions" | "spells" | "items" | "feats" | "rules" | "books" | "pages"
 
 export type MonsterSortField = "name" | "cr"
 export type SortDirection = "asc" | "desc"
@@ -34,6 +35,12 @@ export type SpellBrowserItem = {
   searchText: string
 }
 
+export type ItemBrowserItem = {
+  id: string
+  item: Item
+  searchText: string
+}
+
 export type FeatBrowserItem = {
   id: string
   feat: Feat
@@ -46,4 +53,4 @@ export type RuleBrowserItem = {
   searchText: string
 }
 
-export type { Feat, FeatEntryBlock, MonsterListItem, MonsterRecord, Rule, RuleEntryBlock, Spell }
+export type { Feat, FeatEntryBlock, Item, ItemEntryBlock, MonsterListItem, MonsterRecord, Rule, RuleEntryBlock, Spell }

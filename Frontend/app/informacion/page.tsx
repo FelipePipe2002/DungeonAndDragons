@@ -11,6 +11,7 @@ import { BrowserList } from "@/components/browser/BrowserList"
 import { BrowserListPanel } from "@/components/browser/BrowserListPanel"
 import { BrowserSearch } from "@/components/browser/BrowserSearch"
 import { FeatCard } from "@/components/card/feat-card"
+import { ItemCard } from "@/components/card/item-card"
 import { RuleCard } from "@/components/card/rule-card"
 import { SpellCard } from "@/components/card/spell-card"
 import { FrameBypass } from "@/components/frameBypass/FrameBypass"
@@ -33,6 +34,7 @@ import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 import { useBooksSection } from "@/app/informacion/hooks/useBooksSection"
 import { useConditionsSection } from "@/app/informacion/hooks/useConditionsSection"
 import { useFeatsSection } from "@/app/informacion/hooks/useFeatsSection"
+import { useItemsSection } from "@/app/informacion/hooks/useItemsSection"
 import { useMonstersSection } from "@/app/informacion/hooks/useMonstersSection"
 import { usePagesSection } from "@/app/informacion/hooks/usePagesSection"
 import { useRulesSection } from "@/app/informacion/hooks/useRulesSection"
@@ -95,6 +97,7 @@ function InformacionPageContent() {
   const monsters = useMonstersSection({ isActive: activeSection === "monsters" })
   const conditions = useConditionsSection({ isActive: activeSection === "conditions" })
   const spells = useSpellsSection({ isActive: activeSection === "spells" })
+  const items = useItemsSection({ isActive: activeSection === "items" })
   const feats = useFeatsSection({ isActive: activeSection === "feats" })
   const rules = useRulesSection({ isActive: activeSection === "rules" })
   const books = useBooksSection({ isActive: activeSection === "books" })
@@ -107,6 +110,8 @@ function InformacionPageContent() {
         ? conditions.conditionQuery
         : activeSection === "spells"
           ? spells.spellQuery
+          : activeSection === "items"
+            ? items.itemQuery
           : activeSection === "feats"
             ? feats.featQuery
             : activeSection === "rules"
@@ -122,6 +127,8 @@ function InformacionPageContent() {
         ? "Buscar condicion..."
         : activeSection === "spells"
           ? "Buscar spell, escuela o nivel..."
+          : activeSection === "items"
+            ? "Buscar item, tipo o rareza..."
           : activeSection === "feats"
             ? "Buscar feat, categoria o prerequisito..."
             : activeSection === "rules"
@@ -143,6 +150,11 @@ function InformacionPageContent() {
 
     if (activeSection === "spells") {
       spells.setSpellQuery(value)
+      return
+    }
+
+    if (activeSection === "items") {
+      items.setItemQuery(value)
       return
     }
 
@@ -333,6 +345,44 @@ function InformacionPageContent() {
                               </button>
                             )
                           })
+                    : activeSection === "items"
+                      ? items.itemsStatus === "loading"
+                        ? (
+                          <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
+                            Cargando items...
+                          </p>
+                        )
+                        : items.itemsStatus === "error"
+                          ? (
+                            <p className="rounded-sm border border-dashed border-destructive/50 p-4 text-sm text-destructive">
+                              {items.itemsErrorMessage || "No se pudieron cargar los items."}
+                            </p>
+                          )
+                          : items.filteredItems.map((itemEntry) => {
+                              const isActive = items.selectedItemId === itemEntry.id
+                              const { item } = itemEntry
+                              const subtitle = [item.typeLabel, item.rarityLabel].filter(Boolean).join(" · ")
+
+                              return (
+                                <button
+                                  key={itemEntry.id}
+                                  type="button"
+                                  onClick={() => items.setSelectedItemId(itemEntry.id)}
+                                  className={getListItemClassName(isActive)}
+                                  style={{ borderLeftWidth: 4, borderLeftColor: "#8a5a2b" }}
+                                >
+                                  <p className="font-semibold text-foreground">{item.name}</p>
+                                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                    <span>{subtitle || "Item"}</span>
+                                    {item.attunement ? (
+                                      <span className="rounded-sm border border-[#d2c2a8] px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#6a4b31]">
+                                        Attunement
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                </button>
+                              )
+                            })
                     : activeSection === "feats"
                       ? feats.featsStatus === "loading"
                         ? (
@@ -520,6 +570,12 @@ function InformacionPageContent() {
               </p>
             ) : null}
 
+            {activeSection === "items" && items.itemsStatus === "ready" && items.filteredItems.length === 0 ? (
+              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
+                No hay items que coincidan con esa busqueda.
+              </p>
+            ) : null}
+
             {activeSection === "feats" && feats.featsStatus === "ready" && feats.filteredFeats.length === 0 ? (
               <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
                 No hay feats que coincidan con esa busqueda.
@@ -670,6 +726,12 @@ function InformacionPageContent() {
               <SpellCard spell={spells.selectedSpell} />
             ) : (
               <BrowserEmptyState title="Sin spell seleccionado" />
+            )
+          ) : activeSection === "items" ? (
+            items.selectedItem ? (
+              <ItemCard item={items.selectedItem} />
+            ) : (
+              <BrowserEmptyState title="Sin item seleccionado" />
             )
           ) : activeSection === "feats" ? (
             feats.selectedFeat ? (

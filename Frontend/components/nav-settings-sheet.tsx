@@ -50,6 +50,10 @@ export function NavSettingsSheet({ showTrigger = true }: NavSettingsSheetProps) 
         action: "Agregar evento del DM",
       },
       {
+        key: "Alt+R",
+        action: "Agregar relacion del DM",
+      },
+      {
         key: "Alt+N",
         action: "Ir a DM",
       },
