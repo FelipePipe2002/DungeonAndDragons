@@ -1,18 +1,13 @@
 TODO - Bugs:
 
 TODO-Priority-High:
-    Add a way to swith into production or development mode, so if i am in development mode when i run the backend and frontend it uses localhost, but if i built to be in production it change it to use dnd.felipebertoldi.com.ar
     Agregar presets de encuentros para batalla por landmark o edificio
-    Agregar seguimiento de duracion de condiciones por turnos en batalla
-    Agregar tiendas vinculadas a edificios con inventario, precios y stock/restock
-    Crear mapas simples del mundo y que lo puedan comprar los jugadores
-
 
 TODO-Priority-Medium:
+    Agregar tracker de quests 
     Agregar rutas o caminos entre landmarks con tiempo de viaje, peligro y notas de encuentro
-    Agregar tracker de quests u objetivos con estado, recompensa y vinculos a NPCs, landmarks y organizaciones
-    Agregar inventario compartido del grupo y tracker de loot
     Agregar un buscador global (por preciono alt + f me abre un panel grande con un buscado arriba y espacio vacio abajo, cuando escribo que busque todo, personajes, characters, edificios, buildings, informacion, mosntruos, landmarks, descripcion de cada uno, contenido de los spells, etc todo lo que exista, por ej busco Sugges y si hay un character que se llama Sugges y esta el spell Suggestion que me aparezcan los 2, y si le doy click a uno que me abra en el mismo panel de buscador el contenido, por ej clickeo en el personaje Sugges entonces que me salta el characterDetailedDialog, pero si le doy click a Suggestion el spell que me habra un panel con la info de ese spell, y asi, esto capaz como ia podes primero planificarlo simple, dividir esta tarea en subtareas por ej que primero ande con characters, despues buildins, desp organization, desp landmark, y asi con cada cosa que haya)
+    Crear mapas simples del mundo y que lo puedan comprar los jugadores
 
 Ideas:
     Integrar IA

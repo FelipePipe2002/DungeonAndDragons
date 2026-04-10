@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import socket
 from pathlib import Path
 from typing import Any
 from urllib import error, request
@@ -67,6 +68,12 @@ DEFAULT_PROMPT_PREFIX = (
     "el texto, devolvelo exactamente igual. Texto: "
 )
 
+DND_CONTEXT = (
+    "This is a Dungeon & Dragons JSON, so take that into account when translating. "
+    "If you see a weird name with no direct Spanish translation, do not translate it. "
+    "If it has an established Spanish translation, translate it."
+)
+
 
 class BatchResponseError(Exception):
     """Raised when a batch response cannot be parsed reliably."""
@@ -106,6 +113,16 @@ def parse_args() -> argparse.Namespace:
         help="Instruction prefix sent before each text value",
     )
     parser.add_argument(
+        "--context",
+        default="",
+        help="Additional translation context appended to the prompt for domain-specific guidance",
+    )
+    parser.add_argument(
+        "--dnd-context",
+        action="store_true",
+        help="Append built-in Dungeon & Dragons translation guidance to the prompt",
+    )
+    parser.add_argument(
         "--mode",
         choices=("auto", "legacy-keys"),
         default="auto",
@@ -137,6 +154,11 @@ def parse_args() -> argparse.Namespace:
         "--overwrite",
         action="store_true",
         help="Overwrite the input file instead of creating a new one",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        help="Path for resumable translation progress. Default: <output>.checkpoint.json",
     )
     parser.add_argument(
         "--verbose",
@@ -321,8 +343,60 @@ def collect_translatable_strings(
         unique_texts.setdefault(node, None)
 
 
-def build_batch_prompt(prefix: str, texts: list[str]) -> str:
+def is_translategemma_model(model: str) -> bool:
+    return model.strip().lower().startswith("translategemma")
+
+
+def build_additional_translation_instructions(prefix: str, context: str) -> str:
+    instructions: list[str] = []
+    if prefix.strip():
+        instructions.append(prefix.strip())
+    if context.strip():
+        instructions.append(context.strip())
+    return "\n\n".join(instructions)
+
+
+def build_batch_prompt(model: str, prefix: str, texts: list[str], *, context: str = "") -> str:
+    if is_translategemma_model(model):
+        additional_instructions = build_additional_translation_instructions(prefix, context)
+        if len(texts) == 1:
+            prompt = (
+                "You are a professional English (en) to Spanish (es) translator. "
+                "Your goal is to accurately convey the meaning and nuances of the original English text "
+                "while adhering to Spanish grammar, vocabulary, and cultural sensitivities.\n"
+                "Produce only the Spanish translation, without any additional explanations or commentary."
+            )
+            if additional_instructions:
+                prompt += f"\n{additional_instructions}"
+            prompt += (
+                "\nPlease translate the following English text into Spanish:"
+                f"\n\n\n{texts[0]}"
+            )
+            return prompt
+
+        if len(texts) > 5:
+            raise ValueError("TranslateGemma batch prompt supports at most 5 texts per request.")
+
+        serialized_texts = json.dumps(texts, ensure_ascii=False)
+        prompt = (
+            "You are a professional English (en) to Spanish (es) translator. "
+            "Your goal is to accurately convey the meaning and nuances of the original English text "
+            "while adhering to Spanish grammar, vocabulary, and cultural sensitivities.\n"
+            "Produce only a valid JSON array of Spanish translations, without any additional explanations or commentary. "
+            "Return the same number of items, in the same order, and preserve placeholders, formatting, and proper names when appropriate."
+        )
+        if additional_instructions:
+            prompt += f"\n{additional_instructions}"
+        prompt += (
+            "\nPlease translate the following English texts into Spanish:"
+            f"\n\n\n{serialized_texts}"
+        )
+        return prompt
+
     serialized_texts = json.dumps(texts, ensure_ascii=False)
+    context_instruction = ""
+    if context.strip():
+        context_instruction = f" Contexto adicional a tener en cuenta: {context.strip()}"
     return (
         "Traduci cada elemento del siguiente array al espanol rioplatense. "
         "Devolve solamente un JSON array valido de strings, en el mismo orden y con la misma cantidad de elementos. "
@@ -330,6 +404,7 @@ def build_batch_prompt(prefix: str, texts: list[str]) -> str:
         "Respeta placeholders, formato y nombres propios cuando corresponda. "
         "Si un elemento no necesita traduccion, devolvelo exactamente igual. "
         f"Usa esta instruccion como criterio de traduccion para cada string: {prefix.strip()} "
+        f"{context_instruction} "
         f"Array: {serialized_texts}"
     )
 
@@ -401,6 +476,79 @@ def print_progress(*, processed: int, total: int, cache_size: int) -> None:
     )
 
 
+def build_checkpoint_metadata(
+    *,
+    model: str,
+    url: str,
+    prompt_prefix: str,
+    mode: str,
+    context: str,
+) -> dict[str, str]:
+    return {
+        "model": model,
+        "url": url,
+        "prompt_prefix": prompt_prefix,
+        "mode": mode,
+        "context": context,
+    }
+
+
+def load_translation_checkpoint(
+    checkpoint_path: Path,
+    *,
+    metadata: dict[str, str],
+    valid_texts: set[str],
+) -> dict[str, str]:
+    if not checkpoint_path.is_file():
+        return {}
+
+    try:
+        checkpoint_data = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Warning: ignoring unreadable checkpoint {checkpoint_path}: {exc}", flush=True)
+        return {}
+
+    if not isinstance(checkpoint_data, dict):
+        print(f"Warning: ignoring invalid checkpoint format in {checkpoint_path}", flush=True)
+        return {}
+
+    stored_metadata = checkpoint_data.get("metadata")
+    stored_translations = checkpoint_data.get("translations")
+    if stored_metadata != metadata:
+        print(f"Warning: ignoring incompatible checkpoint {checkpoint_path}", flush=True)
+        return {}
+    if not isinstance(stored_translations, dict):
+        print(f"Warning: ignoring invalid checkpoint translations in {checkpoint_path}", flush=True)
+        return {}
+
+    translations: dict[str, str] = {}
+    for source, target in stored_translations.items():
+        if (
+            isinstance(source, str)
+            and isinstance(target, str)
+            and source in valid_texts
+        ):
+            translations[source] = target
+
+    return translations
+
+
+def save_translation_checkpoint(
+    checkpoint_path: Path,
+    *,
+    metadata: dict[str, str],
+    translations: dict[str, str],
+) -> None:
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".tmp")
+    payload = {
+        "metadata": metadata,
+        "translations": translations,
+    }
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temp_path.replace(checkpoint_path)
+
+
 def post_to_ollama(*, url: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     http_request = request.Request(
@@ -413,6 +561,10 @@ def post_to_ollama(*, url: str, payload: dict[str, Any], timeout: float) -> dict
     try:
         with request.urlopen(http_request, timeout=timeout) as response:
             raw_response = response.read().decode("utf-8")
+    except (TimeoutError, socket.timeout) as exc:
+        raise OllamaRequestError(
+            f"Request to Ollama timed out after {timeout:g}s: {url}"
+        ) from exc
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise OllamaRequestError(f"Ollama returned HTTP {exc.code}: {body}") from exc
@@ -440,13 +592,14 @@ def translate_batch(
     model: str,
     url: str,
     prompt_prefix: str,
+    context: str,
     timeout: float,
     retries: int,
     verbose: bool,
 ) -> list[str]:
     payload = {
         "model": model,
-        "prompt": build_batch_prompt(prompt_prefix, texts),
+        "prompt": build_batch_prompt(model, prompt_prefix, texts, context=context),
         "stream": False,
     }
     last_error: Exception | None = None
@@ -492,20 +645,41 @@ def translate_unique_strings(
     model: str,
     url: str,
     prompt_prefix: str,
+    context: str,
     timeout: float,
     batch_size: int,
     retries: int,
     verbose: bool,
+    checkpoint_path: Path | None = None,
+    checkpoint_metadata: dict[str, str] | None = None,
 ) -> dict[str, str]:
     translations: dict[str, str] = {}
     if not texts:
         return translations
 
+    total_texts = len(texts)
+    pending_texts = texts
+    if checkpoint_path is not None and checkpoint_metadata is not None:
+        translations.update(
+            load_translation_checkpoint(
+                checkpoint_path,
+                metadata=checkpoint_metadata,
+                valid_texts=set(texts),
+            )
+        )
+        if translations:
+            print(
+                f"Loaded {len(translations)} translations from checkpoint: {checkpoint_path}",
+                flush=True,
+            )
+            print_progress(processed=len(translations), total=total_texts, cache_size=len(translations))
+        pending_texts = [text for text in texts if text not in translations]
+
     def process_batch(batch: list[str], start_index: int) -> None:
         batch_start = start_index + 1
         batch_end = start_index + len(batch)
         print(
-            f"Sending batch items {batch_start}-{batch_end}/{len(texts)}",
+            f"Sending batch items {batch_start}-{batch_end}/{len(pending_texts)}",
             flush=True,
         )
         try:
@@ -514,6 +688,7 @@ def translate_unique_strings(
                 model=model,
                 url=url,
                 prompt_prefix=prompt_prefix,
+                context=context,
                 timeout=timeout,
                 retries=retries,
                 verbose=verbose,
@@ -521,7 +696,7 @@ def translate_unique_strings(
         except BatchResponseError as exc:
             if len(batch) == 1:
                 print(
-                    f"Warning: using raw fallback for item {batch_start}/{len(texts)} due to malformed response.",
+                    f"Warning: using raw fallback for item {batch_start}/{len(pending_texts)} due to malformed response.",
                     flush=True,
                 )
                 translated_batch = [batch[0]]
@@ -537,14 +712,38 @@ def translate_unique_strings(
                 process_batch(batch[midpoint:], start_index + midpoint)
                 return
         except OllamaRequestError as exc:
-            raise SystemExit(str(exc)) from exc
+            if len(batch) == 1:
+                print(
+                    f"Warning: keeping source text for item {batch_start}/{len(pending_texts)} after request failure.",
+                    flush=True,
+                )
+                if verbose:
+                    print(str(exc), flush=True)
+                translated_batch = [batch[0]]
+            else:
+                midpoint = len(batch) // 2
+                print(
+                    f"Warning: request failed for items {batch_start}-{batch_end}. Retrying in smaller chunks.",
+                    flush=True,
+                )
+                if verbose:
+                    print(str(exc), flush=True)
+                process_batch(batch[:midpoint], start_index)
+                process_batch(batch[midpoint:], start_index + midpoint)
+                return
 
         for source, target in zip(batch, translated_batch, strict=True):
             translations[source] = target
-        print_progress(processed=len(translations), total=len(texts), cache_size=len(translations))
+        if checkpoint_path is not None and checkpoint_metadata is not None:
+            save_translation_checkpoint(
+                checkpoint_path,
+                metadata=checkpoint_metadata,
+                translations=translations,
+            )
+        print_progress(processed=len(translations), total=total_texts, cache_size=len(translations))
 
-    for start_index in range(0, len(texts), batch_size):
-        process_batch(texts[start_index:start_index + batch_size], start_index)
+    for start_index in range(0, len(pending_texts), batch_size):
+        process_batch(pending_texts[start_index:start_index + batch_size], start_index)
 
     return translations
 
@@ -578,6 +777,10 @@ def default_output_path(input_path: Path) -> Path:
     return input_path.with_name(f"{input_path.stem}_es{input_path.suffix}")
 
 
+def default_checkpoint_path(output_path: Path) -> Path:
+    return output_path.with_suffix(output_path.suffix + ".checkpoint.json")
+
+
 def main() -> int:
     args = parse_args()
 
@@ -595,6 +798,11 @@ def main() -> int:
         raise SystemExit("--retries must be 0 or greater")
 
     output_path = input_path if args.overwrite else (args.output or default_output_path(input_path))
+    checkpoint_path = args.checkpoint or default_checkpoint_path(output_path)
+    resolved_context = args.context.strip()
+    if args.dnd_context:
+        resolved_context = f"{DND_CONTEXT} {resolved_context}".strip() if resolved_context else DND_CONTEXT
+    effective_batch_size = min(args.batch_size, 5) if is_translategemma_model(args.model) else args.batch_size
 
     try:
         data = json.loads(input_path.read_text(encoding="utf-8"))
@@ -609,15 +817,26 @@ def main() -> int:
     print(f"translatable values found: {total_values}")
     print(f"unique strings found: {len(unique_values)}")
 
+    checkpoint_metadata = build_checkpoint_metadata(
+        model=args.model,
+        url=args.url,
+        prompt_prefix=args.prompt_prefix,
+        mode=args.mode,
+        context=resolved_context,
+    )
+
     translations = translate_unique_strings(
         unique_values,
         model=args.model,
         url=args.url,
         prompt_prefix=args.prompt_prefix,
+        context=resolved_context,
         timeout=args.timeout,
-        batch_size=args.batch_size,
+        batch_size=effective_batch_size,
         retries=args.retries,
         verbose=args.verbose,
+        checkpoint_path=checkpoint_path,
+        checkpoint_metadata=checkpoint_metadata,
     )
 
     translated_data = apply_translations(data, parent_key=None, mode=args.mode, translations=translations)
@@ -627,11 +846,23 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    checkpoint_removed = False
+    if checkpoint_path.is_file():
+        try:
+            checkpoint_path.unlink()
+            checkpoint_removed = True
+        except OSError as exc:
+            print(f"Warning: could not remove checkpoint {checkpoint_path}: {exc}", flush=True)
+
     print(f"input: {input_path}")
     print(f"output: {output_path}")
+    print(f"checkpoint: {checkpoint_path}")
+    if checkpoint_removed:
+        print("checkpoint removed after successful run")
     print(f"model: {args.model}")
     print(f"mode: {args.mode}")
-    print(f"batch size: {args.batch_size}")
+    print(f"context: {resolved_context or '<none>'}")
+    print(f"batch size: {effective_batch_size}")
     print(f"retries: {args.retries}")
     print(f"unique strings sent to Ollama: {len(translations)}")
     print(f"total translated values: {total_values}")

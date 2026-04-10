@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useMemo } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookMarked, ExternalLink, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react"
 
@@ -12,6 +12,7 @@ import { BrowserListPanel } from "@/components/browser/BrowserListPanel"
 import { BrowserSearch } from "@/components/browser/BrowserSearch"
 import { FeatCard } from "@/components/card/feat-card"
 import { ItemCard } from "@/components/card/item-card"
+import { ItemDetailDialog } from "@/components/dialog/detailed/ItemDetailDialog"
 import { RuleCard } from "@/components/card/rule-card"
 import { SpellCard } from "@/components/card/spell-card"
 import { FrameBypass } from "@/components/frameBypass/FrameBypass"
@@ -102,6 +103,7 @@ function InformacionPageContent() {
   const rules = useRulesSection({ isActive: activeSection === "rules" })
   const books = useBooksSection({ isActive: activeSection === "books" })
   const pages = usePagesSection({ isActive: activeSection === "pages" })
+  const [itemDialogItem, setItemDialogItem] = useState<typeof items.selectedItem>(null)
 
   const currentQuery =
     activeSection === "monsters"
@@ -367,7 +369,10 @@ function InformacionPageContent() {
                                 <button
                                   key={itemEntry.id}
                                   type="button"
-                                  onClick={() => items.setSelectedItemId(itemEntry.id)}
+                                  onClick={() => {
+                                    items.setSelectedItemId(itemEntry.id)
+                                    setItemDialogItem(item)
+                                  }}
                                   className={getListItemClassName(isActive)}
                                   style={{ borderLeftWidth: 4, borderLeftColor: "#8a5a2b" }}
                                 >
@@ -960,6 +965,15 @@ function InformacionPageContent() {
       cancelLabel="Cancelar"
       confirmVariant="destructive"
       onConfirm={pages.handleConfirmDelete}
+    />
+    <ItemDetailDialog
+      item={itemDialogItem}
+      open={itemDialogItem !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setItemDialogItem(null)
+        }
+      }}
     />
   </>
   )

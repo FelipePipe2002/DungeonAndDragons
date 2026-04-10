@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 
@@ -9,9 +10,14 @@ import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 export function AppSubnav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isMounted, setIsMounted] = useState(false)
   const config = getSubnavConfig(pathname)
 
-  if (!config || pathname === "/login" || pathname === "/presentacion") {
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted || !config || pathname === "/login" || pathname === "/presentacion") {
     return null
   }
 

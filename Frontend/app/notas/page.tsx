@@ -8,6 +8,7 @@ import { CharacterDetailDialog, type CharacterDetailData } from "@/components/di
 import { DmRelationshipsSection } from "@/components/dm/DmRelationshipsSection"
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
+import { PartyInventorySection } from "@/components/dm/PartyInventorySection"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
@@ -28,7 +29,7 @@ import { Trash2 } from "lucide-react"
 
 const DM_NOTES_SAVE_DEBOUNCE_MS = 450
 
-type NotesSection = "dm-notes" | "dm-events" | "dm-relationships"
+type NotesSection = "dm-notes" | "dm-events" | "dm-relationships" | "party-inventory"
 
 type ReferenceIndexes = {
   landmarksById: Map<number, Landmark>
@@ -346,6 +347,7 @@ function NotasPageContent() {
   const pageTitle = useMemo(() => {
     if (activeSection === "dm-events") return "Eventos DM"
     if (activeSection === "dm-relationships") return "Relaciones"
+    if (activeSection === "party-inventory") return "Party Inventory"
     return "Notas DM"
   }, [activeSection])
 
@@ -475,6 +477,8 @@ function NotasPageContent() {
             })
           )}
         </div>
+      ) : activeSection === "party-inventory" ? (
+        <PartyInventorySection />
       ) : (
         <DmRelationshipsSection />
       )}
