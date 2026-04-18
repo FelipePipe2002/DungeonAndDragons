@@ -63,6 +63,7 @@ import {
   openPresentationScreen,
   type PresentationScreenTarget,
 } from "@/lib/presentation/screen"
+import { isJsonMapReference, resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import {
   createBattle,
   deleteBattle,
@@ -261,18 +262,6 @@ function DelayedControlTooltip({
   )
 }
 
-function isJsonMapReference(value: string | null | undefined) {
-  if (!value) return false
-  const normalized = value.trim().toLowerCase()
-
-  return (
-    normalized.startsWith("data:application/json") ||
-    normalized.startsWith("data:text/json") ||
-    normalized.endsWith(".json") ||
-    normalized.includes(".json?")
-  )
-}
-
 function getLandmarkMapReference(landmark: Landmark) {
   if (typeof landmark.mapAssetId === "number" && landmark.mapAssetId > 0) {
     return "__asset__"
@@ -294,10 +283,9 @@ function getLandmarkMapReference(landmark: Landmark) {
 
 function isLandmarkEligibleForBattle(landmark: Landmark) {
   const persistedMapReference = getLandmarkMapReference(landmark)
-  const usesBuildingsMap =
-    landmark.mapAssetKind === "json" || landmark.mapa?.kind === "buildings" || isJsonMapReference(persistedMapReference)
+  const mapMode = resolveLandmarkMapMode(landmark, persistedMapReference)
 
-  return Boolean(persistedMapReference) && !usesBuildingsMap && Boolean(landmark.mapGridEnabled)
+  return Boolean(persistedMapReference) && mapMode === "image" && Boolean(landmark.mapGridEnabled)
 }
 
 function getBuildingMapReference(building: Building) {
@@ -413,19 +401,7 @@ function isLandmarkFogSupported(landmark: Landmark | null) {
     return true
   }
 
-  if (landmark.mapAssetKind === "json" || landmark.mapa?.kind === "buildings") {
-    return false
-  }
-
-  if (landmark.mapa?.kind === "asset") {
-    return !isJsonMapReference(landmark.mapa.filename)
-  }
-
-  if (landmark.mapa?.kind === "external") {
-    return !isJsonMapReference(landmark.mapa.url)
-  }
-
-  return true
+  return resolveLandmarkMapMode(landmark, getLandmarkMapReference(landmark)) === "image"
 }
 
 function isBuildingFogSupported(building: Building | null) {

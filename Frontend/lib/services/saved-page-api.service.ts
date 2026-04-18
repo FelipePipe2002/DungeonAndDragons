@@ -5,6 +5,7 @@ type SavedPageDto = {
   id?: number | null
   titulo?: string | null
   url?: string | null
+  selector?: string | null
   createdAt?: string | null
   updatedAt?: string | null
 }

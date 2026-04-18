@@ -163,6 +163,31 @@ Notas de derivacion:
 - deduplicacion de `tags`, ids de relaciones y categorias
 - validacion estricta del objeto `mapa` por combinacion `kind/source`
 
+## Contrato de mazmorras
+- La regla aplica solo cuando `landmark.tipo === "mazmorra"`.
+- Una mazmorra solo acepta mapa por `mapAssetId`.
+- Para `mapAssetId`, se acepta:
+- asset de tipo `image`
+- asset de tipo `json` cuyo root tenga `type: "mazmorra"`
+- Una mazmorra no acepta referencias `mapa.kind` (`asset`, `external`, `stored`, `embedded` ni `buildings`).
+- Si el JSON no tiene `type` o `type !== "mazmorra"`, la request se rechaza.
+- Contrato minimo del JSON de mazmorra:
+
+```json
+{
+  "type": "mazmorra",
+  "version": 1
+}
+```
+
+`version: 1` queda recomendado para el contrato inicial, pero no es obligatorio todavia.
+
+Mensaje de error estandar:
+
+```text
+Las mazmorras solo permiten imagenes o JSON con type="mazmorra".
+```
+
 ## Errores
 Contrato uniforme desde `GlobalExceptionHandler`:
 

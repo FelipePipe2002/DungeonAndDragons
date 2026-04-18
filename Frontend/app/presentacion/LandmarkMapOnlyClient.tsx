@@ -16,7 +16,9 @@ import {
 import { Maximize2, RotateCw } from "lucide-react"
 
 import BuildingsMap from "@/components/buildings/BuildingsMap"
+import DungeonMap from "@/components/dungeons/DungeonMap"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { buildBackendApiUrl } from "@/lib/services/backend-api.service"
@@ -142,18 +144,6 @@ function mapUrlFromBuilding(building: Building): string | null {
   }
 
   return null
-}
-
-function isJsonMapReference(value: string | null | undefined) {
-  if (!value) return false
-  const normalized = value.trim().toLowerCase()
-
-  return (
-    normalized.startsWith("data:application/json") ||
-    normalized.startsWith("data:text/json") ||
-    normalized.endsWith(".json") ||
-    normalized.includes(".json?")
-  )
 }
 
 function isBackendAssetUrl(url: string) {
@@ -378,13 +368,14 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     if (building) return mapUrlFromBuilding(building)
     return null
   }, [building, landmark])
-  const shouldUseBuildingsMap =
-    Boolean(landmark) &&
-    (landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl))
+  const landmarkMapMode = landmark ? resolveLandmarkMapMode(landmark, effectiveMapUrl) : "image"
+  const shouldUseBuildingsMap = Boolean(landmark) && landmarkMapMode === "buildings-json"
+  const shouldUseDungeonMapPlaceholder = Boolean(landmark) && landmarkMapMode === "dungeon-json"
+  const shouldUseImageMap = !landmark || landmarkMapMode === "image"
   const isBackendImageAsset =
-    typeof effectiveMapUrl === "string" && !shouldUseBuildingsMap && isBackendAssetUrl(effectiveMapUrl)
-  const renderedImageMapUrl = shouldUseBuildingsMap ? null : resolvedImageMapUrl ?? effectiveMapUrl
-  const imageMapEffectKey = shouldUseBuildingsMap ? "__buildings__" : effectiveMapUrl ?? "__no-map__"
+    typeof effectiveMapUrl === "string" && shouldUseImageMap && isBackendAssetUrl(effectiveMapUrl)
+  const renderedImageMapUrl = shouldUseImageMap ? resolvedImageMapUrl ?? effectiveMapUrl : null
+  const imageMapEffectKey = shouldUseBuildingsMap ? "__buildings__" : shouldUseDungeonMapPlaceholder ? "__dungeon__" : effectiveMapUrl ?? "__no-map__"
   const resolvedSceneType = landmark
     ? "landmark"
     : building
@@ -407,13 +398,13 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   )
   const isLoadingImageMap =
     Boolean(effectiveMapUrl) &&
-    !shouldUseBuildingsMap &&
+    shouldUseImageMap &&
     (!mapImageNaturalSize || !mapViewportSize) &&
     !buildingsMapError
   const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees ?? building?.mapRotationDegrees)
   const canUseBattleGrid = landmark
-    ? Boolean(effectiveMapUrl) && !shouldUseBuildingsMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
-    : Boolean(building && effectiveMapUrl && !shouldUseBuildingsMap)
+    ? Boolean(effectiveMapUrl) && shouldUseImageMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
+    : Boolean(building && effectiveMapUrl && shouldUseImageMap)
   const shouldRenderPresentationLabel =
     Boolean(showPresentationLabel && landmark && PRESENTATION_LABEL_TYPES.has(landmark.tipo))
   const presentationLabel = shouldRenderPresentationLabel && landmark
@@ -580,7 +571,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [building?.id, imageMapEffectKey, landmark?.id])
 
   useEffect(() => {
-    if (shouldUseBuildingsMap) {
+    if (!shouldUseImageMap) {
       setMapViewportSize(null)
       return
     }
@@ -692,14 +683,14 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   )
 
   useEffect(() => {
-    if (buildingsMapError && !shouldUseBuildingsMap) {
+    if (buildingsMapError && shouldUseImageMap) {
       notifySceneError(buildingsMapError)
     }
-  }, [buildingsMapError, notifySceneError, shouldUseBuildingsMap])
+  }, [buildingsMapError, notifySceneError, shouldUseImageMap])
 
   useEffect(() => {
     const viewport = viewportRef.current
-    if (!viewport || !effectiveMapUrl || shouldUseBuildingsMap) return
+    if (!viewport || !effectiveMapUrl || !shouldUseImageMap) return
 
     const onWheel = (event: WheelEvent) => {
       if (event.target instanceof Element && event.target.closest("[data-battle-wheel-stop='true']")) {
@@ -739,7 +730,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [applyCanvasTransform, imageMapEffectKey])
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!effectiveMapUrl || shouldUseBuildingsMap) return
+    if (!effectiveMapUrl || !shouldUseImageMap) return
     if (event.button !== 0 && event.button !== 1) return
 
     if (event.target instanceof Element && event.target.closest("[data-battle-wheel-stop='true']")) {
@@ -805,7 +796,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [applyCanvasTransform])
 
   const handleRotateMap = useCallback(async () => {
-    if ((!landmark && !building) || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) {
+    if ((!landmark && !building) || !effectiveMapUrl || !shouldUseImageMap || isRotatingMap) {
       return
     }
 
@@ -832,7 +823,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     } finally {
       setIsRotatingMap(false)
     }
-  }, [building, effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, shouldUseBuildingsMap])
+  }, [building, effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, shouldUseImageMap])
 
   useEffect(() => {
     if (!hasResolvedLoad) {
@@ -869,6 +860,18 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
       landmarkId: landmark?.id,
     })
     return renderState("Esta escena no tiene mapa.")
+  }
+
+  if (shouldUseDungeonMapPlaceholder) {
+    return (
+      <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
+        <div className={styles.mapViewport}>
+          {presentationLabel}
+          <DungeonMap dataUrl={effectiveMapUrl} onLoadError={setBuildingsMapError} onLoadComplete={notifySceneReady} />
+          {buildingsMapError && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>{buildingsMapError}</div> : null}
+        </div>
+      </section>
+    )
   }
 
   if (shouldUseBuildingsMap) {

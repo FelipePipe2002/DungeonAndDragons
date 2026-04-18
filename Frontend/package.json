@@ -9,7 +9,8 @@
     "assets": "node scripts/collect-static-assets.mjs",
     "deploy:static": "deploy-static.bat",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:dungeons": "node --test lib/dungeons/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

@@ -1,4 +1,4 @@
-import type { MonsterBatchResponse, MonsterExactResponse, MonsterRecord } from "@/lib/monster/types"
+import type { MonsterBatchResponse, MonsterExactResponse, MonsterListItem, MonsterRecord } from "@/lib/monster/types"
 import { buildMonsterListItem, normalizeMonsterRecord } from "@/lib/monster/utils"
 
 const DEFAULT_BATCH_SIZE = 30

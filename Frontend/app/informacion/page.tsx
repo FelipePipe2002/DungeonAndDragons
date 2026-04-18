@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookMarked, ExternalLink, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react"
 
@@ -12,7 +12,6 @@ import { BrowserListPanel } from "@/components/browser/BrowserListPanel"
 import { BrowserSearch } from "@/components/browser/BrowserSearch"
 import { FeatCard } from "@/components/card/feat-card"
 import { ItemCard } from "@/components/card/item-card"
-import { ItemDetailDialog } from "@/components/dialog/detailed/ItemDetailDialog"
 import { RuleCard } from "@/components/card/rule-card"
 import { SpellCard } from "@/components/card/spell-card"
 import { FrameBypass } from "@/components/frameBypass/FrameBypass"
@@ -103,7 +102,6 @@ function InformacionPageContent() {
   const rules = useRulesSection({ isActive: activeSection === "rules" })
   const books = useBooksSection({ isActive: activeSection === "books" })
   const pages = usePagesSection({ isActive: activeSection === "pages" })
-  const [itemDialogItem, setItemDialogItem] = useState<typeof items.selectedItem>(null)
 
   const currentQuery =
     activeSection === "monsters"
@@ -371,7 +369,6 @@ function InformacionPageContent() {
                                   type="button"
                                   onClick={() => {
                                     items.setSelectedItemId(itemEntry.id)
-                                    setItemDialogItem(item)
                                   }}
                                   className={getListItemClassName(isActive)}
                                   style={{ borderLeftWidth: 4, borderLeftColor: "#8a5a2b" }}
@@ -617,24 +614,28 @@ function InformacionPageContent() {
             )
           ) : activeSection === "conditions" ? (
             conditions.selectedCondition ? (
+              (() => {
+                const selectedCondition = conditions.selectedCondition
+
+                return (
               <article
                 className="rounded-sm border bg-[linear-gradient(180deg,rgba(255,252,246,0.98),rgba(245,236,221,0.97))] p-6 shadow-[0_12px_26px_rgba(48,33,18,0.13)]"
                 style={{
                   borderColor: "#d8c7ab",
                   borderLeftWidth: 6,
-                  borderLeftColor: conditions.selectedCondition.color,
+                  borderLeftColor: selectedCondition.color,
                 }}
               >
                 <header className="mb-6 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7b6249]">Condicion</p>
-                    <h2 className="text-3xl font-serif text-[#6f3116]">{conditions.selectedCondition.name}</h2>
+                    <h2 className="text-3xl font-serif text-[#6f3116]">{selectedCondition.name}</h2>
                   </div>
                   <span
                     className="mt-1 size-4 rounded-full border"
                     style={{
                       borderColor: "#d7c5a8",
-                      backgroundColor: conditions.selectedCondition.color,
+                      backgroundColor: selectedCondition.color,
                     }}
                     aria-hidden="true"
                   />
@@ -645,10 +646,10 @@ function InformacionPageContent() {
                   style={{ borderColor: "#d7c5a8", backgroundColor: "rgba(255, 249, 238, 0.74)" }}
                 >
                   <div className="space-y-4">
-                    {conditions.selectedCondition.blocks.map((block, index) => {
+                    {selectedCondition.blocks.map((block, index) => {
                       if (block.kind === "paragraph") {
                         return (
-                          <p key={`${conditions.selectedCondition.id}-paragraph-${index}`} className="text-sm leading-7 text-[#3b2a1c]">
+                          <p key={`${selectedCondition.id}-paragraph-${index}`} className="text-sm leading-7 text-[#3b2a1c]">
                             {block.text}
                           </p>
                         )
@@ -656,10 +657,10 @@ function InformacionPageContent() {
 
                       if (block.kind === "list") {
                         return (
-                          <ul key={`${conditions.selectedCondition.id}-list-${index}`} className="list-disc space-y-2 pl-5">
+                          <ul key={`${selectedCondition.id}-list-${index}`} className="list-disc space-y-2 pl-5">
                             {block.items.map((item, itemIndex) => (
                               <li
-                                key={`${conditions.selectedCondition.id}-list-item-${index}-${itemIndex}`}
+                                key={`${selectedCondition.id}-list-item-${index}-${itemIndex}`}
                                 className="text-sm leading-7 text-[#3b2a1c]"
                               >
                                 {item}
@@ -671,7 +672,7 @@ function InformacionPageContent() {
 
                       return (
                         <div
-                          key={`${conditions.selectedCondition.id}-table-${index}`}
+                          key={`${selectedCondition.id}-table-${index}`}
                           className="overflow-x-auto rounded-sm border"
                           style={{
                             borderColor: "rgba(125, 62, 29, 0.18)",
@@ -690,7 +691,7 @@ function InformacionPageContent() {
                                 <tr>
                                   {block.headers.map((header, headerIndex) => (
                                     <th
-                                      key={`${conditions.selectedCondition.id}-table-header-${index}-${headerIndex}`}
+                                      key={`${selectedCondition.id}-table-header-${index}-${headerIndex}`}
                                       className="px-3 py-2 font-semibold text-[#352417]"
                                     >
                                       {header}
@@ -702,12 +703,12 @@ function InformacionPageContent() {
                             <tbody>
                               {block.rows.map((row, rowIndex) => (
                                 <tr
-                                  key={`${conditions.selectedCondition.id}-table-row-${index}-${rowIndex}`}
+                                  key={`${selectedCondition.id}-table-row-${index}-${rowIndex}`}
                                   className={rowIndex % 2 === 0 ? "bg-white/60" : "bg-transparent"}
                                 >
                                   {row.map((cell, cellIndex) => (
                                     <td
-                                      key={`${conditions.selectedCondition.id}-table-cell-${index}-${rowIndex}-${cellIndex}`}
+                                      key={`${selectedCondition.id}-table-cell-${index}-${rowIndex}-${cellIndex}`}
                                       className="px-3 py-2 text-[#3b2a1c]"
                                     >
                                       {cell}
@@ -723,6 +724,8 @@ function InformacionPageContent() {
                   </div>
                 </div>
               </article>
+                )
+              })()
             ) : (
               <BrowserEmptyState title="Sin condicion seleccionada" />
             )
@@ -965,15 +968,6 @@ function InformacionPageContent() {
       cancelLabel="Cancelar"
       confirmVariant="destructive"
       onConfirm={pages.handleConfirmDelete}
-    />
-    <ItemDetailDialog
-      item={itemDialogItem}
-      open={itemDialogItem !== null}
-      onOpenChange={(open) => {
-        if (!open) {
-          setItemDialogItem(null)
-        }
-      }}
     />
   </>
   )

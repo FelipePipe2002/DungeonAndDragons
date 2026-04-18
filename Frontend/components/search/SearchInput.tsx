@@ -11,7 +11,7 @@ type SearchInputProps = {
   placeholder: string
   className?: string
   inputClassName?: string
-  inputProps?: Omit<ComponentProps<typeof Input>, "value" | "onChange" | "placeholder" | "className">
+  inputProps?: Omit<ComponentProps<typeof Input>, "value" | "onChange" | "placeholder">
 } & Omit<ComponentProps<"div">, "onChange">
 
 export const SearchInput = forwardRef<HTMLDivElement, SearchInputProps>(

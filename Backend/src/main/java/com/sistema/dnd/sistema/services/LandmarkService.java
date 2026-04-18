@@ -10,12 +10,10 @@ import com.sistema.dnd.sistema.entity.LandmarkMapKind;
 import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
 import com.sistema.dnd.sistema.entity.LandmarkMapSource;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
-import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import jakarta.transaction.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,24 +29,24 @@ public class LandmarkService {
     private final LandmarkRepository landmarkRepository;
     private final LandmarkEventRepository landmarkEventRepository;
     private final LandmarkMapRefRepository landmarkMapRefRepository;
-    private final MediaAssetRepository mediaAssetRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
+    private final LandmarkMapValidator landmarkMapValidator;
 
     public LandmarkService(
         LandmarkRepository landmarkRepository,
         LandmarkEventRepository landmarkEventRepository,
         LandmarkMapRefRepository landmarkMapRefRepository,
-        MediaAssetRepository mediaAssetRepository,
         TaggingService taggingService,
-        DomainMapper domainMapper
+        DomainMapper domainMapper,
+        LandmarkMapValidator landmarkMapValidator
     ) {
         this.landmarkRepository = landmarkRepository;
         this.landmarkEventRepository = landmarkEventRepository;
         this.landmarkMapRefRepository = landmarkMapRefRepository;
-        this.mediaAssetRepository = mediaAssetRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
+        this.landmarkMapValidator = landmarkMapValidator;
     }
 
     public List<LandmarkDto> findAll(String include) {
@@ -78,10 +76,11 @@ public class LandmarkService {
 
     @Transactional
     public LandmarkDto create(LandmarkUpsertRequest request) {
+        MediaAssetEntity mapAsset = landmarkMapValidator.resolveValidatedMapAsset(request);
         LandmarkEntity entity = new LandmarkEntity();
         applyUpsert(entity, request);
         LandmarkEntity saved = landmarkRepository.save(entity);
-        syncChildren(saved, request);
+        syncChildren(saved, request, mapAsset);
         return domainMapper.toLandmarkDto(saved, false, false, false);
     }
 
@@ -89,10 +88,11 @@ public class LandmarkService {
     public LandmarkDto update(Long id, LandmarkUpsertRequest request) {
         LandmarkEntity entity = landmarkRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Landmark no encontrado"));
+        MediaAssetEntity mapAsset = landmarkMapValidator.resolveValidatedMapAsset(request);
 
         applyUpsert(entity, request);
         LandmarkEntity saved = landmarkRepository.save(entity);
-        syncChildren(saved, request);
+        syncChildren(saved, request, mapAsset);
         return domainMapper.toLandmarkDto(saved, false, false, false);
     }
 
@@ -124,16 +124,15 @@ public class LandmarkService {
         entity.setHiddenMapBuildings(optionalTrimmed(request.hiddenMapBuildings()));
     }
 
-    private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request) {
+    private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request, MediaAssetEntity mapAsset) {
         landmarkEventRepository.deleteByLandmarkId(landmark.getId());
         landmarkMapRefRepository.deleteByLandmarkId(landmark.getId());
         landmarkEventRepository.flush();
         landmarkMapRefRepository.flush();
         taggingService.replaceTags(TaggableEntityType.landmark, landmark.getId(), request.tags());
 
-        Long mapAssetId = request.mapAssetId();
-        if (mapAssetId != null && mapAssetId > 0) {
-            landmark.setMapAsset(resolveMapAsset(mapAssetId));
+        if (mapAsset != null) {
+            landmark.setMapAsset(mapAsset);
         } else {
             landmark.setMapAsset(null);
         }
@@ -231,15 +230,6 @@ public class LandmarkService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private MediaAssetEntity resolveMapAsset(Long assetId) {
-        MediaAssetEntity asset = mediaAssetRepository.findById(assetId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "mapAssetId invalido"));
-        if (asset.getKind() != MediaAssetKind.image && asset.getKind() != MediaAssetKind.json) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "mapAssetId debe apuntar a un asset de imagen o json");
-        }
-        return asset;
     }
 
     private Integer normalizeMapRotationDegrees(Integer value) {

@@ -98,13 +98,13 @@ export async function GET(request: Request) {
   try {
     if (prefetchTokens === "1" || prefetchTokens === "true") {
       const limit = parseIntegerParam(searchParams.get("limit"), 8)
-      const summary = await prefetchMissingMonsterTokens(limit, requestContext)
+      const summary = await prefetchMissingMonsterTokens(limit, requestContext as any)
       return NextResponse.json(summary)
     }
 
     if (nameExact) {
       const monster = normalizeMonsterRecord(
-        await getMonsterByExactName(nameExact, requestContext, { withTokenImage }),
+        await getMonsterByExactName(nameExact, requestContext as any, { withTokenImage } as any),
       )
       return NextResponse.json({ item: monster ?? null })
     }
@@ -129,11 +129,11 @@ export async function GET(request: Request) {
       rawFilters[key] = value
     }
 
-    const batch = await getMonsterBatch(offset, requestedLimit, rawFilters as any, requestContext, {
+    const batch = await getMonsterBatch(offset, requestedLimit, rawFilters as any, requestContext as any, {
       withTokenImage,
       sortField: sortBy === "type" || sortBy === "cr" ? sortBy : "name",
       sortDirection: sortDir === "desc" ? "desc" : "asc",
-    })
+    } as any)
     const items = Array.isArray(batch?.items) ? batch.items : []
     const normalizedItems = summaryOnly
       ? items.map(buildMonsterSummaryItem).filter(Boolean)

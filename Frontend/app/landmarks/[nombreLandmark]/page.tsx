@@ -19,6 +19,7 @@ import {
   CalendarDays,
   Expand,
   Link2,
+  Map as MapIcon,
   Pencil,
   Plus,
   RotateCw,
@@ -40,26 +41,43 @@ import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResume
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
 import BuildingsMap from "@/components/buildings/BuildingsMap"
+import DungeonMap from "@/components/dungeons/DungeonMap"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { generateDungeonMapDocument, stringifyDungeonMapDocument } from "@/lib/dungeons/generator"
+import type { DungeonMapDocument } from "@/lib/dungeons/types"
+import { isDungeonJsonDocument, resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 import { matchesSearchQuery } from "@/lib/search/utils"
-import { buildAssetUrl, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
+import { buildAssetUrl, deleteAsset, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { createBattle, fetchBattleHistory } from "@/lib/services/battle-api.service"
 import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchLandmarks, updateLandmark } from "@/lib/services/landmark-api.service"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
-import type { BattleSummary, Building, Character, Landmark, LandmarkEvent, LandmarkType, Organization } from "@/lib/types"
+import {
+  DUNGEON_MAP_JSON_TYPE,
+  type BattleSummary,
+  type Building,
+  type Character,
+  type Landmark,
+  type LandmarkEvent,
+  type LandmarkType,
+  type Organization,
+} from "@/lib/types"
 import styles from "./LandmarkDetailPage.module.css"
 
 const MIN_SCALE = 0.5
 const MAX_SCALE = 3
 const INITIAL_SCALE = 1
+const DUNGEON_INVALID_JSON_ERROR_MESSAGE = "El archivo JSON no es valido."
+const DUNGEON_JSON_MISSING_TYPE_ERROR_MESSAGE = 'El JSON de una mazmorra debe incluir type="mazmorra".'
+const DUNGEON_JSON_WRONG_TYPE_ERROR_MESSAGE = 'El JSON cargado no corresponde a una mazmorra: se esperaba type="mazmorra".'
+const DUNGEON_PRELOADED_MAP_ERROR_MESSAGE = "Las mazmorras no permiten URLs externas ni mapas precargados."
 
 const LANDMARK_TYPE_LABELS: Record<LandmarkType, string> = {
   ciudad: "Ciudad",
@@ -100,6 +118,20 @@ type MapGridDraft = {
   cellSize: string
   offsetX: string
   offsetY: string
+}
+
+type DungeonEditorDraft = {
+  name: string
+  seed: string
+  width: string
+  height: string
+  roomCount: string
+  minRoomWidth: string
+  maxRoomWidth: string
+  minRoomHeight: string
+  maxRoomHeight: string
+  roomPadding: string
+  roomDispersion: string
 }
 
 type ReferenceIndexes = {
@@ -206,18 +238,6 @@ function mapUrlFromReference(landmark: Landmark): string | null {
   return null
 }
 
-function isJsonMapReference(value: string | null | undefined) {
-  if (!value) return false
-  const normalized = value.trim().toLowerCase()
-
-  return (
-    normalized.startsWith("data:application/json") ||
-    normalized.startsWith("data:text/json") ||
-    normalized.endsWith(".json") ||
-    normalized.includes(".json?")
-  )
-}
-
 function normalizePreloadedMapValue(value: string) {
   const normalized = value.trim()
   if (!normalized) return ""
@@ -234,6 +254,31 @@ function normalizePreloadedMapValue(value: string) {
   return `/maps/${normalized.replace(/^maps\/preloaded\//, "")}`
 }
 
+function getDungeonJsonUploadError(value: string) {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return DUNGEON_INVALID_JSON_ERROR_MESSAGE
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return DUNGEON_JSON_MISSING_TYPE_ERROR_MESSAGE
+  }
+
+  const root = parsed as { type?: unknown }
+  if (root.type === undefined) {
+    return DUNGEON_JSON_MISSING_TYPE_ERROR_MESSAGE
+  }
+
+  if (root.type !== DUNGEON_MAP_JSON_TYPE) {
+    return DUNGEON_JSON_WRONG_TYPE_ERROR_MESSAGE
+  }
+
+  return null
+}
+
 function decodeSlug(raw: string | undefined) {
   if (!raw) return ""
 
@@ -242,6 +287,52 @@ function decodeSlug(raw: string | undefined) {
   } catch {
     return raw.trim().toLowerCase()
   }
+}
+
+function toDefaultDungeonEditorDraft(name: string | undefined): DungeonEditorDraft {
+  return {
+    name: name ?? "",
+    seed: "",
+    width: "48",
+    height: "32",
+    roomCount: "6",
+    minRoomWidth: "5",
+    maxRoomWidth: "10",
+    minRoomHeight: "4",
+    maxRoomHeight: "8",
+    roomPadding: "1",
+    roomDispersion: "0",
+  }
+}
+
+function sanitizeDungeonEditorIntegerInput(value: string) {
+  return value.replace(/[^0-9]/g, "")
+}
+
+function normalizeDungeonEditorInteger(value: string, fallback: number, min: number, max: number) {
+  const parsed = Number.parseInt(value.trim(), 10)
+  if (!Number.isFinite(parsed)) {
+    return Math.min(max, Math.max(min, Math.round(fallback)))
+  }
+
+  return Math.min(max, Math.max(min, Math.round(parsed)))
+}
+
+function sanitizeDungeonEditorDecimalInput(value: string) {
+  return value.replace(/[^0-9.,-]/g, "")
+}
+
+function normalizeDungeonEditorDecimal(value: string, fallback: number, min: number, max: number) {
+  const parsed = Number.parseFloat(value.trim().replace(",", "."))
+  if (!Number.isFinite(parsed)) {
+    return Math.min(max, Math.max(min, fallback))
+  }
+
+  return Math.min(max, Math.max(min, parsed))
+}
+
+function createAutoDungeonSeed() {
+  return `auto-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function CountCard({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
@@ -466,10 +557,14 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [isRotatingMap, setIsRotatingMap] = useState(false)
   const [isGridPanelOpen, setIsGridPanelOpen] = useState(false)
   const [isSavingMapGrid, setIsSavingMapGrid] = useState(false)
+  const [isSavingDungeonMap, setIsSavingDungeonMap] = useState(false)
   const [mapGridDraft, setMapGridDraft] = useState<MapGridDraft>(() => toMapGridDraft(null))
+  const [dungeonEditorDraft, setDungeonEditorDraft] = useState<DungeonEditorDraft>(() => toDefaultDungeonEditorDraft(undefined))
+  const [autoDungeonSeed, setAutoDungeonSeed] = useState(() => createAutoDungeonSeed())
   const [mapViewportSize, setMapViewportSize] = useState<Size | null>(null)
   const [mapImageNaturalSize, setMapImageNaturalSize] = useState<Size | null>(null)
   const [preloadedMapValue, setPreloadedMapValue] = useState("")
+  const [dungeonEditorError, setDungeonEditorError] = useState<string | null>(null)
   const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
@@ -611,19 +706,54 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return mapUrlFromReference(landmark)
   }, [landmark])
 
-  const shouldUsePersistedBuildingsMap =
-    landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(mapUrlByReference)
+  const persistedMapMode = resolveLandmarkMapMode(landmark, mapUrlByReference)
   const effectiveMapUrl = uploadedMapUrl ?? mapUrlByReference
-  const shouldUseBuildingsMap =
-    landmark?.mapAssetKind === "json" || landmark?.mapa?.kind === "buildings" || isJsonMapReference(effectiveMapUrl)
+  const effectiveMapMode = resolveLandmarkMapMode(landmark, effectiveMapUrl)
+  const shouldUseBuildingsMap = effectiveMapMode === "buildings-json"
+  const shouldUseDungeonMapPlaceholder = effectiveMapMode === "dungeon-json"
+  const shouldUseImageMap = effectiveMapMode === "image"
+  const isDungeonLandmark = landmark?.tipo === "mazmorra"
   const canUseBattleGrid = landmark
-    ? Boolean(effectiveMapUrl) && !shouldUseBuildingsMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
+    ? Boolean(effectiveMapUrl) && shouldUseImageMap && BATTLE_GRID_SUPPORTED_TYPES.has(landmark.tipo)
     : false
   const canManageLandmarkBattles = landmark
     ? Boolean(mapUrlByReference) &&
-      !shouldUsePersistedBuildingsMap &&
+      persistedMapMode === "image" &&
       Boolean(landmark.mapGridEnabled)
     : false
+  const dungeonEditorConfig = useMemo(() => {
+    const width = normalizeDungeonEditorInteger(dungeonEditorDraft.width, 48, 8, 512)
+    const height = normalizeDungeonEditorInteger(dungeonEditorDraft.height, 32, 8, 512)
+    const roomCount = normalizeDungeonEditorInteger(dungeonEditorDraft.roomCount, 6, 0, 64)
+    const minRoomWidth = normalizeDungeonEditorInteger(dungeonEditorDraft.minRoomWidth, 5, 3, width)
+    const maxRoomWidth = normalizeDungeonEditorInteger(dungeonEditorDraft.maxRoomWidth, 10, 3, width)
+    const minRoomHeight = normalizeDungeonEditorInteger(dungeonEditorDraft.minRoomHeight, 4, 3, height)
+    const maxRoomHeight = normalizeDungeonEditorInteger(dungeonEditorDraft.maxRoomHeight, 8, 3, height)
+    const roomPadding = normalizeDungeonEditorInteger(dungeonEditorDraft.roomPadding, 1, 0, 8)
+    const roomDispersion = normalizeDungeonEditorDecimal(dungeonEditorDraft.roomDispersion, 0, 0, 1)
+    const errors: string[] = []
+
+    if (minRoomWidth > maxRoomWidth) {
+      errors.push("El ancho minimo de sala no puede ser mayor que el maximo.")
+    }
+
+    if (minRoomHeight > maxRoomHeight) {
+      errors.push("El alto minimo de sala no puede ser mayor que el maximo.")
+    }
+
+    return {
+      width,
+      height,
+      roomCount,
+      minRoomWidth,
+      maxRoomWidth,
+      minRoomHeight,
+      maxRoomHeight,
+      roomPadding,
+      roomDispersion,
+      errors,
+    }
+  }, [dungeonEditorDraft])
   const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees)
   const parsedMapGridCellSize = parseMapGridNumber(mapGridDraft.cellSize)
   const parsedMapGridOffsetX = parseMapGridNumber(mapGridDraft.offsetX)
@@ -735,7 +865,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
   useEffect(() => {
     setBuildingsMapError(null)
-  }, [effectiveMapUrl, shouldUseBuildingsMap])
+  }, [effectiveMapMode, effectiveMapUrl])
 
   useEffect(() => {
     setMapGridError(null)
@@ -762,7 +892,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   }, [canUseBattleGrid])
 
   useEffect(() => {
-    if (shouldUseBuildingsMap) {
+    if (!shouldUseImageMap) {
       setMapViewportSize(null)
       return
     }
@@ -794,11 +924,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return () => {
       resizeObserver.disconnect()
     }
-  }, [effectiveMapUrl, shouldUseBuildingsMap])
+  }, [effectiveMapUrl, shouldUseImageMap])
 
   useEffect(() => {
     setMapImageNaturalSize(null)
-  }, [effectiveMapUrl, shouldUseBuildingsMap])
+  }, [effectiveMapMode, effectiveMapUrl])
 
   useEffect(() => {
     if (!shouldUseBuildingsMap) {
@@ -813,6 +943,12 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     setIsEditing(false)
     setEditError(null)
   }, [landmark?.id])
+
+  useEffect(() => {
+    setDungeonEditorDraft(toDefaultDungeonEditorDraft(landmark?.nombre))
+    setDungeonEditorError(null)
+    setAutoDungeonSeed(createAutoDungeonSeed())
+  }, [landmark?.id, landmark?.nombre])
 
   useEffect(() => {
     scaleRef.current = scale
@@ -836,7 +972,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
   useEffect(() => {
     const viewport = viewportRef.current
-    if (!viewport || !effectiveMapUrl || shouldUseBuildingsMap) return
+    if (!viewport || !effectiveMapUrl || !shouldUseImageMap) return
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
@@ -868,7 +1004,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
     viewport.addEventListener("wheel", onWheel, { passive: false })
     return () => viewport.removeEventListener("wheel", onWheel)
-  }, [effectiveMapUrl, shouldUseBuildingsMap])
+  }, [effectiveMapUrl, shouldUseImageMap])
 
   useEffect(() => {
     return () => {
@@ -881,7 +1017,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   }, [])
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!effectiveMapUrl || shouldUseBuildingsMap) return
+    if (!effectiveMapUrl || !shouldUseImageMap) return
     if (event.button !== 0 && event.button !== 1) return
     event.preventDefault()
 
@@ -966,7 +1102,14 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
       if (isJsonFile) {
         const jsonText = await file.text()
-        JSON.parse(jsonText)
+        const dungeonMapError = isDungeonLandmark && !isDungeonJsonDocument(jsonText)
+          ? getDungeonJsonUploadError(jsonText)
+          : null
+
+        if (dungeonMapError) {
+          throw new Error(dungeonMapError)
+        }
+
         const uploaded = await uploadJsonAsset(jsonText, file.name || "map.json")
         setUploadedMapUrl(uploaded.downloadUrl)
         await persistLandmark({
@@ -997,6 +1140,179 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     }
   }
 
+  const handleSaveGeneratedDungeonMap = useCallback(async () => {
+    if (!landmark || !isDungeonLandmark || dungeonEditorConfig.errors.length > 0) {
+      return
+    }
+
+    setIsSavingDungeonMap(true)
+    setDungeonEditorError(null)
+    setBuildingsMapError(null)
+
+    let uploadedAssetId: number | null = null
+
+    try {
+      const explicitSeed = dungeonEditorDraft.seed.trim()
+      const seedToUse = explicitSeed || createAutoDungeonSeed()
+      const documentToSave = generateDungeonMapDocument({
+        preset: "rooms-corridors",
+        name: dungeonEditorDraft.name,
+        seed: seedToUse,
+        width: dungeonEditorConfig.width,
+        height: dungeonEditorConfig.height,
+        roomCount: dungeonEditorConfig.roomCount,
+        minRoomWidth: dungeonEditorConfig.minRoomWidth,
+        maxRoomWidth: dungeonEditorConfig.maxRoomWidth,
+        minRoomHeight: dungeonEditorConfig.minRoomHeight,
+        maxRoomHeight: dungeonEditorConfig.maxRoomHeight,
+        roomPadding: dungeonEditorConfig.roomPadding,
+        roomDispersion: dungeonEditorConfig.roomDispersion,
+      })
+      const jsonToSave = stringifyDungeonMapDocument(documentToSave)
+
+      if (!explicitSeed) {
+        setAutoDungeonSeed(seedToUse)
+      }
+
+      const previousAssetId = typeof landmark.mapAssetId === "number" ? landmark.mapAssetId : null
+      const previousAssetKind = landmark.mapAssetKind
+
+      const uploaded = await uploadJsonAsset(
+        jsonToSave,
+        `${landmarkNameToSlug(landmark.nombre) || "mazmorra"}.dungeon.json`,
+      )
+      uploadedAssetId = uploaded.id
+
+      setUploadedMapUrl(uploaded.downloadUrl)
+      await persistLandmark({
+        ...landmark,
+        mapAssetId: uploaded.id,
+        mapAssetKind: uploaded.kind,
+        mapa: undefined,
+      })
+
+      if (previousAssetId !== null && previousAssetId !== uploaded.id && previousAssetKind === "json") {
+        try {
+          await deleteAsset(previousAssetId)
+        } catch {
+          // Avoid blocking the save flow if backend cleanup fails.
+        }
+      }
+
+      setEditError(null)
+    } catch (error) {
+      if (uploadedAssetId !== null) {
+        try {
+          await deleteAsset(uploadedAssetId)
+        } catch {
+          // Ignore cleanup failures after a save error.
+        }
+      }
+
+      const message = getBackendErrorMessage(error, "No se pudo guardar el JSON de la mazmorra.")
+      setDungeonEditorError(message)
+      setBuildingsMapError(message)
+      setUploadedMapUrl(null)
+    } finally {
+      setIsSavingDungeonMap(false)
+    }
+  }, [dungeonEditorConfig, dungeonEditorDraft, isDungeonLandmark, landmark, persistLandmark])
+
+  const handlePersistEditedDungeonDocument = useCallback(async (document: DungeonMapDocument) => {
+    if (!landmark || !isDungeonLandmark) {
+      return
+    }
+
+    const jsonToSave = stringifyDungeonMapDocument(document)
+    const previousAssetId = typeof landmark.mapAssetId === "number" ? landmark.mapAssetId : null
+    const previousAssetKind = landmark.mapAssetKind
+    let uploadedAssetId: number | null = null
+
+    try {
+      const uploaded = await uploadJsonAsset(
+        jsonToSave,
+        `${landmarkNameToSlug(landmark.nombre) || "mazmorra"}.dungeon.json`,
+      )
+      uploadedAssetId = uploaded.id
+
+      setUploadedMapUrl(uploaded.downloadUrl)
+      await persistLandmark({
+        ...landmark,
+        mapAssetId: uploaded.id,
+        mapAssetKind: uploaded.kind,
+        mapa: undefined,
+      })
+
+      if (previousAssetId !== null && previousAssetId !== uploaded.id && previousAssetKind === "json") {
+        try {
+          await deleteAsset(previousAssetId)
+        } catch {
+          // Avoid blocking the save flow if backend cleanup fails.
+        }
+      }
+
+      setBuildingsMapError(null)
+      setEditError(null)
+    } catch (error) {
+      if (uploadedAssetId !== null) {
+        try {
+          await deleteAsset(uploadedAssetId)
+        } catch {
+          // Ignore cleanup failures after a save error.
+        }
+      }
+
+      throw new Error(getBackendErrorMessage(error, "No se pudo guardar el JSON editado de la mazmorra."))
+    }
+  }, [isDungeonLandmark, landmark, persistLandmark])
+
+  const handleDungeonEditorIntegerChange = useCallback(
+    (field: keyof Pick<
+      DungeonEditorDraft,
+      "width" | "height" | "roomCount" | "minRoomWidth" | "maxRoomWidth" | "minRoomHeight" | "maxRoomHeight" | "roomPadding"
+    >) => (event: ReactChangeEvent<HTMLInputElement>) => {
+      const value = sanitizeDungeonEditorIntegerInput(event.target.value)
+      setDungeonEditorDraft((current) => ({
+        ...current,
+        [field]: value,
+      }))
+    },
+    [],
+  )
+
+  const handleDungeonEditorIntegerBlur = useCallback(
+    (
+      field: keyof Pick<
+        DungeonEditorDraft,
+        "width" | "height" | "roomCount" | "minRoomWidth" | "maxRoomWidth" | "minRoomHeight" | "maxRoomHeight" | "roomPadding"
+      >,
+      fallback: number,
+      min: number,
+      max: number,
+    ) => () => {
+      setDungeonEditorDraft((current) => ({
+        ...current,
+        [field]: String(normalizeDungeonEditorInteger(current[field], fallback, min, max)),
+      }))
+    },
+    [],
+  )
+
+  const handleDungeonEditorDispersionChange = useCallback((event: ReactChangeEvent<HTMLInputElement>) => {
+    const value = sanitizeDungeonEditorDecimalInput(event.target.value)
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      roomDispersion: value,
+    }))
+  }, [])
+
+  const handleDungeonEditorDispersionBlur = useCallback(() => {
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      roomDispersion: String(normalizeDungeonEditorDecimal(current.roomDispersion, 0, 0, 1)),
+    }))
+  }, [])
+
   const handleApplyPreloadedMap = useCallback(async () => {
     if (!landmark) return
 
@@ -1008,20 +1324,27 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     setPreloadedMapValue(normalized)
 
     try {
+      if (isDungeonLandmark) {
+        throw new Error(DUNGEON_PRELOADED_MAP_ERROR_MESSAGE)
+      }
+
       await persistLandmark({
         ...landmark,
         mapAssetId: undefined,
         mapAssetKind: undefined,
-        mapa: isJsonMapReference(normalized)
-          ? { kind: "buildings", source: "external", url: normalized }
-          : { kind: "external", url: normalized },
-      })
+          mapa: resolveLandmarkMapMode(
+            { tipo: landmark.tipo, mapAssetKind: undefined, mapa: { kind: "external", url: normalized } },
+            normalized,
+          ) === "buildings-json"
+            ? { kind: "buildings", source: "external", url: normalized }
+            : { kind: "external", url: normalized },
+        })
       setEditError(null)
     } catch (error) {
       setUploadedMapUrl(null)
       setBuildingsMapError(getBackendErrorMessage(error, "No se pudo actualizar el mapa del landmark."))
     }
-  }, [landmark, persistLandmark, preloadedMapValue])
+  }, [isDungeonLandmark, landmark, persistLandmark, preloadedMapValue])
 
   const handleClearBrokenMap = useCallback(async () => {
     if (!landmark) return
@@ -1043,7 +1366,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   }, [landmark, persistLandmark])
 
   const handleRotateMap = useCallback(async () => {
-    if (!landmark || !effectiveMapUrl || shouldUseBuildingsMap || isRotatingMap) return
+    if (!landmark || !effectiveMapUrl || !shouldUseImageMap || isRotatingMap) return
 
     setIsRotatingMap(true)
     setBuildingsMapError(null)
@@ -1059,7 +1382,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     } finally {
       setIsRotatingMap(false)
     }
-  }, [effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, persistLandmark, shouldUseBuildingsMap])
+  }, [effectiveMapUrl, isRotatingMap, landmark, mapRotationDegrees, persistLandmark, shouldUseImageMap])
 
   const handleSaveMapGrid = useCallback(async () => {
     if (!landmark || !canUseBattleGrid || isSavingMapGrid) return
@@ -1839,7 +2162,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           </>
         )}
 
-        {landmark && effectiveMapUrl && !shouldUseBuildingsMap && (
+        {landmark && effectiveMapUrl && shouldUseImageMap && (
           <button
             type="button"
             className={styles.mapRotateButton}
@@ -1911,6 +2234,20 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                 </div>
               </div>
             )}
+          </div>
+        ) : shouldUseDungeonMapPlaceholder && effectiveMapUrl ? (
+          <div className={styles.mapViewport}>
+            <DungeonMap
+              dataUrl={effectiveMapUrl}
+              onLoadError={setBuildingsMapError}
+              onDocumentChange={handlePersistEditedDungeonDocument}
+            />
+            {buildingsMapError ? (
+              <div className={styles.mapErrorPrompt}>
+                <div className={styles.mapErrorTitle}>No se pudo cargar la mazmorra</div>
+                <div className={styles.mapErrorText}>{buildingsMapError}</div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div
@@ -1998,33 +2335,45 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                   onClick={() => inputRef.current?.click()}
                 >
                   <span className={styles.noMapTitle}>Este landmark no tiene mapa</span>
-                  <span className={styles.noMapText}>Click para cargar una imagen o un JSON</span>
+                  <span className={styles.noMapText}>
+                    {isDungeonLandmark
+                      ? 'Click para cargar una imagen o un JSON con type="mazmorra"'
+                      : "Click para cargar una imagen o un JSON"}
+                  </span>
                 </button>
                 <div className={styles.noMapPreloadedRow}>
                   <input
                     type="text"
                     value={preloadedMapValue}
                     onChange={(event) => setPreloadedMapValue(event.target.value)}
+                    disabled={isDungeonLandmark}
                     onKeyDown={(event) => {
                       if (event.key !== "Enter") return
                       event.preventDefault()
                       handleApplyPreloadedMap()
                     }}
                     className={styles.noMapPreloadedInput}
-                    placeholder="/maps/city/daggerfire.json"
+                    placeholder={
+                      isDungeonLandmark ? "No disponible para mazmorras" : "/maps/city/daggerfire.json"
+                    }
                   />
                   <button
                     type="button"
                     className={styles.noMapPreloadedButton}
+                    disabled={isDungeonLandmark}
                     onClick={handleApplyPreloadedMap}
                   >
                     Cargar precargado
                   </button>
                 </div>
+                {isDungeonLandmark && (
+                  <div className={styles.noMapText}>{DUNGEON_PRELOADED_MAP_ERROR_MESSAGE}</div>
+                )}
               </div>
             )}
           </div>
         )}
+
       </div>
 
       <aside className={styles.infoPanel}>
@@ -2074,7 +2423,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="grid h-auto w-full grid-cols-5 rounded-none border-b border-border bg-transparent p-0">
+          <TabsList className={`grid h-auto w-full rounded-none border-b border-border bg-transparent p-0 ${isDungeonLandmark ? "grid-cols-6" : "grid-cols-5"}`}>
             <TabsTrigger
               value="general"
               className="h-9 rounded-none border-r border-border data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-secondary"
@@ -2105,11 +2454,20 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             </TabsTrigger>
             <TabsTrigger
               value="eventos"
-              className="h-9 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-secondary"
+              className={`h-9 rounded-none ${isDungeonLandmark ? "border-r border-border" : ""} data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-secondary`}
             >
               <CalendarDays className="size-3.5" />
               <span className="sr-only">Eventos</span>
             </TabsTrigger>
+            {isDungeonLandmark ? (
+              <TabsTrigger
+                value="mazmorra"
+                className="h-9 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-secondary"
+              >
+                <MapIcon className="size-3.5" />
+                <span className="sr-only">Mazmorra</span>
+              </TabsTrigger>
+            ) : null}
           </TabsList>
 
           <TabsContent value="general" className="m-0 flex-1">
@@ -2658,6 +3016,163 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               </div>
             </ScrollArea>
           </TabsContent>
+
+          {isDungeonLandmark ? (
+            <TabsContent value="mazmorra" className="m-0 flex-1">
+              <ScrollArea className="h-full">
+                <div className="space-y-4 p-4">
+                  <div className={styles.dungeonEditorPanel}>
+                    <div className={styles.dungeonEditorSection}>
+                      <div className={styles.dungeonEditorSectionTitle}>Mapa</div>
+                      <div className={styles.dungeonEditorGrid}>
+                        <label className={styles.dungeonEditorField}>
+                          <span>Ancho</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.width}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("width")}
+                            onBlur={handleDungeonEditorIntegerBlur("width", 48, 8, 512)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Alto</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.height}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("height")}
+                            onBlur={handleDungeonEditorIntegerBlur("height", 32, 8, 512)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Seed</span>
+                          <input
+                            type="text"
+                            value={dungeonEditorDraft.seed}
+                            className={styles.dungeonEditorInput}
+                            placeholder={autoDungeonSeed}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, seed: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Dispersion</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={dungeonEditorDraft.roomDispersion}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorDispersionChange}
+                            onBlur={handleDungeonEditorDispersionBlur}
+                            placeholder="0 a 1"
+                          />
+                        </label>
+
+                      </div>
+                    </div>
+
+                    <div className={styles.dungeonEditorSection}>
+                      <div className={styles.dungeonEditorSectionTitle}>Salas</div>
+                      <div className={styles.dungeonEditorGrid}>
+                        <label className={styles.dungeonEditorField}>
+                          <span>Cantidad</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.roomCount}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("roomCount")}
+                            onBlur={handleDungeonEditorIntegerBlur("roomCount", 6, 0, 64)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Ancho min</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.minRoomWidth}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("minRoomWidth")}
+                            onBlur={handleDungeonEditorIntegerBlur("minRoomWidth", 5, 3, dungeonEditorConfig.width)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Ancho max</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.maxRoomWidth}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("maxRoomWidth")}
+                            onBlur={handleDungeonEditorIntegerBlur("maxRoomWidth", 10, 3, dungeonEditorConfig.width)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Alto min</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.minRoomHeight}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("minRoomHeight")}
+                            onBlur={handleDungeonEditorIntegerBlur("minRoomHeight", 4, 3, dungeonEditorConfig.height)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Alto max</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.maxRoomHeight}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("maxRoomHeight")}
+                            onBlur={handleDungeonEditorIntegerBlur("maxRoomHeight", 8, 3, dungeonEditorConfig.height)}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Padding</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={dungeonEditorDraft.roomPadding}
+                            className={styles.dungeonEditorInput}
+                            onChange={handleDungeonEditorIntegerChange("roomPadding")}
+                            onBlur={handleDungeonEditorIntegerBlur("roomPadding", 1, 0, 8)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {(dungeonEditorConfig.errors[0] || dungeonEditorError) ? (
+                      <div className={styles.dungeonEditorError}>{dungeonEditorConfig.errors[0] ?? dungeonEditorError}</div>
+                    ) : null}
+
+                    <div className={styles.dungeonEditorActions}>
+                      <Button
+                        size="sm"
+                        className={styles.dungeonEditorSaveButton}
+                        onClick={handleSaveGeneratedDungeonMap}
+                        disabled={isSavingDungeonMap || dungeonEditorConfig.errors.length > 0}
+                      >
+                        <Save className="size-3.5" />
+                        {isSavingDungeonMap ? "Guardando..." : "Generar y guardar"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          ) : null}
         </Tabs>
       </aside>
 

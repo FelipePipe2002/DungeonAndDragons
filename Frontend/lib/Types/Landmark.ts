@@ -5,6 +5,15 @@ import type { Organization } from "./Organization"
 
 export type LandmarkId = number
 
+export const DUNGEON_MAP_JSON_TYPE = "mazmorra"
+export const DUNGEON_MAP_JSON_VERSION = 1
+export const DUNGEON_MAP_ERROR_MESSAGE = 'Las mazmorras solo permiten imagenes o JSON con type="mazmorra".'
+
+export interface DungeonMapJsonContract {
+  type: typeof DUNGEON_MAP_JSON_TYPE
+  version?: number
+}
+
 export type LandmarkType =
   | "ciudad"
   | "pueblo"

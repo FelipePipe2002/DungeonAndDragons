@@ -698,6 +698,7 @@ export default function BuildingsMap({
   } | null>(null);
   const suppressSelectionClickRef = useRef(false);
   const suppressPanClickRef = useRef(false);
+  const suppressHiddenClickRef = useRef(false);
   const hoverTimeoutRef = useRef<number | null>(null);
   const panFrameRef = useRef<number | null>(null);
   const pendingPanCenterRef = useRef<Point | null>(null);

@@ -13,9 +13,11 @@ import {
 
 import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResumeDialog"
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
+import { ItemDetailDialog } from "@/components/dialog/detailed/ItemDetailDialog"
 import { LandmarkResumeDialog } from "@/components/dialog/resumed/LandmarkResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { loadItems, type Item as CatalogItem } from "@/lib/items/item-store"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchLandmarks } from "@/lib/services/landmark-api.service"
@@ -27,7 +29,12 @@ import "./Mentions.css"
 
 type MentionFormat = "token" | "plain"
 
-export type MentionEntityType = "landmark" | "building" | "character" | "organization"
+export type MentionEntityType =
+  | "landmark"
+  | "building"
+  | "character"
+  | "organization"
+  | "item"
 
 export interface MentionEntity {
   type: MentionEntityType
@@ -57,6 +64,7 @@ interface MentionDomainContext {
   buildingsById: Map<number, Building>
   charactersById: Map<number, Character>
   organizationsById: Map<number, Organization>
+  itemsById: Map<number, CatalogItem>
   landmarkNameById: Map<number, string>
 }
 
@@ -71,11 +79,12 @@ const EMPTY_DOMAIN_CONTEXT: MentionDomainContext = {
   buildingsById: new Map(),
   charactersById: new Map(),
   organizationsById: new Map(),
+  itemsById: new Map(),
   landmarkNameById: new Map(),
 }
 
 const MENTION_PATTERN =
-  /@\[(.*?)\](?:\((landmark|building|character|organization):(\d+)\))?/g
+  /@\[(.*?)\](?:\((landmark|building|character|organization|item):(\d+)\))?/g
 
 const MAX_RESULTS = 8
 const DROPDOWN_MARGIN = 10
@@ -93,7 +102,25 @@ const isMentionEntityType = (value: string): value is MentionEntityType =>
   value === "landmark" ||
   value === "building" ||
   value === "character" ||
-  value === "organization"
+  value === "organization" ||
+  value === "item"
+
+const createItemMentionId = (index: number) => index + 1
+
+const buildItemDescription = (item: CatalogItem): string | undefined => {
+  for (const block of item.entries) {
+    if (block.kind === "paragraph" && block.text.trim().length > 0) {
+      return block.text
+    }
+    if (block.kind === "list" && block.items.length > 0) {
+      return block.items[0]
+    }
+    if (block.kind === "table" && block.rows.length > 0) {
+      return block.caption ?? block.name
+    }
+  }
+  return undefined
+}
 
 export const getMentionEntityKey = (type: MentionEntityType, id: number) => `${type}:${id}`
 
@@ -187,6 +214,7 @@ function buildMentionEntitiesFromCollections(
   buildings: Building[],
   characters: Character[],
   organizations: Organization[],
+  items: CatalogItem[],
   landmarkNameById: Map<number, string>,
 ) {
   const entities: MentionEntity[] = []
@@ -255,6 +283,21 @@ function buildMentionEntitiesFromCollections(
     })
   }
 
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index]
+    const subtitleParts = [item.typeLabel, item.rarityLabel].filter(
+      (part): part is string => Boolean(part && part.trim().length > 0),
+    )
+
+    addEntity({
+      type: "item",
+      id: createItemMentionId(index),
+      label: item.name,
+      description: buildItemDescription(item),
+      subtitle: subtitleParts.join(" - "),
+    })
+  }
+
   return entities.sort((a, b) => a.label.localeCompare(b.label, "es"))
 }
 
@@ -274,6 +317,7 @@ async function buildAutoMentionContext(): Promise<AutoMentionContext> {
   )
 
   const organizations = await fetchOrganizations().catch(() => [])
+  const items = await loadItems().catch(() => [])
 
   const landmarkNameById = new Map<number, string>()
   for (const landmark of landmarks) {
@@ -285,6 +329,7 @@ async function buildAutoMentionContext(): Promise<AutoMentionContext> {
     buildings,
     characters,
     organizations,
+    items,
     landmarkNameById,
   )
 
@@ -296,6 +341,7 @@ async function buildAutoMentionContext(): Promise<AutoMentionContext> {
       buildingsById: new Map(buildings.map((item) => [item.id, item])),
       charactersById: new Map(characters.map((item) => [item.id, item])),
       organizationsById: new Map(organizations.map((item) => [item.id, item])),
+      itemsById: new Map(items.map((item, index) => [createItemMentionId(index), item])),
       landmarkNameById,
     },
   }
@@ -304,6 +350,7 @@ async function buildAutoMentionContext(): Promise<AutoMentionContext> {
 export const buildMentionEntitiesFromLandmarks = (
   landmarks: Landmark[],
   organizations: Organization[] = [],
+  items: CatalogItem[] = [],
 ): MentionEntity[] => {
   const landmarkNameById = new Map<number, string>()
   for (const landmark of landmarks) {
@@ -315,6 +362,7 @@ export const buildMentionEntitiesFromLandmarks = (
     flattenBuildingsFromLandmarks(landmarks),
     flattenCharactersFromLandmarks(landmarks),
     organizations,
+    items,
     landmarkNameById,
   )
 }
@@ -615,7 +663,7 @@ const MentionTextarea = ({
 
 function buildMentionPreviewContent(
   mention: MentionRef,
-  _domain: MentionDomainContext,
+  domain: MentionDomainContext,
   entity?: MentionEntity,
 ): ReactNode | null {
   if (!mention.type || typeof mention.id !== "number") {
@@ -649,6 +697,23 @@ function buildMentionPreviewContent(
     return <OrganizationResumeDialog organizationId={mention.id} />
   }
 
+  if (mention.type === "item") {
+    const item = domain.itemsById.get(mention.id)
+    const subtitle = item
+      ? [item.typeLabel, item.rarityLabel].filter((part) => part && part.trim().length > 0).join(" - ")
+      : entity?.subtitle
+    const description = item ? buildItemDescription(item) : entity?.description
+    const label = item?.name ?? entity?.label ?? mention.label
+
+    return (
+      <div className="w-72 rounded-md border border-border bg-background px-3 py-2.5 shadow-md">
+        <div className="text-sm font-semibold text-primary">{label}</div>
+        {subtitle && <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>}
+        {description && <p className="mt-2 text-xs leading-relaxed text-foreground/85">{description}</p>}
+      </div>
+    )
+  }
+
   return null
 }
 
@@ -666,85 +731,105 @@ const MentionText = ({
 }) => {
   const sourceText = text ?? ""
   const segments = useMemo(() => parseMentionText(sourceText), [sourceText])
+  const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null)
 
   if (sourceText.trim().length === 0) {
     return <span className={className}>{emptyText}</span>
   }
 
   return (
-    <span className={cn("mention-rich-text", className)}>
-      {segments.map((segment, index) => {
-        if (segment.kind === "text") {
-          return <span key={`mention-text-${index}`}>{segment.text}</span>
-        }
+    <>
+      <span className={cn("mention-rich-text", className)}>
+        {segments.map((segment, index) => {
+          if (segment.kind === "text") {
+            return <span key={`mention-text-${index}`}>{segment.text}</span>
+          }
 
-        const mention = segment.mention
-        if (!mention) {
-          return <span key={`mention-text-${index}`}>{segment.text}</span>
-        }
+          const mention = segment.mention
+          if (!mention) {
+            return <span key={`mention-text-${index}`}>{segment.text}</span>
+          }
 
-        let entity =
-          mention.type && typeof mention.id === "number"
-            ? mentionLookup.get(getMentionEntityKey(mention.type, mention.id))
-            : undefined
+          let entity =
+            mention.type && typeof mention.id === "number"
+              ? mentionLookup.get(getMentionEntityKey(mention.type, mention.id))
+              : undefined
 
-        if (!entity) {
-          const normalizedLabel = mention.label.trim().toLowerCase()
-          entity = Array.from(mentionLookup.values()).find(
-            (candidate) => candidate.label.trim().toLowerCase() === normalizedLabel,
+          if (!entity) {
+            const normalizedLabel = mention.label.trim().toLowerCase()
+            entity = Array.from(mentionLookup.values()).find(
+              (candidate) => candidate.label.trim().toLowerCase() === normalizedLabel,
+            )
+          }
+
+          const label = entity?.label ?? mention.label
+          const resolvedMention: MentionRef | null =
+            entity ? { type: entity.type, id: entity.id, label: entity.label } : null
+          const previewContent = buildMentionPreviewContent(
+            resolvedMention ?? mention,
+            domain,
+            entity,
           )
-        }
+          const mentionButton = (
+            <button
+              type="button"
+              className="mention-inline-link"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
 
-        const label = entity?.label ?? mention.label
-        const resolvedMention: MentionRef | null =
-          entity ? { type: entity.type, id: entity.id, label: entity.label } : null
-        const previewContent = buildMentionPreviewContent(
-          resolvedMention ?? mention,
-          domain,
-          entity,
-        )
-        const mentionButton = (
-          <button
-            type="button"
-            className="mention-inline-link"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              if (resolvedMention) onOpenMention?.(resolvedMention)
-            }}
-          >
-            {label}
-          </button>
-        )
+                if (resolvedMention?.type === "item" && typeof resolvedMention.id === "number") {
+                  const item = domain.itemsById.get(resolvedMention.id)
+                  if (item) {
+                    setSelectedItem(item)
+                    return
+                  }
+                }
 
-        if (!resolvedMention && !previewContent) {
-          return (
-            <span
-              key={`mention-link-${mention.type}-${mention.id}-${index}`}
-              className="mention-inline-link mention-inline-link-static"
+                if (resolvedMention) onOpenMention?.(resolvedMention)
+              }}
             >
               {label}
-            </span>
+            </button>
           )
-        }
 
-        if (!previewContent) {
-          return <span key={`mention-link-${mention.type}-${mention.id}-${index}`}>{mentionButton}</span>
-        }
+          if (!resolvedMention && !previewContent) {
+            return (
+              <span
+                key={`mention-link-${mention.type}-${mention.id}-${index}`}
+                className="mention-inline-link mention-inline-link-static"
+              >
+                {label}
+              </span>
+            )
+          }
 
-        return (
-          <HoverCard key={`mention-link-${mention.type}-${mention.id}-${index}`} openDelay={120}>
-            <HoverCardTrigger asChild>{mentionButton}</HoverCardTrigger>
-            <HoverCardContent
-              align="start"
-              className="w-auto border-none bg-transparent p-0 shadow-none"
-            >
-              {previewContent}
-            </HoverCardContent>
-          </HoverCard>
-        )
-      })}
-    </span>
+          if (!previewContent) {
+            return <span key={`mention-link-${mention.type}-${mention.id}-${index}`}>{mentionButton}</span>
+          }
+
+          return (
+            <HoverCard key={`mention-link-${mention.type}-${mention.id}-${index}`} openDelay={120}>
+              <HoverCardTrigger asChild>{mentionButton}</HoverCardTrigger>
+              <HoverCardContent
+                align="start"
+                className="w-auto border-none bg-transparent p-0 shadow-none"
+              >
+                {previewContent}
+              </HoverCardContent>
+            </HoverCard>
+          )
+        })}
+      </span>
+
+      <ItemDetailDialog
+        item={selectedItem}
+        open={selectedItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedItem(null)
+        }}
+      />
+    </>
   )
 }
 

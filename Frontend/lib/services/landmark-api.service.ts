@@ -12,6 +12,7 @@ import type {
   Organization,
   OrganizationMember,
 } from "@/lib/types"
+import { DUNGEON_MAP_ERROR_MESSAGE } from "@/lib/types"
 
 const LANDMARK_INCLUDE_QUERY = "include=edificios,personajes,organizaciones"
 const LANDMARKS_COLLECTION_PATH = `/v1/landmarks?${LANDMARK_INCLUDE_QUERY}`
@@ -269,6 +270,8 @@ function toCharacter(dto: CharacterApiDto): Character {
     clase: dto.clase ?? "",
     raza: dto.raza ?? "",
     descripcion: dto.descripcion ?? "",
+    isPlayer: false,
+    characterSheet: null,
     tags: toStringArray(dto.tags),
     imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
     imagenAssetId,
@@ -485,7 +488,23 @@ function toLandmarkMapPayload(
   return { kind: "buildings", source: "external", url: map.url.trim() }
 }
 
+function assertDungeonLandmarkMapContract(input: Omit<Landmark, "id">) {
+  if (input.tipo !== "mazmorra") {
+    return
+  }
+
+  if (input.mapa) {
+    throw new Error(DUNGEON_MAP_ERROR_MESSAGE)
+  }
+
+  if (input.mapAssetKind && input.mapAssetKind !== "image" && input.mapAssetKind !== "json") {
+    throw new Error(DUNGEON_MAP_ERROR_MESSAGE)
+  }
+}
+
 function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPayload {
+  assertDungeonLandmarkMapContract(input)
+
   const mapAssetId =
     typeof input.mapAssetId === "number" && Number.isFinite(input.mapAssetId) && input.mapAssetId > 0
       ? input.mapAssetId

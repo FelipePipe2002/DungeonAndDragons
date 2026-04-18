@@ -1,14 +1,20 @@
 TODO - Bugs:
 
 TODO-Priority-High:
-    Agregar presets de encuentros para batalla por landmark o edificio
-
+    Add .json of the classes
+    Poder crear reinos, barones, condes y podes asignar areas y ciudades a esos paises, para agregar mas profundidad
+    Terminar implementacion de dungeons (minimo que tenga texturas para el piso y paredes, que pueda poner fichas y poder crear trampas)
+    
 TODO-Priority-Medium:
     Agregar tracker de quests 
     Agregar rutas o caminos entre landmarks con tiempo de viaje, peligro y notas de encuentro
     Agregar un buscador global (por preciono alt + f me abre un panel grande con un buscado arriba y espacio vacio abajo, cuando escribo que busque todo, personajes, characters, edificios, buildings, informacion, mosntruos, landmarks, descripcion de cada uno, contenido de los spells, etc todo lo que exista, por ej busco Sugges y si hay un character que se llama Sugges y esta el spell Suggestion que me aparezcan los 2, y si le doy click a uno que me abra en el mismo panel de buscador el contenido, por ej clickeo en el personaje Sugges entonces que me salta el characterDetailedDialog, pero si le doy click a Suggestion el spell que me habra un panel con la info de ese spell, y asi, esto capaz como ia podes primero planificarlo simple, dividir esta tarea en subtareas por ej que primero ande con characters, despues buildins, desp organization, desp landmark, y asi con cada cosa que haya)
-    Crear mapas simples del mundo y que lo puedan comprar los jugadores
 
 Ideas:
     Integrar IA
     Mejorar herramientas para conectar mazmorras o salas con notas y encuentros
+
+
+Dar items a los npcs 
+
+

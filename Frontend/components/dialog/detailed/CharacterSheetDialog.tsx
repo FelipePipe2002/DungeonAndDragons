@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { MentionField } from "@/components/mentionField/MentionField"
 import {
   Dialog,
   DialogContent,
@@ -1030,16 +1031,18 @@ export function CharacterSheetDialog({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Inventario</label>
-                  <Textarea
+                  <MentionField
+                    source="auto"
                     value={draft.inventory.join("\n")}
-                    onChange={(event) =>
+                    onChange={(value) =>
                       setDraft((prev) => ({
                         ...prev,
-                        inventory: toStringList(event.target.value),
+                        inventory: toStringList(value),
                       }))
                     }
+                    placeholder="Una entrada por linea. Usa @ para mencionar items."
                     rows={6}
-                     className="rounded-none border-[#cdb89a] bg-[#fffaf2] text-[#2f2318]"
+                    className="rounded-none border-[#cdb89a] bg-[#fffaf2] text-[#2f2318]"
                   />
                 </div>
               </div>
