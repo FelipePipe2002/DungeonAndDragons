@@ -1,10 +1,11 @@
 TODO - Bugs:
 
 TODO-Priority-High:
+    Change images from .png to .webp (since they are smaller so the will load up faster)
     Add .json of the classes
     Poder crear reinos, barones, condes y podes asignar areas y ciudades a esos paises, para agregar mas profundidad
     Terminar implementacion de dungeons (minimo que tenga texturas para el piso y paredes, que pueda poner fichas y poder crear trampas)
-    
+
 TODO-Priority-Medium:
     Agregar tracker de quests 
     Agregar rutas o caminos entre landmarks con tiempo de viaje, peligro y notas de encuentro
