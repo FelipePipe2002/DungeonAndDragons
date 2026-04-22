@@ -19,10 +19,12 @@ import com.sistema.dnd.sistema.entity.LandmarkMapSource;
 import com.sistema.dnd.sistema.entity.LandmarkType;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetKind;
+import com.sistema.dnd.sistema.repository.EstadoRepository;
 import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
+import com.sistema.dnd.sistema.repository.SubdivisionRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -50,6 +52,12 @@ class LandmarkServiceTest {
     private LandmarkMapRefRepository landmarkMapRefRepository;
 
     @Mock
+    private EstadoRepository estadoRepository;
+
+    @Mock
+    private SubdivisionRepository subdivisionRepository;
+
+    @Mock
     private MediaAssetRepository mediaAssetRepository;
 
     @Mock
@@ -67,6 +75,8 @@ class LandmarkServiceTest {
             landmarkRepository,
             landmarkEventRepository,
             landmarkMapRefRepository,
+            estadoRepository,
+            subdivisionRepository,
             taggingService,
             domainMapper,
             landmarkMapValidator
@@ -87,6 +97,8 @@ class LandmarkServiceTest {
                     landmark.getIcono(),
                     landmark.getNombre(),
                     landmark.getTipo().name(),
+                    landmark.getEstado() != null ? landmark.getEstado().getId() : null,
+                    landmark.getSubdivision() != null ? landmark.getSubdivision().getId() : null,
                     landmark.getEscalaIcono(),
                     landmark.getEscalaTexto(),
                     landmark.getMostrarLeyenda(),
@@ -223,6 +235,8 @@ class LandmarkServiceTest {
             "icono",
             "Landmark de prueba",
             type,
+            null,
+            null,
             1.0,
             1.0,
             true,

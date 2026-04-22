@@ -23,7 +23,7 @@ export const MAIN_NAV_ITEMS: MainNavItem[] = [
   { id: "mapa", href: "/mapa", label: "Mapa", shortcutIndex: 1 },
   { id: "informacion", href: "/informacion", label: "Informacion", shortcutIndex: 7 },
   { id: "entidades", href: "/entidades", label: "Entidades", shortcutIndex: 2 },
-  { id: "notas", href: "/notas", label: "DM", shortcutIndex: 6 },
+  { id: "notas", href: "/dm", label: "DM", shortcutIndex: 6 },
   { id: "batalla", href: "/batalla", label: "Batalla", shortcutIndex: 8 },
   { id: "presentacion", href: "/presentacion", label: "Presentacion", opensInPresentationWindow: true },
 ]
@@ -90,7 +90,7 @@ export const GLOBAL_NAVIGATION_SHORTCUTS: NavigationShortcut[] = MAIN_NAV_SHORTC
 const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
   "/entidades": [],
   "/informacion": [],
-  "/notas": [],
+  "/dm": [],
   "/presentacion": [
     {
       key: "Esc",

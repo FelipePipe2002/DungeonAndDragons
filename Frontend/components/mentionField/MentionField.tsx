@@ -13,6 +13,7 @@ import {
 
 import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResumeDialog"
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
+import { EstadoResumeDialog } from "@/components/dialog/resumed/EstadoResumeDialog"
 import { ItemDetailDialog } from "@/components/dialog/detailed/ItemDetailDialog"
 import { LandmarkResumeDialog } from "@/components/dialog/resumed/LandmarkResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
@@ -20,9 +21,10 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { loadItems, type Item as CatalogItem } from "@/lib/items/item-store"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchBuildings } from "@/lib/services/building-api.service"
+import { fetchEstados } from "@/lib/services/estado-api.service"
 import { fetchLandmarks } from "@/lib/services/landmark-api.service"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
-import type { Building, Character, Landmark, Organization } from "@/lib/types"
+import type { Building, Character, Estado, Landmark, Organization } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import "./Mentions.css"
@@ -30,6 +32,7 @@ import "./Mentions.css"
 type MentionFormat = "token" | "plain"
 
 export type MentionEntityType =
+  | "estado"
   | "landmark"
   | "building"
   | "character"
@@ -84,7 +87,7 @@ const EMPTY_DOMAIN_CONTEXT: MentionDomainContext = {
 }
 
 const MENTION_PATTERN =
-  /@\[(.*?)\](?:\((landmark|building|character|organization|item):(\d+)\))?/g
+  /@\[(.*?)\](?:\((estado|landmark|building|character|organization|item):(\d+)\))?/g
 
 const MAX_RESULTS = 8
 const DROPDOWN_MARGIN = 10
@@ -99,6 +102,7 @@ const sanitizeLabel = (label: string) =>
     .trim()
 
 const isMentionEntityType = (value: string): value is MentionEntityType =>
+  value === "estado" ||
   value === "landmark" ||
   value === "building" ||
   value === "character" ||
@@ -210,6 +214,7 @@ function flattenCharactersFromLandmarks(landmarks: Landmark[]) {
 }
 
 function buildMentionEntitiesFromCollections(
+  estados: Estado[],
   landmarks: Landmark[],
   buildings: Building[],
   characters: Character[],
@@ -225,6 +230,17 @@ function buildMentionEntitiesFromCollections(
     if (seen.has(key)) return
     seen.add(key)
     entities.push(entity)
+  }
+
+  for (const estado of estados) {
+    addEntity({
+      type: "estado",
+      id: estado.id,
+      label: estado.nombre,
+      description: estado.descripcion || estado.historia,
+      subtitle: estado.tipo || estado.gobiernoTipo,
+      image: estado.imagen ?? null,
+    })
   }
 
   for (const landmark of landmarks) {
@@ -302,6 +318,7 @@ function buildMentionEntitiesFromCollections(
 }
 
 async function buildAutoMentionContext(): Promise<AutoMentionContext> {
+  const estados = await fetchEstados().catch(() => [])
   const storedLandmarks = await fetchLandmarks().catch(() => [])
   const landmarks = mergeById<Landmark>(storedLandmarks)
   const storedCharacters = await fetchCharacters().catch(() => [])
@@ -325,6 +342,7 @@ async function buildAutoMentionContext(): Promise<AutoMentionContext> {
   }
 
   const entities = buildMentionEntitiesFromCollections(
+    estados,
     landmarks,
     buildings,
     characters,
@@ -358,6 +376,7 @@ export const buildMentionEntitiesFromLandmarks = (
   }
 
   return buildMentionEntitiesFromCollections(
+    [],
     landmarks,
     flattenBuildingsFromLandmarks(landmarks),
     flattenCharactersFromLandmarks(landmarks),
@@ -665,7 +684,13 @@ function buildMentionPreviewContent(
   mention: MentionRef,
   domain: MentionDomainContext,
   entity?: MentionEntity,
+  onOpenMention?: (mention: MentionRef) => void,
 ): ReactNode | null {
+  const handleOpenMention = () => {
+    if (!mention.type || typeof mention.id !== "number") return
+    onOpenMention?.(mention)
+  }
+
   if (!mention.type || typeof mention.id !== "number") {
     if (!entity) return null
     return (
@@ -682,19 +707,23 @@ function buildMentionPreviewContent(
   }
 
   if (mention.type === "landmark") {
-    return <LandmarkResumeDialog landmarkId={mention.id} />
+    return <LandmarkResumeDialog landmarkId={mention.id} onClick={handleOpenMention} />
+  }
+
+  if (mention.type === "estado") {
+    return <EstadoResumeDialog estadoId={mention.id} onClick={handleOpenMention} />
   }
 
   if (mention.type === "building") {
-    return <BuildingResumeDialog buildingId={mention.id} />
+    return <BuildingResumeDialog buildingId={mention.id} onClick={handleOpenMention} />
   }
 
   if (mention.type === "character") {
-    return <CharacterResumeDialog characterId={mention.id} />
+    return <CharacterResumeDialog characterId={mention.id} onClick={handleOpenMention} />
   }
 
   if (mention.type === "organization") {
-    return <OrganizationResumeDialog organizationId={mention.id} />
+    return <OrganizationResumeDialog organizationId={mention.id} onClick={handleOpenMention} />
   }
 
   if (mention.type === "item") {
@@ -769,6 +798,7 @@ const MentionText = ({
             resolvedMention ?? mention,
             domain,
             entity,
+            onOpenMention,
           )
           const mentionButton = (
             <button

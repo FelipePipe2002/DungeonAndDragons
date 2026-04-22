@@ -26,6 +26,7 @@ import {
   type CharacterLandmarkReference,
   type CharacterOrganizationReference,
 } from "@/lib/services/character-api.service"
+import { characterToText } from "@/lib/ai/EntityToText/characterToText"
 import type { Character, CharacterEvent } from "@/lib/types"
 import { BookOpen, Building2, MapPin, Pencil, Plus, Save, Shield, Trash2, X } from "lucide-react"
 
@@ -690,46 +691,6 @@ export function CharacterDetailDialog({
     <>
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="parchment max-h-[90vh] max-w-7xl overflow-hidden p-0">
-        <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
-          {!isEditing && currentCharacterData ? (
-            <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
-                <Trash2 className="mr-1 size-3" />
-                Eliminar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleOpenCharacterSheetDialog}>
-                <BookOpen className="mr-1 size-3" />
-                {previewHasCharacterSheet ? "Hoja" : "Crear hoja"}
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
-                <Pencil className="mr-1 size-3" />
-                Editar
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 text-xs"
-                onClick={handleOpenCharacterSheetDialog}
-                disabled={!currentCharacterData}
-              >
-                <BookOpen className="mr-1 size-3" />
-                {previewHasCharacterSheet ? "Editar hoja" : "Crear hoja"}
-              </Button>
-              <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
-                <Save className="mr-1 size-3" />
-                Guardar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
-                <X className="mr-1 size-3" />
-                Cancelar
-              </Button>
-            </>
-          )}
-        </div>
-
         <div className="flex h-[85vh] min-h-0">
           <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className="flex flex-col">
@@ -754,23 +715,89 @@ export function CharacterDetailDialog({
                         onRequestEdit={currentCharacterData ? handleStartEdit : undefined}
                       />
                     </div>
-                    <div className="min-w-0 flex flex-col gap-1.5">
-                      {isEditing ? (
-                        <>
-                          <DialogTitle className="sr-only">{previewName}</DialogTitle>
-                          <Input
-                            value={formState.nombre}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, nombre: event.target.value }))
-                            }
-                            className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
-                          />
-                        </>
-                      ) : (
-                        <DialogTitle className="text-balance text-2xl font-serif leading-tight text-primary">
-                          {previewName}
-                        </DialogTitle>
-                      )}
+                    <div className="min-w-0 flex flex-1 flex-col gap-1.5">
+                      <div className="flex w-full items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          {isEditing ? (
+                            <>
+                              <DialogTitle className="sr-only">{previewName}</DialogTitle>
+                              <Input
+                                value={formState.nombre}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, nombre: event.target.value }))
+                                }
+                                className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
+                              />
+                            </>
+                          ) : (
+                            <DialogTitle className="min-w-0 flex-1 text-balance text-2xl font-serif leading-tight text-primary">
+                              {previewName}
+                            </DialogTitle>
+                          )}
+                        </div>
+
+                        {!isEditing && currentCharacterData ? (
+                          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                            <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
+                              <Trash2 className="mr-1 size-3" />
+                              Eliminar
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleOpenCharacterSheetDialog}>
+                              <BookOpen className="mr-1 size-3" />
+                              {previewHasCharacterSheet ? "Hoja" : "Crear hoja"}
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                              <Pencil className="mr-1 size-3" />
+                              Editar
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={handleOpenCharacterSheetDialog}
+                              disabled={!currentCharacterData}
+                            >
+                              <BookOpen className="mr-1 size-3" />
+                              {previewHasCharacterSheet ? "Editar hoja" : "Crear hoja"}
+                            </Button>
+                            <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
+                              <Save className="mr-1 size-3" />
+                              Guardar
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
+                              <X className="mr-1 size-3" />
+                              Cancelar
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {!isEditing ? (
+                        <div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => {
+                              void characterToText(character)
+                                .then((text: string) => {
+                                  // eslint-disable-next-line no-console
+                                  console.log(text)
+                                })
+                                .catch(() => {
+                                  // eslint-disable-next-line no-console
+                                  console.log("No se pudo generar el texto IA del personaje.")
+                                })
+                            }}
+                          >
+                            Texto IA
+                          </Button>
+                        </div>
+                      ) : null}
 
                       {isEditing ? (
                         <div className="grid grid-cols-3 gap-2">

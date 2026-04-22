@@ -108,6 +108,8 @@ type LandmarkApiDto = {
   icono?: string | null
   nombre: string
   tipo?: string | null
+  estadoId?: number | null
+  subdivisionId?: number | null
   escalaIcono?: number | null
   escalaTexto?: number | null
   mostrarLeyenda?: boolean | null
@@ -153,6 +155,8 @@ type LandmarkUpsertPayload = {
   icono: string
   nombre: string
   tipo: LandmarkType
+  estadoId: number | null
+  subdivisionId: number | null
   escalaIcono: number
   escalaTexto: number
   mostrarLeyenda: boolean
@@ -389,6 +393,13 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
       ? dto.mapAssetId
       : undefined
 
+  const estadoId =
+    typeof dto.estadoId === "number" && Number.isFinite(dto.estadoId) && dto.estadoId > 0 ? dto.estadoId : undefined
+  const subdivisionId =
+    typeof dto.subdivisionId === "number" && Number.isFinite(dto.subdivisionId) && dto.subdivisionId > 0
+      ? dto.subdivisionId
+      : undefined
+
   let organizationMapLinks: Record<number, number[]> | undefined
   if (dto.organizationMapLinks) {
     try {
@@ -420,6 +431,8 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
     icono: dto.icono ?? "",
     nombre: dto.nombre ?? "",
     tipo: isLandmarkType(dto.tipo) ? dto.tipo : "ciudad",
+    estadoId,
+    subdivisionId,
     escalaIcono:
       typeof dto.escalaIcono === "number" && Number.isFinite(dto.escalaIcono) ? dto.escalaIcono : 1,
     escalaTexto:
@@ -510,10 +523,19 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
       ? input.mapAssetId
       : null
 
+  const estadoId =
+    typeof input.estadoId === "number" && Number.isFinite(input.estadoId) && input.estadoId > 0 ? input.estadoId : null
+  const subdivisionId =
+    typeof input.subdivisionId === "number" && Number.isFinite(input.subdivisionId) && input.subdivisionId > 0
+      ? input.subdivisionId
+      : null
+
   return {
     icono: input.icono.trim(),
     nombre: input.nombre.trim(),
     tipo: input.tipo,
+    estadoId,
+    subdivisionId,
     escalaIcono:
       typeof input.escalaIcono === "number" && Number.isFinite(input.escalaIcono) ? input.escalaIcono : 1,
     escalaTexto:

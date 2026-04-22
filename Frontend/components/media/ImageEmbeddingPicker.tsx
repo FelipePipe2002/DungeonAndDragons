@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 
 type ImageEmbeddingSource = "url" | "pasted" | "uploaded"
 type ImageEmbeddingUsage = "character" | "organization" | "landmark-map" | "generic"
+type ImageEmbeddingPreviewMode = "fill" | "fitHeight"
 
 interface ImageEmbeddingPickerProps {
   value?: string
@@ -26,6 +27,8 @@ interface ImageEmbeddingPickerProps {
   placeholder?: string
   className?: string
   previewClassName?: string
+  previewMode?: ImageEmbeddingPreviewMode
+  replaceOnClick?: boolean
   editable?: boolean
   onRequestEdit?: () => void
 }
@@ -68,6 +71,58 @@ function normalizeImageReference(value: string) {
   return ""
 }
 
+async function loadImageElement(file: File) {
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const nextImage = new Image()
+      nextImage.onload = () => resolve(nextImage)
+      nextImage.onerror = () => reject(new Error("No se pudo decodificar la imagen."))
+      nextImage.src = objectUrl
+    })
+
+    return image
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+async function convertImageFileToWebp(file: File) {
+  if (file.type === "image/webp" || file.type === "image/gif") {
+    return file
+  }
+
+  const image = await loadImageElement(file)
+  const width = image.naturalWidth || image.width
+  const height = image.naturalHeight || image.height
+  if (!width || !height) {
+    throw new Error("La imagen no tiene dimensiones validas.")
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = width
+  canvas.height = height
+
+  const context = canvas.getContext("2d")
+  if (!context) {
+    throw new Error("No se pudo crear el contexto de conversion.")
+  }
+
+  context.drawImage(image, 0, 0, width, height)
+
+  const webpBlob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/webp", 0.9)
+  })
+
+  if (!webpBlob) {
+    throw new Error("El navegador no pudo convertir la imagen a WebP.")
+  }
+
+  const nextName = file.name.replace(/\.[^.]+$/, "") || "imagen"
+  return new File([webpBlob], `${nextName}.webp`, { type: "image/webp" })
+}
+
 export function ImageEmbeddingPicker({
   value,
   assetId,
@@ -77,6 +132,8 @@ export function ImageEmbeddingPicker({
   placeholder = "/ruta/archivo.png o https://...",
   className,
   previewClassName,
+  previewMode = "fill",
+  replaceOnClick = false,
   editable = true,
   onRequestEdit,
 }: ImageEmbeddingPickerProps) {
@@ -126,8 +183,15 @@ export function ImageEmbeddingPicker({
 
     setIsBusy(true)
     try {
-      const uploaded = await uploadAsset(file, {
-        filename: file.name.trim().length > 0 ? file.name : "imagen-pegada",
+      let fileToUpload = file
+      try {
+        fileToUpload = await convertImageFileToWebp(file)
+      } catch (error) {
+        console.warn("[ImageEmbeddingPicker] No se pudo convertir la imagen a WebP. Se subira el original.", error)
+      }
+
+      const uploaded = await uploadAsset(fileToUpload, {
+        filename: fileToUpload.name.trim().length > 0 ? fileToUpload.name : "imagen-pegada",
       })
       onChange(uploaded.downloadUrl, uploaded.id)
     } catch (error) {
@@ -168,10 +232,13 @@ export function ImageEmbeddingPicker({
     storeValue(normalized, "url", inferFileNameFromUrl(normalized))
   }
 
-  const handlePreviewClick = () => {
-    if (!editable) return
+  const handlePreviewClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!editable) {
+      onRequestEdit?.()
+      return
+    }
 
-    if (!hasImage) {
+    if (event.ctrlKey || replaceOnClick || !hasImage) {
       fileInputRef.current?.click()
     }
   }
@@ -214,7 +281,8 @@ export function ImageEmbeddingPicker({
         onClick={handlePreviewClick}
         onContextMenu={handlePreviewContextMenu}
         className={cn(
-          "relative w-full overflow-hidden rounded-sm border border-border bg-card text-left",
+          "relative overflow-hidden rounded-sm border border-border bg-card text-left",
+          previewMode === "fitHeight" && hasImage ? "w-fit" : "w-full",
           previewClassName ?? "h-44",
           !editable && "cursor-default",
           editable && !hasImage && "cursor-pointer",
@@ -222,7 +290,13 @@ export function ImageEmbeddingPicker({
       >
         {hasImage ? (
           isLikelyImageReference(currentValue) ? (
-            <img src={currentValue} alt={label} className="size-full object-cover" />
+            <img
+              src={currentValue}
+              alt={label}
+              className={
+                previewMode === "fitHeight" ? "h-full w-auto object-contain" : "size-full object-cover"
+              }
+            />
           ) : (
             <div className="flex size-full items-center justify-center px-3 text-xs text-muted-foreground">
               Referencia no valida para vista previa

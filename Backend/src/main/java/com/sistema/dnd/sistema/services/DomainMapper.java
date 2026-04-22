@@ -139,6 +139,8 @@ public class DomainMapper {
             landmark.getIcono(),
             landmark.getNombre(),
             landmark.getTipo().name(),
+            landmark.getEstado() != null ? landmark.getEstado().getId() : null,
+            landmark.getSubdivision() != null ? landmark.getSubdivision().getId() : null,
             landmark.getEscalaIcono(),
             landmark.getEscalaTexto(),
             landmark.getMostrarLeyenda(),

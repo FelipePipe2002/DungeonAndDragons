@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { fetchCharacterById, fetchCharacterReferences } from "@/lib/services/character-api.service"
 import type { Character } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -81,12 +80,13 @@ export function CharacterResumeDialog({
       }
     >
       <div className="flex items-start gap-3">
-        <Avatar className="size-12 border-2 border-primary/30">
-          <AvatarImage src={character.imagen} alt={character.nombre} />
-          <AvatarFallback className="bg-primary/10">
+        <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border-2 border-primary/30 bg-primary/10">
+          {character.imagen ? (
+            <img src={character.imagen} alt={character.nombre} className="size-full object-cover" />
+          ) : (
             <User className="size-5 text-primary" />
-          </AvatarFallback>
-        </Avatar>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="font-serif text-lg font-bold text-primary leading-tight">

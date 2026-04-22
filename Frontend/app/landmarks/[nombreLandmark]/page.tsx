@@ -35,6 +35,7 @@ import { Card } from "@/components/ui/card"
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
 import { CharacterDetailDialog, type CharacterDetailData } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { CreateLandmarkEventDialog } from "@/components/dialog/detailed/CreateLandmarkEventDialog"
+import { EstadoDetailDialog } from "@/components/dialog/detailed/EstadoDetailDialog"
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResumeDialog"
@@ -62,9 +63,10 @@ import { fetchOrganizations } from "@/lib/services/organization-api.service"
 import {
   DUNGEON_MAP_JSON_TYPE,
   type BattleSummary,
-  type Building,
-  type Character,
-  type Landmark,
+   type Building,
+   type Character,
+   type Estado,
+   type Landmark,
   type LandmarkEvent,
   type LandmarkType,
   type Organization,
@@ -566,6 +568,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [preloadedMapValue, setPreloadedMapValue] = useState("")
   const [dungeonEditorError, setDungeonEditorError] = useState<string | null>(null)
   const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
+  const [selectedEstadoDetailId, setSelectedEstadoDetailId] = useState<number | null>(null)
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
@@ -1506,6 +1509,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       setDetailOrganizationNameById(referenceIndexes.organizationNameById)
 
       setSelectedLandmarkDetail(null)
+      setSelectedEstadoDetailId(null)
       setSelectedBuildingDetailId(null)
       setIsBuildingDialogOpen(false)
       setSelectedCharacterDetail(null)
@@ -1525,6 +1529,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           setSelectedBuildingDetailId(selected.id)
           setIsBuildingDialogOpen(true)
         }
+        return
+      }
+
+      if (mention.type === "estado") {
+        setSelectedEstadoDetailId(mention.id)
         return
       }
 
@@ -3195,6 +3204,25 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             return next
           })
           setLandmark((prev) => (prev && prev.id === updatedLandmark.id ? updatedLandmark : prev))
+        }}
+      />
+      <EstadoDetailDialog
+        estadoId={selectedEstadoDetailId}
+        open={selectedEstadoDetailId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEstadoDetailId(null)
+        }}
+        onEstadoUpdated={(updatedEstado: Estado) => {
+          setSelectedEstadoDetailId(updatedEstado.id)
+        }}
+        onOpenEstado={(nextEstadoId) => {
+          setSelectedEstadoDetailId(nextEstadoId)
+        }}
+        onOpenCharacter={(characterId) => {
+          handleOpenMention({ type: "character", id: characterId, label: "" })
+        }}
+        onOpenLandmark={(landmarkId) => {
+          handleOpenMention({ type: "landmark", id: landmarkId, label: "" })
         }}
       />
       <CreateLandmarkEventDialog

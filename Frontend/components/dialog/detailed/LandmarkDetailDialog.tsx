@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { CreateLandmarkEventDialog } from "@/components/dialog/detailed/CreateLandmarkEventDialog"
+import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
@@ -10,11 +11,20 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
+import { fetchEstados } from "@/lib/services/estado-api.service"
 import { deleteLandmark, fetchLandmarkById, updateLandmark } from "@/lib/services/landmark-api.service"
 import { parseTagList } from "@/lib/tags"
-import type { Landmark, LandmarkEvent } from "@/lib/types"
+import type { Estado, Landmark, LandmarkEvent } from "@/lib/types"
+import { landmarkToText } from "@/lib/ai/EntityToText/landmarkToText"
 import {
   BookOpenText,
   Building2,
@@ -44,6 +54,8 @@ type LandmarkFormState = {
   descripcionCorta: string
   historia: string
   tags: string
+  estadoId: string
+  subdivisionId: string
 }
 
 const EVENTS_PER_PAGE = 5
@@ -55,6 +67,8 @@ const EMPTY_LANDMARK_FORM_STATE: LandmarkFormState = {
   descripcionCorta: "",
   historia: "",
   tags: "",
+  estadoId: "none",
+  subdivisionId: "none",
 }
 
 const tipoLabels: Record<string, string> = {
@@ -77,14 +91,6 @@ function isImageIcon(icono: string) {
   )
 }
 
-function LandmarkIcon({ landmark, className }: { landmark: Landmark; className: string }) {
-  if (isImageIcon(landmark.icono)) {
-    return <img src={landmark.icono} alt={landmark.nombre} className={`${className} object-contain`} />
-  }
-
-  return <MapPin className={className} />
-}
-
 function toLandmarkFormState(landmark: Landmark): LandmarkFormState {
   return {
     nombre: landmark.nombre,
@@ -93,6 +99,9 @@ function toLandmarkFormState(landmark: Landmark): LandmarkFormState {
     descripcionCorta: landmark.descripcionCorta ?? "",
     historia: landmark.historia ?? "",
     tags: landmark.tags.join(", "),
+    estadoId: typeof landmark.estadoId === "number" && landmark.estadoId > 0 ? String(landmark.estadoId) : "none",
+    subdivisionId:
+      typeof landmark.subdivisionId === "number" && landmark.subdivisionId > 0 ? String(landmark.subdivisionId) : "none",
   }
 }
 
@@ -109,6 +118,7 @@ export function LandmarkDetailDialog({
   onLandmarkDeleted,
 }: LandmarkDetailDialogProps) {
   const [currentLandmark, setCurrentLandmark] = useState<Landmark | null>(null)
+  const [estados, setEstados] = useState<Estado[]>([])
   const [eventSearch, setEventSearch] = useState("")
   const [eventsPage, setEventsPage] = useState(1)
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
@@ -118,6 +128,58 @@ export function LandmarkDetailDialog({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
   const [formState, setFormState] = useState<LandmarkFormState>(EMPTY_LANDMARK_FORM_STATE)
+
+  useEffect(() => {
+    if (!open) {
+      setEstados([])
+      return
+    }
+
+    let isActive = true
+    void fetchEstados()
+      .then((next) => {
+        if (!isActive) return
+        setEstados(next)
+      })
+      .catch(() => {
+        if (!isActive) return
+        setEstados([])
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [open])
+
+  const rootEstados = useMemo(
+    () => estados.filter((estado) => typeof estado.estadoPadreId !== "number"),
+    [estados],
+  )
+
+  const subdivisiones = useMemo(() => {
+    const estadoId = formState.estadoId === "none" ? null : Number(formState.estadoId)
+    if (!estadoId || !Number.isFinite(estadoId) || estadoId <= 0) return []
+
+    return estados
+      .filter((estado) => estado.estadoPadreId === estadoId)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+  }, [estados, formState.estadoId])
+
+  useEffect(() => {
+    if (!open) return
+
+    setFormState((prev) => {
+      if (prev.subdivisionId === "none") return prev
+      const parsedSubdivisionId = Number(prev.subdivisionId)
+      if (!Number.isFinite(parsedSubdivisionId) || parsedSubdivisionId <= 0) {
+        return { ...prev, subdivisionId: "none" }
+      }
+
+      return subdivisiones.some((estado) => estado.id === parsedSubdivisionId)
+        ? prev
+        : { ...prev, subdivisionId: "none" }
+    })
+  }, [subdivisiones, open])
 
   useEffect(() => {
     if (!open) {
@@ -208,6 +270,17 @@ export function LandmarkDetailDialog({
         icono: formState.icono.trim(),
       }
     : currentLandmark
+  const previewImageIcon = isImageIcon(previewLandmark.icono) ? previewLandmark.icono : undefined
+
+  const estadoNameById = new Map(estados.map((estado) => [estado.id, estado.nombre]))
+  const currentEstadoName =
+    typeof currentLandmark.estadoId === "number" && currentLandmark.estadoId > 0
+      ? (estadoNameById.get(currentLandmark.estadoId) ?? `Estado #${currentLandmark.estadoId}`)
+      : null
+  const currentSubdivisionName =
+    typeof currentLandmark.subdivisionId === "number" && currentLandmark.subdivisionId > 0
+      ? (estadoNameById.get(currentLandmark.subdivisionId) ?? `Subdivision #${currentLandmark.subdivisionId}`)
+      : null
 
   const handleStartEdit = () => {
     setFormState(toLandmarkFormState(currentLandmark))
@@ -239,6 +312,13 @@ export function LandmarkDetailDialog({
       parsedPopulation = Math.round(parsedValue)
     }
 
+    const parsedEstadoId = formState.estadoId === "none" ? undefined : Number(formState.estadoId)
+    const parsedSubdivisionId = formState.subdivisionId === "none" ? undefined : Number(formState.subdivisionId)
+
+    const estadoId = Number.isFinite(parsedEstadoId) && (parsedEstadoId ?? 0) > 0 ? parsedEstadoId : undefined
+    const subdivisionId =
+      estadoId && Number.isFinite(parsedSubdivisionId) && (parsedSubdivisionId ?? 0) > 0 ? parsedSubdivisionId : undefined
+
     const nextLandmark: Landmark = {
       ...currentLandmark,
       nombre: normalizedName,
@@ -247,6 +327,8 @@ export function LandmarkDetailDialog({
       descripcionCorta: toOptionalText(formState.descripcionCorta),
       historia: toOptionalText(formState.historia),
       tags: parseTagList(formState.tags),
+      estadoId,
+      subdivisionId,
     }
 
     try {
@@ -337,52 +419,71 @@ export function LandmarkDetailDialog({
     <>
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="parchment max-h-[90vh] max-w-6xl overflow-hidden p-0">
-          <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
-            {!isEditing && currentLandmark ? (
-              <>
-                <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
-                  <Trash2 className="mr-1 size-3" />
-                  Eliminar
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
-                  <Pencil className="mr-1 size-3" />
-                  Editar
-                </Button>
-              </>
-            ) : isEditing ? (
-              <>
-                <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
-                  <Save className="mr-1 size-3" />
-                  Guardar
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
-                  <X className="mr-1 size-3" />
-                  Cancelar
-                </Button>
-              </>
-            ) : null}
-          </div>
-
           <div className="flex h-[85vh] flex-col">
             <div className="scroll-banner shrink-0">
               <DialogHeader>
                 <div className="flex items-center gap-4">
-                  <div className="flex size-14 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
-                    <LandmarkIcon landmark={previewLandmark} className="size-7 text-primary" />
-                  </div>
-                  <div>
-                    {isEditing ? (
-                      <>
-                        <DialogTitle className="sr-only">{previewName}</DialogTitle>
-                        <Input
-                          value={formState.nombre}
-                          onChange={(event) => setFormState((prev) => ({ ...prev, nombre: event.target.value }))}
-                          className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
-                        />
-                      </>
-                    ) : (
-                      <DialogTitle className="text-2xl font-serif text-primary">{currentLandmark.nombre}</DialogTitle>
-                    )}
+                  {previewImageIcon ? (
+                    <div className="w-14 shrink-0">
+                      <ImageEmbeddingPicker
+                        usage="generic"
+                        value={previewImageIcon}
+                        onChange={(nextValue) => setFormState((prev) => ({ ...prev, icono: nextValue }))}
+                        label={`Icono de ${previewName}`}
+                        previewMode="fitHeight"
+                        previewClassName="flex size-14 items-center justify-center border-2 border-primary/30 bg-primary/10"
+                        editable={isEditing}
+                        onRequestEdit={!isEditing ? handleStartEdit : undefined}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex size-14 shrink-0 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
+                      <MapPin className="size-7 text-primary" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex w-full items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        {isEditing ? (
+                          <>
+                            <DialogTitle className="sr-only">{previewName}</DialogTitle>
+                            <Input
+                              value={formState.nombre}
+                              onChange={(event) => setFormState((prev) => ({ ...prev, nombre: event.target.value }))}
+                              className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
+                            />
+                          </>
+                        ) : (
+                          <DialogTitle className="min-w-0 flex-1 text-2xl font-serif text-primary">
+                            {currentLandmark.nombre}
+                          </DialogTitle>
+                        )}
+                      </div>
+
+                      {!isEditing && currentLandmark ? (
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
+                            <Trash2 className="mr-1 size-3" />
+                            Eliminar
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                            <Pencil className="mr-1 size-3" />
+                            Editar
+                          </Button>
+                        </div>
+                      ) : isEditing ? (
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
+                            <Save className="mr-1 size-3" />
+                            Guardar
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
+                            <X className="mr-1 size-3" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
 
                     <div className="mt-1 flex items-center gap-3 text-sm">
                       <Badge variant="outline" className="border-primary/30 text-[10px] text-primary">
@@ -395,6 +496,45 @@ export function LandmarkDetailDialog({
                         </span>
                       )}
                     </div>
+
+                    {!isEditing && (currentEstadoName || currentSubdivisionName) ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        {currentEstadoName ? (
+                          <Badge variant="secondary" className="font-normal">
+                            Estado: {currentEstadoName}
+                          </Badge>
+                        ) : null}
+                        {currentSubdivisionName ? (
+                          <Badge variant="secondary" className="font-normal">
+                            Subdivision: {currentSubdivisionName}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {!isEditing && currentLandmark ? (
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => {
+                            void landmarkToText(currentLandmark)
+                              .then((text: string) => {
+                                // eslint-disable-next-line no-console
+                                console.log(text)
+                              })
+                              .catch(() => {
+                                // eslint-disable-next-line no-console
+                                console.log("No se pudo generar el texto IA del lugar.")
+                              })
+                          }}
+                        >
+                          Texto IA
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </DialogHeader>
@@ -406,40 +546,102 @@ export function LandmarkDetailDialog({
                   {saveError && <p className="text-xs text-destructive">{saveError}</p>}
 
                   {isEditing && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div>
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                          Icono (emoji o URL)
+                    <div className="flex flex-col gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Imagen del icono
+                          </div>
+                          <ImageEmbeddingPicker
+                            usage="generic"
+                            value={isImageIcon(formState.icono) ? formState.icono : undefined}
+                            onChange={(nextValue) => setFormState((prev) => ({ ...prev, icono: nextValue }))}
+                            label={`Imagen del icono de ${previewName}`}
+                            previewClassName="h-24 w-full"
+                            editable={isEditing}
+                          />
                         </div>
-                        <Input
-                          value={formState.icono}
-                          onChange={(event) => setFormState((prev) => ({ ...prev, icono: event.target.value }))}
-                          className="h-8 text-sm"
-                          placeholder="🏰 o https://..."
-                        />
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Icono (emoji o texto)
+                          </div>
+                          <Input
+                            value={formState.icono}
+                            onChange={(event) => setFormState((prev) => ({ ...prev, icono: event.target.value }))}
+                            className="h-8 text-sm"
+                            placeholder="🏰 o texto simple"
+                          />
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Poblacion
+                          </div>
+                          <Input
+                            value={formState.poblacion}
+                            onChange={(event) => setFormState((prev) => ({ ...prev, poblacion: event.target.value }))}
+                            className="h-8 text-sm"
+                            placeholder="15000"
+                            inputMode="numeric"
+                          />
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Etiquetas
+                          </div>
+                          <Input
+                            value={formState.tags}
+                            onChange={(event) => setFormState((prev) => ({ ...prev, tags: event.target.value }))}
+                            className="h-8 text-sm"
+                            placeholder="tag1, tag2..."
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                          Poblacion
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Estado
+                          </div>
+                          <Select
+                            value={formState.estadoId}
+                            onValueChange={(value) => setFormState((prev) => ({ ...prev, estadoId: value, subdivisionId: "none" }))}
+                          >
+                            <SelectTrigger className="h-8 w-full text-sm">
+                              <SelectValue placeholder="Sin estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin estado</SelectItem>
+                              {rootEstados.map((estado) => (
+                                <SelectItem key={estado.id} value={String(estado.id)}>
+                                  {estado.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Input
-                          value={formState.poblacion}
-                          onChange={(event) => setFormState((prev) => ({ ...prev, poblacion: event.target.value }))}
-                          className="h-8 text-sm"
-                          placeholder="15000"
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                          Etiquetas
+
+                        <div>
+                          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            Subdivision
+                          </div>
+                          <Select
+                            value={formState.subdivisionId}
+                            onValueChange={(value) => setFormState((prev) => ({ ...prev, subdivisionId: value }))}
+                            disabled={formState.estadoId === "none"}
+                          >
+                            <SelectTrigger className="h-8 w-full text-sm">
+                              <SelectValue placeholder={formState.estadoId === "none" ? "Selecciona estado" : "Sin subdivision"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sin subdivision</SelectItem>
+                              {subdivisiones.map((subdivision) => (
+                                <SelectItem key={subdivision.id} value={String(subdivision.id)}>
+                                  {subdivision.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Input
-                          value={formState.tags}
-                          onChange={(event) => setFormState((prev) => ({ ...prev, tags: event.target.value }))}
-                          className="h-8 text-sm"
-                          placeholder="tag1, tag2..."
-                        />
                       </div>
                     </div>
                   )}

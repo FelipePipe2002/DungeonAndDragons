@@ -16,6 +16,8 @@ public record LandmarkUpsertRequest(
     String nombre,
     @NotNull(message = "El tipo del landmark es obligatorio")
     LandmarkType tipo,
+    Long estadoId,
+    Long subdivisionId,
     @NotNull(message = "escalaIcono es obligatoria")
     @DecimalMin(value = "0.6", message = "escalaIcono debe ser >= 0.6")
     @DecimalMax(value = "2.4", message = "escalaIcono debe ser <= 2.4")

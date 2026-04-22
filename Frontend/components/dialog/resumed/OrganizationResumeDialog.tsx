@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { fetchOrganizationById } from "@/lib/services/organization-api.service"
 import type { Organization } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -64,12 +63,13 @@ export function OrganizationResumeDialog({ organizationId, className, onClick }:
       }
     >
       <div className="flex items-start gap-3">
-        <Avatar className="size-12 border-2 border-primary/30">
-          <AvatarImage src={organization.imagen} alt={organization.nombre} />
-          <AvatarFallback className="bg-primary/10">
+        <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border-2 border-primary/30 bg-primary/10">
+          {organization.imagen ? (
+            <img src={organization.imagen} alt={organization.nombre} className="size-full object-cover" />
+          ) : (
             <Shield className="size-5 text-primary" />
-          </AvatarFallback>
-        </Avatar>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-serif text-lg font-bold text-primary leading-tight">
             {organization.nombre}

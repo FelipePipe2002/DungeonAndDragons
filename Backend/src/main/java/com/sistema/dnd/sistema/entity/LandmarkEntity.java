@@ -34,6 +34,14 @@ public class LandmarkEntity extends AuditableEntity {
     @Column(nullable = false, length = 20)
     private LandmarkType tipo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "estado_id")
+    private EstadoEntity estado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subdivision_id")
+    private EstadoEntity subdivision;
+
     @Column(name = "escala_icono", nullable = false)
     private Double escalaIcono;
 

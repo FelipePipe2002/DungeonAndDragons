@@ -44,6 +44,8 @@ export interface Landmark {
   icono: string
   nombre: string
   tipo: LandmarkType
+  estadoId?: number
+  subdivisionId?: number
   escalaIcono: number
   escalaTexto: number
   mostrarLeyenda: boolean

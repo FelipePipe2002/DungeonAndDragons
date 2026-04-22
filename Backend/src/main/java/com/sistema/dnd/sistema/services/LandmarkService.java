@@ -4,6 +4,7 @@ import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkEventRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkUpsertRequest;
+import com.sistema.dnd.sistema.entity.EstadoEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEventEntity;
 import com.sistema.dnd.sistema.entity.LandmarkMapKind;
@@ -11,6 +12,7 @@ import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
 import com.sistema.dnd.sistema.entity.LandmarkMapSource;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
 import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.repository.EstadoRepository;
 import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
@@ -29,6 +31,7 @@ public class LandmarkService {
     private final LandmarkRepository landmarkRepository;
     private final LandmarkEventRepository landmarkEventRepository;
     private final LandmarkMapRefRepository landmarkMapRefRepository;
+    private final EstadoRepository estadoRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
     private final LandmarkMapValidator landmarkMapValidator;
@@ -37,6 +40,7 @@ public class LandmarkService {
         LandmarkRepository landmarkRepository,
         LandmarkEventRepository landmarkEventRepository,
         LandmarkMapRefRepository landmarkMapRefRepository,
+        EstadoRepository estadoRepository,
         TaggingService taggingService,
         DomainMapper domainMapper,
         LandmarkMapValidator landmarkMapValidator
@@ -44,6 +48,7 @@ public class LandmarkService {
         this.landmarkRepository = landmarkRepository;
         this.landmarkEventRepository = landmarkEventRepository;
         this.landmarkMapRefRepository = landmarkMapRefRepository;
+        this.estadoRepository = estadoRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
         this.landmarkMapValidator = landmarkMapValidator;
@@ -104,9 +109,29 @@ public class LandmarkService {
     }
 
     private void applyUpsert(LandmarkEntity entity, LandmarkUpsertRequest request) {
+        EstadoEntity estado = null;
+        if (request.estadoId() != null && request.estadoId() > 0) {
+            estado = estadoRepository.findById(request.estadoId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "estadoId invalido"));
+        }
+
+        EstadoEntity subdivision = null;
+        if (request.subdivisionId() != null && request.subdivisionId() > 0) {
+            if (estado == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subdivisionId requiere estadoId");
+            }
+            subdivision = estadoRepository.findById(request.subdivisionId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "subdivisionId invalido"));
+            if (subdivision.getEstadoPadre() == null || subdivision.getEstadoPadre().getId() == null || !subdivision.getEstadoPadre().getId().equals(estado.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La subdivision no pertenece al estado");
+            }
+        }
+
         entity.setIcono(normalizedOrEmpty(request.icono()));
         entity.setNombre(requiredTrimmed(request.nombre(), "El nombre del landmark es obligatorio"));
         entity.setTipo(request.tipo());
+        entity.setEstado(estado);
+        entity.setSubdivision(subdivision);
         entity.setEscalaIcono(request.escalaIcono());
         entity.setEscalaTexto(request.escalaTexto());
         entity.setMostrarLeyenda(request.mostrarLeyenda());

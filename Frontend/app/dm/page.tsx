@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
 import { CharacterDetailDialog, type CharacterDetailData } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { DmRelationshipsSection } from "@/components/dm/DmRelationshipsSection"
+import { EstadoDetailDialog } from "@/components/dialog/detailed/EstadoDetailDialog"
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { PartyInventorySection } from "@/components/dm/PartyInventorySection"
@@ -24,7 +25,7 @@ import {
 } from "@/lib/navigation/global-create-events"
 import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
-import type { Building, Character, DmEvent, Landmark, Organization } from "@/lib/types"
+import type { Building, Character, DmEvent, Estado, Landmark, Organization } from "@/lib/types"
 import { Trash2 } from "lucide-react"
 
 const DM_NOTES_SAVE_DEBOUNCE_MS = 450
@@ -128,7 +129,7 @@ function formatEventTimestamp(value?: string) {
 function NotasPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const notesSubnavConfig = getSubnavConfig("/notas")
+  const notesSubnavConfig = getSubnavConfig("/dm")
   const activeSection = (notesSubnavConfig
     ? getSubnavActiveValue(notesSubnavConfig, searchParams.get("section"))
     : "dm-notes") as NotesSection
@@ -148,6 +149,7 @@ function NotasPageContent() {
   const [isDeletingEvent, setIsDeletingEvent] = useState(false)
 
   const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
+  const [selectedEstadoDetailId, setSelectedEstadoDetailId] = useState<number | null>(null)
   const [selectedBuildingDetailId, setSelectedBuildingDetailId] = useState<number | null>(null)
   const [selectedCharacterDetail, setSelectedCharacterDetail] = useState<CharacterDetailData | null>(null)
   const [selectedOrganizationDetail, setSelectedOrganizationDetail] = useState<Organization | null>(null)
@@ -166,7 +168,7 @@ function NotasPageContent() {
       return
     }
 
-    router.replace(`/notas?section=${encodeURIComponent(normalizedSection)}`)
+    router.replace(`/dm?section=${encodeURIComponent(normalizedSection)}`)
   }, [notesSubnavConfig, router, searchParams])
 
   useEffect(() => {
@@ -305,6 +307,7 @@ function NotasPageContent() {
     setDetailOrganizationNameById(referenceIndexes.organizationNameById)
 
     setSelectedLandmarkDetail(null)
+    setSelectedEstadoDetailId(null)
     setSelectedBuildingDetailId(null)
     setSelectedCharacterDetail(null)
     setSelectedOrganizationDetail(null)
@@ -318,6 +321,11 @@ function NotasPageContent() {
     if (mention.type === "building") {
       const selectedBuilding = referenceIndexes.buildingsById.get(mention.id)
       if (selectedBuilding) setSelectedBuildingDetailId(selectedBuilding.id)
+      return
+    }
+
+    if (mention.type === "estado") {
+      setSelectedEstadoDetailId(mention.id)
       return
     }
 
@@ -348,7 +356,7 @@ function NotasPageContent() {
     if (activeSection === "dm-events") return "Eventos DM"
     if (activeSection === "dm-relationships") return "Relaciones"
     if (activeSection === "party-inventory") return "Party Inventory"
-    return "Notas DM"
+    return "DM"
   }, [activeSection])
 
   const handleConfirmDeleteEvent = useCallback(async () => {
@@ -496,6 +504,26 @@ function NotasPageContent() {
             next.set(updatedLandmark.id, updatedLandmark.nombre)
             return next
           })
+        }}
+      />
+
+      <EstadoDetailDialog
+        estadoId={selectedEstadoDetailId}
+        open={selectedEstadoDetailId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEstadoDetailId(null)
+        }}
+        onEstadoUpdated={(updatedEstado: Estado) => {
+          setSelectedEstadoDetailId(updatedEstado.id)
+        }}
+        onOpenEstado={(nextEstadoId) => {
+          setSelectedEstadoDetailId(nextEstadoId)
+        }}
+        onOpenCharacter={(characterId) => {
+          void handleOpenMention({ type: "character", id: characterId, label: "" })
+        }}
+        onOpenLandmark={(landmarkId) => {
+          void handleOpenMention({ type: "landmark", id: landmarkId, label: "" })
         }}
       />
 

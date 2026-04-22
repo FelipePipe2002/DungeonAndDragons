@@ -424,32 +424,6 @@ export function BuildingDetailDialog({
     <>
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="parchment max-h-[90vh] max-w-3xl overflow-hidden p-0">
-        <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
-          {!isEditing && currentBuilding ? (
-            <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
-                <Trash2 className="mr-1 size-3" />
-                Eliminar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
-                <Pencil className="mr-1 size-3" />
-                Editar
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
-                <Save className="mr-1 size-3" />
-                Guardar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
-                <X className="mr-1 size-3" />
-                Cancelar
-              </Button>
-            </>
-          )}
-        </div>
-
         <ScrollArea className="max-h-[90vh]">
           <div className="flex flex-col">
             <div className="scroll-banner">
@@ -458,23 +432,50 @@ export function BuildingDetailDialog({
                   <div className="flex size-14 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
                     <Building2 className="size-7 text-primary" />
                   </div>
-                  <div>
-                    {isEditing ? (
-                      <>
-                        <DialogTitle className="sr-only">{titleText}</DialogTitle>
-                        <Input
-                          value={formState.nombre}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, nombre: event.target.value }))
-                          }
-                          className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
-                        />
-                      </>
-                    ) : (
-                      <DialogTitle className="text-2xl font-serif text-primary">
-                        {titleText}
-                      </DialogTitle>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex w-full items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        {isEditing ? (
+                          <>
+                            <DialogTitle className="sr-only">{titleText}</DialogTitle>
+                            <Input
+                              value={formState.nombre}
+                              onChange={(event) =>
+                                setFormState((prev) => ({ ...prev, nombre: event.target.value }))
+                              }
+                              className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
+                            />
+                          </>
+                        ) : (
+                          <DialogTitle className="truncate text-2xl font-serif text-primary">{titleText}</DialogTitle>
+                        )}
+                      </div>
+
+                      {!isEditing && currentBuilding ? (
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
+                            <Trash2 className="mr-1 size-3" />
+                            Eliminar
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                            <Pencil className="mr-1 size-3" />
+                            Editar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
+                            <Save className="mr-1 size-3" />
+                            Guardar
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
+                            <X className="mr-1 size-3" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                       <MapPin className="size-3" />
                       {landmarkName}

@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 import { CharactersPageContent } from "@/components/characters/CharactersPageContent"
 import { BuildingsPageContent } from "@/components/entities/BuildingsPageContent"
+import { EstadosPageContent } from "@/components/entities/EstadosPageContent"
 import { LandmarksPageContent } from "@/components/entities/LandmarksPageContent"
 import { OrganizationsPageContent } from "@/components/entities/OrganizationsPageContent"
 import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
 
-type EntitySection = "personajes" | "jugadores" | "edificios" | "organizaciones" | "landmarks"
+type EntitySection = "personajes" | "jugadores" | "estados" | "edificios" | "organizaciones" | "landmarks"
 
 function EntidadesPageContent() {
   const router = useRouter()
@@ -40,13 +41,17 @@ function EntidadesPageContent() {
   if (activeSection === "edificios") {
     return <BuildingsPageContent showHeader={false} />
   }
-
+  
   if (activeSection === "organizaciones") {
     return <OrganizationsPageContent showHeader={false} />
   }
-
+  
   if (activeSection === "landmarks") {
     return <LandmarksPageContent showHeader={false} />
+  }
+  
+  if (activeSection === "estados") {
+    return <EstadosPageContent showHeader={false} />
   }
 
   return <CharactersPageContent initialScope="npcs" showHeader={false} />

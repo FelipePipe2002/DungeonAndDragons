@@ -26,6 +26,7 @@ import {
   updateOrganization,
 } from "@/lib/services/organization-api.service"
 import type { Building, Character, Organization, OrganizationMember } from "@/lib/types"
+import { organizationToText } from "@/lib/ai/EntityToText/organizationToText"
 import { Building2, Crown, MapPin, Pencil, Save, Trash2, Users, X } from "lucide-react"
 
 interface OrganizationDetailDialogProps {
@@ -695,32 +696,6 @@ export function OrganizationDetailDialog({
     <>
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="parchment flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0">
-        <div className="absolute right-12 top-3.5 z-20 flex items-center gap-1.5">
-          {!isEditing && currentOrganization ? (
-            <>
-              <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
-                <Trash2 className="mr-1 size-3" />
-                Eliminar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
-                <Pencil className="mr-1 size-3" />
-                Editar
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
-                <Save className="mr-1 size-3" />
-                Guardar
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
-                <X className="mr-1 size-3" />
-                Cancelar
-              </Button>
-            </>
-          )}
-        </div>
-
         <div className="flex h-[85vh] min-h-0 flex-col">
           <div className="scroll-banner shrink-0">
             <DialogHeader>
@@ -742,21 +717,73 @@ export function OrganizationDetailDialog({
                     onRequestEdit={currentOrganization ? handleStartEdit : undefined}
                   />
                 </div>
-                <div className="min-w-0 flex flex-col gap-1.5">
-                  {isEditing ? (
-                    <>
-                      <DialogTitle className="sr-only">{previewName}</DialogTitle>
-                      <Input
-                        value={formState.nombre}
-                        onChange={(event) => setFormState((prev) => ({ ...prev, nombre: event.target.value }))}
-                        className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
-                      />
-                    </>
-                  ) : (
-                    <DialogTitle className="text-balance text-2xl font-serif leading-tight text-primary">
-                      {previewName}
-                    </DialogTitle>
-                  )}
+                <div className="min-w-0 flex flex-1 flex-col gap-1.5">
+                  <div className="flex w-full items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      {isEditing ? (
+                        <>
+                          <DialogTitle className="sr-only">{previewName}</DialogTitle>
+                          <Input
+                            value={formState.nombre}
+                            onChange={(event) => setFormState((prev) => ({ ...prev, nombre: event.target.value }))}
+                            className="h-9 border-primary/30 bg-card/80 font-serif text-lg"
+                          />
+                        </>
+                      ) : (
+                        <DialogTitle className="min-w-0 flex-1 text-balance text-2xl font-serif leading-tight text-primary">
+                          {previewName}
+                        </DialogTitle>
+                      )}
+                    </div>
+
+                    {!isEditing && currentOrganization ? (
+                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDeleteRequest}>
+                          <Trash2 className="mr-1 size-3" />
+                          Eliminar
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleStartEdit}>
+                          <Pencil className="mr-1 size-3" />
+                          Editar
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveEdit}>
+                          <Save className="mr-1 size-3" />
+                          Guardar
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={handleCancelEdit}>
+                          <X className="mr-1 size-3" />
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isEditing && currentOrganization ? (
+                    <div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => {
+                          void organizationToText(currentOrganization)
+                            .then((text: string) => {
+                              // eslint-disable-next-line no-console
+                              console.log(text)
+                            })
+                            .catch(() => {
+                              // eslint-disable-next-line no-console
+                              console.log("No se pudo generar el texto IA de la organizacion.")
+                            })
+                        }}
+                      >
+                        Texto IA
+                      </Button>
+                    </div>
+                  ) : null}
 
                   <div className="mt-0.5 flex flex-wrap gap-1.5">
                     {previewCategories.map((category) => (

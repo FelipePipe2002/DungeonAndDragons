@@ -7,6 +7,8 @@ public record LandmarkDto(
     String icono,
     String nombre,
     String tipo,
+    Long estadoId,
+    Long subdivisionId,
     Double escalaIcono,
     Double escalaTexto,
     Boolean mostrarLeyenda,

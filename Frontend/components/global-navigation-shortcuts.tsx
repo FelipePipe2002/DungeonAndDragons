@@ -95,7 +95,7 @@ export function GlobalNavigationShortcuts() {
       }
 
       if (event.key.toLocaleLowerCase("es") === "n") {
-        const notesPath = "/notas"
+        const notesPath = "/dm"
         const currentPath = normalizeMainNavPath(pathname)
         if (currentPath === notesPath) {
           return
