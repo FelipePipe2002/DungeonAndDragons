@@ -144,6 +144,63 @@ test("genera documento simple consistente", () => {
   assert.equal(normalized.metadata.name, "Simple")
 })
 
+test("no genera antorchas por defecto para evitar cambios sorpresa", () => {
+  const document = generateDungeonMapDocument({
+    preset: "rooms-corridors",
+    width: 48,
+    height: 32,
+    roomCount: 5,
+    seed: "lighting-default-off",
+  })
+  const normalized = readDungeonMapDocument(document)
+
+  assert.equal(document.layout.lights, undefined)
+  assert.deepEqual(normalized.lights, [])
+})
+
+test("genera antorchas cerca de paredes de rooms cuando lighting esta habilitado", () => {
+  const document = generateDungeonMapDocument({
+    preset: "rooms-corridors",
+    width: 64,
+    height: 42,
+    roomCount: 6,
+    seed: "lighting-rooms-enabled",
+    lightingOptions: {
+      enabled: true,
+      placement: "rooms",
+      brightRadiusCells: 5,
+      dimRadiusCells: 9,
+    },
+  })
+  const normalized = readDungeonMapDocument(document)
+
+  const doorCells = new Set(normalized.doors.map((door) => `${door.x},${door.y}`))
+
+  assert.equal(normalized.lights.length >= normalized.rooms.length * 2, true)
+  assert.equal(normalized.lights.every((light) => light.kind === "torch"), true)
+  assert.equal(normalized.lights.every((light) => light.placement === "generated"), true)
+  assert.equal(normalized.lights.every((light) => light.wallMounted), true)
+  assert.equal(normalized.lights.some((light) => light.orientation !== "north"), true)
+  assert.equal(normalized.lights.every((light) => light.brightRadiusCells === 5), true)
+  assert.equal(normalized.lights.every((light) => light.dimRadiusCells === 9), true)
+  for (const room of normalized.rooms) {
+    const roomLightCount = normalized.lights.filter((light) => {
+      const onHorizontalWall = light.x >= room.x && light.x < room.x + room.width && (light.y === room.y || light.y === room.y + room.height - 1)
+      const onVerticalWall = light.y >= room.y && light.y < room.y + room.height && (light.x === room.x || light.x === room.x + room.width - 1)
+      return onHorizontalWall || onVerticalWall
+    }).length
+    assert.equal(roomLightCount >= 2, true)
+  }
+  for (const light of normalized.lights) {
+    assert.equal(doorCells.has(`${light.x},${light.y}`), false)
+    assert.equal(normalized.rooms.some((room) => {
+      const onHorizontalWall = light.x >= room.x && light.x < room.x + room.width && (light.y === room.y || light.y === room.y + room.height - 1)
+      const onVerticalWall = light.y >= room.y && light.y < room.y + room.height && (light.x === room.x || light.x === room.x + room.width - 1)
+      return onHorizontalWall || onVerticalWall
+    }), true)
+  }
+})
+
 test("acepta configuracion agrupada de room/corridor/topology/debug", () => {
   const document = generateDungeonMapDocument({
     preset: "rooms-corridors",
@@ -161,6 +218,7 @@ test("acepta configuracion agrupada de room/corridor/topology/debug", () => {
       enabled: true,
       width: 1,
       maxSteps: 84,
+      allowIntersections: false,
     },
     topologyOptions: {
       extraConnections: 1,
@@ -176,6 +234,45 @@ test("acepta configuracion agrupada de room/corridor/topology/debug", () => {
   assert.equal(Array.isArray(normalized.corridors), true)
   assert.equal(normalized.metadata.name, "Grouped Config")
   assert.equal(normalized.metadata.seed, "grouped-config-seed")
+})
+
+test("normaliza toggle publico de intersecciones agrupado y legacy", () => {
+  const grouped = createGenerationContext({
+    preset: "rooms-corridors",
+    corridorOptions: { enabled: true, allowIntersections: false },
+  })
+  const legacy = createGenerationContext({
+    preset: "rooms-corridors",
+    includeCorridors: true,
+    allowCorridorIntersections: false,
+  })
+  const defaults = createGenerationContext({
+    preset: "rooms-corridors",
+    corridorOptions: { enabled: true },
+  })
+
+  assert.equal(grouped.allowCorridorIntersections, false)
+  assert.equal(legacy.allowCorridorIntersections, false)
+  assert.equal(defaults.allowCorridorIntersections, true)
+})
+
+test("normaliza opciones de lighting agrupadas y toggle legacy de antorchas", () => {
+  const grouped = createGenerationContext({
+    preset: "rooms-corridors",
+    lightingOptions: { enabled: true, placement: "rooms-and-corridors", densityPercent: 175, brightRadiusCells: 6, dimRadiusCells: 10 },
+  })
+  const legacy = createGenerationContext({ preset: "rooms-corridors", generateTorches: true })
+  const defaults = createGenerationContext({ preset: "rooms-corridors" })
+
+  assert.equal(grouped.lightingEnabled, true)
+  assert.equal(grouped.lightingPlacement, "rooms-and-corridors")
+  assert.equal(grouped.lightDensityPercent, 175)
+  assert.equal(grouped.lightBrightRadiusCells, 6)
+  assert.equal(grouped.lightDimRadiusCells, 10)
+  assert.equal(legacy.lightingEnabled, true)
+  assert.equal(defaults.lightingEnabled, false)
+  assert.equal(defaults.lightingPlacement, "rooms-and-corridors")
+  assert.equal(defaults.lightDensityPercent, 100)
 })
 
 test("main branch existe entre inicio y final", () => {
@@ -453,9 +550,9 @@ test("seeds doradas mantienen firma estable de salida", () => {
   })
 
   assert.deepEqual(signatures, [
-    { seed: "golden-a", rooms: 9, corridors: 9, doors: 13, start: 6, boss: 1 },
-    { seed: "golden-b", rooms: 9, corridors: 9, doors: 13, start: 5, boss: 6 },
-    { seed: "golden-c", rooms: 9, corridors: 9, doors: 13, start: 8, boss: 0 },
+    { seed: "golden-a", rooms: 9, corridors: 9, doors: 14, start: 6, boss: 1 },
+    { seed: "golden-b", rooms: 9, corridors: 9, doors: 14, start: 5, boss: 6 },
+    { seed: "golden-c", rooms: 9, corridors: 9, doors: 13, start: 8, boss: 3 },
   ])
 })
 
@@ -934,6 +1031,112 @@ test("corridors pueden reutilizar un tramo comun y formar intersecciones", () =>
 
   const hasIntersection = [...usageByCell.values()].some((count) => count >= 2)
   assert.equal(hasIntersection, true)
+})
+
+test("puede desactivar intersecciones de corridors", () => {
+  const document = generateDungeonMapDocument({
+    preset: "rooms-corridors",
+    width: 84,
+    height: 56,
+    roomCount: 9,
+    includeCorridors: true,
+    corridorWidth: 1,
+    allowCorridorIntersections: false,
+    seed: "hub-0",
+  })
+  const normalized = readDungeonMapDocument(document)
+  const usageByCell = new Map<string, number>()
+
+  for (const corridor of normalized.corridors) {
+    for (const cell of corridorCells(corridor.points)) {
+      usageByCell.set(`${cell.x},${cell.y}`, (usageByCell.get(`${cell.x},${cell.y}`) ?? 0) + 1)
+    }
+  }
+
+  const hasIntersection = [...usageByCell.values()].some((count) => count >= 2)
+  assert.equal(hasIntersection, false)
+})
+
+test("sin intersecciones no comparten una misma puerta rooms distintas", () => {
+  const document = generateDungeonMapDocument({
+    preset: "rooms-corridors",
+    width: 84,
+    height: 56,
+    roomCount: 9,
+    includeCorridors: true,
+    corridorWidth: 1,
+    extraConnectionCount: 1,
+    allowCorridorIntersections: false,
+    seed: "hub-0",
+  })
+  const normalized = readDungeonMapDocument(document)
+  const roomIndexesByDoorCell = new Map<string, Set<number>>()
+
+  for (const corridor of normalized.corridors) {
+    const endpoints = [corridor.points[0], corridor.points[corridor.points.length - 1]]
+
+    for (const endpoint of endpoints) {
+      const roomIndex = findRoomIndexContainingPoint(normalized.rooms, endpoint)
+      if (roomIndex < 0) continue
+      const key = `${endpoint.x},${endpoint.y}`
+      const roomIndexes = roomIndexesByDoorCell.get(key) ?? new Set<number>()
+      roomIndexes.add(roomIndex)
+      roomIndexesByDoorCell.set(key, roomIndexes)
+    }
+  }
+
+  for (const roomIndexes of roomIndexesByDoorCell.values()) {
+    assert.equal(roomIndexes.size <= 1, true)
+  }
+})
+
+test("seed auto-moaqcmem-7g0xl8 no comparte puertas ni celdas con intersecciones desactivadas", () => {
+  const document = generateDungeonMapDocument({
+    preset: "rooms-corridors",
+    width: 80,
+    height: 80,
+    includeCorridors: true,
+    allowCorridorIntersections: false,
+    roomOptions: {
+      count: 25,
+      minWidth: 5,
+      maxWidth: 12,
+      minHeight: 4,
+      maxHeight: 12,
+      padding: 1,
+    },
+    debugOptions: {
+      seed: "auto-moaqcmem-7g0xl8",
+    },
+  })
+  const normalized = readDungeonMapDocument(document)
+  const usageByCell = new Map<string, number>()
+  const roomIndexesByDoorCell = new Map<string, Set<number>>()
+
+  for (const corridor of normalized.corridors) {
+    for (const cell of corridorCells(corridor.points)) {
+      const key = `${cell.x},${cell.y}`
+      usageByCell.set(key, (usageByCell.get(key) ?? 0) + 1)
+    }
+
+    const endpoints = [corridor.points[0], corridor.points[corridor.points.length - 1]]
+    for (const endpoint of endpoints) {
+      const roomIndex = findRoomIndexContainingPoint(normalized.rooms, endpoint)
+      if (roomIndex < 0) continue
+      const key = `${endpoint.x},${endpoint.y}`
+      const roomIndexes = roomIndexesByDoorCell.get(key) ?? new Set<number>()
+      roomIndexes.add(roomIndex)
+      roomIndexesByDoorCell.set(key, roomIndexes)
+    }
+  }
+
+  for (const count of usageByCell.values()) {
+    assert.equal(count <= 1, true)
+  }
+
+  for (const roomIndexes of roomIndexesByDoorCell.values()) {
+    assert.equal(roomIndexes.size <= 1, true)
+  }
 })
 
 test("no se forman corredores paralelos pegados dentro del mismo cluster", () => {

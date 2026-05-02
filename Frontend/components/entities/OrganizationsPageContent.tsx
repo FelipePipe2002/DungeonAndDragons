@@ -33,9 +33,10 @@ function OrganizationAvatar({ organization }: { organization: Organization }) {
 
 type OrganizationsPageContentProps = {
   showHeader?: boolean
+  loadRelatedData?: boolean
 }
 
-export function OrganizationsPageContent({ showHeader = true }: OrganizationsPageContentProps) {
+export function OrganizationsPageContent({ showHeader = true, loadRelatedData = true }: OrganizationsPageContentProps) {
   const [organizationsData, setOrganizationsData] = useState<Organization[]>([])
   const [landmarkNamesById, setLandmarkNamesById] = useState<Record<number, string>>({})
   const [buildingNamesById, setBuildingNamesById] = useState<Record<number, string>>({})
@@ -45,13 +46,18 @@ export function OrganizationsPageContent({ showHeader = true }: OrganizationsPag
 
   const loadPageData = useCallback(async () => {
     const storedOrganizations = await fetchOrganizations().catch(() => [])
-    const references = await fetchCharacterReferences().catch(() => ({ landmarks: [], buildings: [], organizations: [] }))
-    const storedBuildings = await fetchBuildings().catch(() => [])
 
     setOrganizationsData(storedOrganizations)
-    setLandmarkNamesById(Object.fromEntries(references.landmarks.map((landmark) => [landmark.id, landmark.nombre])))
-    setBuildingNamesById(Object.fromEntries(storedBuildings.map((building) => [building.id, building.nombre])))
-  }, [])
+    if (loadRelatedData) {
+      const references = await fetchCharacterReferences().catch(() => ({ landmarks: [], buildings: [], organizations: [] }))
+      const storedBuildings = await fetchBuildings().catch(() => [])
+      setLandmarkNamesById(Object.fromEntries(references.landmarks.map((landmark) => [landmark.id, landmark.nombre])))
+      setBuildingNamesById(Object.fromEntries(storedBuildings.map((building) => [building.id, building.nombre])))
+    } else {
+      setLandmarkNamesById({})
+      setBuildingNamesById({})
+    }
+  }, [loadRelatedData])
 
   useEffect(() => {
     void loadPageData()

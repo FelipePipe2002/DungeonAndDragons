@@ -19,9 +19,10 @@ import { ArrowRight, Building2, MapPin, Plus, Shield, User } from "lucide-react"
 
 type BuildingsPageContentProps = {
   showHeader?: boolean
+  loadRelatedData?: boolean
 }
 
-export function BuildingsPageContent({ showHeader = true }: BuildingsPageContentProps) {
+export function BuildingsPageContent({ showHeader = true, loadRelatedData = true }: BuildingsPageContentProps) {
   const [buildingsData, setBuildingsData] = useState<Building[]>([])
   const [landmarkNamesById, setLandmarkNamesById] = useState<Record<number, string>>({})
   const [organizationNamesById, setOrganizationNamesById] = useState<Record<number, string>>({})
@@ -30,14 +31,19 @@ export function BuildingsPageContent({ showHeader = true }: BuildingsPageContent
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const loadPageData = useCallback(async () => {
-    const storedBuildings = await fetchBuildings().catch(() => [])
-    const storedLandmarks = await fetchLandmarkReferences().catch(() => [])
-    const storedOrganizations = await fetchOrganizations().catch(() => [])
+    const storedBuildings = await fetchBuildings({ hydrateOwnerNames: loadRelatedData }).catch(() => [])
 
     setBuildingsData(storedBuildings)
-    setLandmarkNamesById(Object.fromEntries(storedLandmarks.map((landmark) => [landmark.id, landmark.nombre])))
-    setOrganizationNamesById(Object.fromEntries(storedOrganizations.map((organization) => [organization.id, organization.nombre])))
-  }, [])
+    if (loadRelatedData) {
+      const storedLandmarks = await fetchLandmarkReferences().catch(() => [])
+      const storedOrganizations = await fetchOrganizations().catch(() => [])
+      setLandmarkNamesById(Object.fromEntries(storedLandmarks.map((landmark) => [landmark.id, landmark.nombre])))
+      setOrganizationNamesById(Object.fromEntries(storedOrganizations.map((organization) => [organization.id, organization.nombre])))
+    } else {
+      setLandmarkNamesById({})
+      setOrganizationNamesById({})
+    }
+  }, [loadRelatedData])
 
   useEffect(() => {
     void loadPageData()
@@ -55,8 +61,10 @@ export function BuildingsPageContent({ showHeader = true }: BuildingsPageContent
   }, [loadPageData])
 
   const resolveLandmarkName = (landmarkId: number | null) =>
-    typeof landmarkId === "number" && landmarkId > 0 ? (landmarkNamesById[landmarkId] ?? "Desconocido") : "Sin ubicacion"
-  const resolveOrganizationName = (organizationId: number) => organizationNamesById[organizationId] ?? "Desconocido"
+    typeof landmarkId === "number" && landmarkId > 0
+      ? (landmarkNamesById[landmarkId] ?? (loadRelatedData ? "Desconocido" : `Ubicacion #${landmarkId}`))
+      : "Sin ubicacion"
+  const resolveOrganizationName = (organizationId: number) => organizationNamesById[organizationId] ?? (loadRelatedData ? "Desconocido" : "")
   const filteredBuildings = useMemo(
     () =>
       buildingsData.filter((building) =>
@@ -70,7 +78,7 @@ export function BuildingsPageContent({ showHeader = true }: BuildingsPageContent
           building.organizationId ? resolveOrganizationName(building.organizationId) : "",
         ),
       ),
-    [buildingsData, landmarkNamesById, organizationNamesById, searchQuery],
+    [buildingsData, landmarkNamesById, loadRelatedData, organizationNamesById, searchQuery],
   )
 
   return (
@@ -175,7 +183,7 @@ export function BuildingsPageContent({ showHeader = true }: BuildingsPageContent
                 )}
               </div>
 
-              {building.organizationId ? (
+              {building.organizationId && loadRelatedData ? (
                 <span className="inline-flex w-fit items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
                   <Shield className="size-2.5" />
                   {resolveOrganizationName(building.organizationId)}

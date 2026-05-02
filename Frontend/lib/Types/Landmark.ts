@@ -64,6 +64,7 @@ export interface Landmark {
   mapGridOffsetY?: number
   organizationMapLinks?: Record<number, number[]>
   hiddenMapBuildings?: number[]
+  dungeonGeneratorConfig?: string
   mapa?: LandmarkMapReference
   edificios: Building[]
   personajes: Character[]

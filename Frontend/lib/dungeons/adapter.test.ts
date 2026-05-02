@@ -50,7 +50,7 @@ test("rechaza string JSON invalido con error claro", () => {
   )
 })
 
-test("valida documento completo con rooms corridors doors y markers", () => {
+test("valida documento completo con rooms corridors doors markers y lights", () => {
   const result = validateDungeonMapDocument({
     ...buildMinimalDocument(),
     metadata: {
@@ -64,6 +64,7 @@ test("valida documento completo con rooms corridors doors y markers", () => {
       corridors: [{ id: "corr-1", points: [{ x: 1, y: 1 }, { x: 3, y: 1 }] }],
       doors: [{ id: "door-1", x: 3, y: 1, direction: "east", kind: "locked" }],
       markers: [{ id: "marker-1", x: 2, y: 2, kind: "trap", label: "  Peligro  " }],
+      lights: [{ id: "light-1", x: 4, y: 5, kind: "torch", label: "  Antorcha  ", brightRadiusCells: 4, dimRadiusCells: 8, mode: "radius", placement: "manual" }],
     },
   })
 
@@ -347,6 +348,7 @@ test("normaliza defaults no ambiguos", () => {
   assert.deepEqual(normalized.corridors, [])
   assert.deepEqual(normalized.doors, [])
   assert.deepEqual(normalized.markers, [])
+  assert.deepEqual(normalized.lights, [])
 })
 
 test("read devuelve estructura normalizada sin JSON crudo ambiguo", () => {
@@ -358,6 +360,7 @@ test("read devuelve estructura normalizada sin JSON crudo ambiguo", () => {
         ...buildMinimalDocument().layout,
         doors: [{ id: "door-1", x: 4, y: 5, direction: "north" }],
         markers: [{ id: "marker-1", x: 2, y: 3, kind: " loot ", label: "  Cofre  " }],
+        lights: [{ id: " light-1 ", x: 6, y: 7, kind: "torch", label: "  Antorcha  ", brightRadiusCells: 4, dimRadiusCells: 8, mode: "radius" }],
       },
     }),
   )
@@ -370,6 +373,46 @@ test("read devuelve estructura normalizada sin JSON crudo ambiguo", () => {
   assert.equal(normalized.doors[0]?.direction, "north")
   assert.equal(normalized.markers[0]?.kind, "loot")
   assert.equal(normalized.markers[0]?.label, "Cofre")
+  assert.deepEqual(normalized.lights[0], {
+    id: "light-1",
+    x: 6,
+    y: 7,
+    kind: "torch",
+    label: "Antorcha",
+    enabled: true,
+    brightRadiusCells: 4,
+    dimRadiusCells: 8,
+    mode: "radius",
+    placement: null,
+    wallMounted: false,
+    orientation: "south",
+  })
+})
+
+test("rechaza lights con radios invalidos", () => {
+  const result = validateDungeonMapDocument({
+    ...buildMinimalDocument(),
+    layout: {
+      ...buildMinimalDocument().layout,
+      lights: [{ id: "light-1", x: 2, y: 2, kind: "torch", brightRadiusCells: 6, dimRadiusCells: 4, mode: "radius" }],
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.errors.includes("layout.lights[0].dimRadiusCells debe ser mayor o igual a layout.lights[0].brightRadiusCells."), true)
+})
+
+test("rechaza lights con modo invalido", () => {
+  const result = validateDungeonMapDocument({
+    ...buildMinimalDocument(),
+    layout: {
+      ...buildMinimalDocument().layout,
+      lights: [{ id: "light-1", x: 2, y: 2, kind: "torch", brightRadiusCells: 4, dimRadiusCells: 8, mode: "cone" }],
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.errors.includes("layout.lights[0].mode debe ser uno de: radius, line-of-sight."), true)
 })
 
 test("rechaza doors sin direccion", () => {
@@ -413,6 +456,21 @@ test("rechaza markers fuera de limites", () => {
 
   assert.equal(result.ok, false)
   assert.equal(result.errors.includes("layout.markers[0] debe permanecer dentro de layout.width y layout.height."), true)
+})
+
+test("rechaza lights fuera de limites", () => {
+  const result = validateDungeonMapDocument({
+    ...buildMinimalDocument(),
+    layout: {
+      ...buildMinimalDocument().layout,
+      width: 5,
+      height: 5,
+      lights: [{ id: "light-1", x: 5, y: 2, kind: "torch", brightRadiusCells: 4, dimRadiusCells: 8, mode: "radius" }],
+    },
+  })
+
+  assert.equal(result.ok, false)
+  assert.equal(result.errors.includes("layout.lights[0] debe permanecer dentro de layout.width y layout.height."), true)
 })
 
 test("rechaza units pixel porque el renderer solo soporta tile o cell", () => {

@@ -42,9 +42,10 @@ const tipoLabels: Record<string, string> = {
 
 type LandmarksPageContentProps = {
   showHeader?: boolean
+  loadRelatedData?: boolean
 }
 
-export function LandmarksPageContent({ showHeader = true }: LandmarksPageContentProps) {
+export function LandmarksPageContent({ showHeader = true, loadRelatedData = true }: LandmarksPageContentProps) {
   const router = useRouter()
   const [landmarksData, setLandmarksData] = useState<Landmark[]>([])
   const [countsByLandmarkId, setCountsByLandmarkId] = useState<Record<number, { buildings: number; characters: number; organizations: number }>>({})
@@ -55,9 +56,9 @@ export function LandmarksPageContent({ showHeader = true }: LandmarksPageContent
 
   const loadPageData = useCallback(async () => {
     const storedLandmarks = await fetchLandmarks().catch(() => [])
-    const storedBuildings = await fetchBuildings().catch(() => [])
-    const storedCharacters = await fetchCharacters().catch(() => [])
-    const storedOrganizations = await fetchOrganizations().catch(() => [])
+    const storedBuildings = loadRelatedData ? await fetchBuildings().catch(() => []) : []
+    const storedCharacters = loadRelatedData ? await fetchCharacters().catch(() => []) : []
+    const storedOrganizations = loadRelatedData ? await fetchOrganizations().catch(() => []) : []
 
     const buildingIdsByLandmark = new Map<number, Set<number>>()
     const characterIdsByLandmark = new Map<number, Set<number>>()
@@ -133,7 +134,7 @@ export function LandmarksPageContent({ showHeader = true }: LandmarksPageContent
     setLandmarksData(storedLandmarks)
     setCountsByLandmarkId(nextCountsByLandmarkId)
     setSearchTermsByLandmarkId(nextSearchTermsByLandmarkId)
-  }, [])
+  }, [loadRelatedData])
 
   useEffect(() => {
     void loadPageData()

@@ -86,6 +86,26 @@ export type DungeonMarker = {
   label?: string
 }
 
+export type DungeonLightKind = "torch" | "magic" | "ambient"
+export type DungeonLightMode = "radius" | "line-of-sight"
+export type DungeonLightPlacement = "generated" | "manual"
+export type DungeonLightOrientation = "north" | "east" | "south" | "west"
+
+export type DungeonLightSource = {
+  id: string
+  x: number
+  y: number
+  kind: DungeonLightKind
+  label?: string
+  enabled?: boolean
+  brightRadiusCells: number
+  dimRadiusCells: number
+  mode: DungeonLightMode
+  placement?: DungeonLightPlacement
+  wallMounted?: boolean
+  orientation?: DungeonLightOrientation
+}
+
 export type DungeonMapLayout = {
   width: number
   height: number
@@ -95,6 +115,7 @@ export type DungeonMapLayout = {
   corridors?: DungeonCorridor[]
   doors?: DungeonDoor[]
   markers?: DungeonMarker[]
+  lights?: DungeonLightSource[]
 }
 
 export type DungeonMapDocument = {
@@ -147,6 +168,21 @@ export type NormalizedDungeonMarker = {
   label: string | null
 }
 
+export type NormalizedDungeonLightSource = {
+  id: string
+  x: number
+  y: number
+  kind: DungeonLightKind
+  label: string | null
+  enabled: boolean
+  brightRadiusCells: number
+  dimRadiusCells: number
+  mode: DungeonLightMode
+  placement: DungeonLightPlacement | null
+  wallMounted: boolean
+  orientation: DungeonLightOrientation
+}
+
 export type NormalizedDungeonMap = {
   type: typeof DUNGEON_MAP_DOCUMENT_TYPE
   version: typeof DUNGEON_MAP_DOCUMENT_VERSION
@@ -162,4 +198,5 @@ export type NormalizedDungeonMap = {
   corridors: NormalizedDungeonCorridor[]
   doors: NormalizedDungeonDoor[]
   markers: NormalizedDungeonMarker[]
+  lights: NormalizedDungeonLightSource[]
 }

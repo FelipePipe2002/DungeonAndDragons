@@ -9,10 +9,12 @@ import {
   type DungeonMapLayout,
   type DungeonMapMetadata,
   type DungeonMapPoint,
+  type DungeonLightSource,
   type DungeonMarker,
   type DungeonRoom,
   type NormalizedDungeonCorridor,
   type NormalizedDungeonDoor,
+  type NormalizedDungeonLightSource,
   type NormalizedDungeonMap,
   type NormalizedDungeonMarker,
   type NormalizedDungeonRoom,
@@ -511,6 +513,68 @@ function validateMarker(marker: unknown, index: number, errors: string[]): marke
   return errors.every((error) => !error.startsWith(path))
 }
 
+function validateLightSource(light: unknown, index: number, errors: string[]): light is DungeonLightSource {
+  const path = `layout.lights[${index}]`
+  if (!isRecord(light)) {
+    errors.push(`${path} debe ser un objeto.`)
+    return false
+  }
+
+  if (!isNonEmptyString(light.id)) {
+    errors.push(`${path}.id debe ser un string no vacio.`)
+  }
+
+  if (!isFiniteNumber(light.x) || !isFiniteNumber(light.y)) {
+    errors.push(`${path}.x e ${path}.y deben ser numeros finitos.`)
+  }
+
+  if (!["torch", "magic", "ambient"].includes(String(light.kind))) {
+    errors.push(`${path}.kind debe ser uno de: torch, magic, ambient.`)
+  }
+
+  if (light.label !== undefined && typeof light.label !== "string") {
+    errors.push(`${path}.label debe ser string si esta presente.`)
+  }
+
+  if (light.enabled !== undefined && typeof light.enabled !== "boolean") {
+    errors.push(`${path}.enabled debe ser boolean si esta presente.`)
+  }
+
+  if (!isFiniteNumber(light.brightRadiusCells) || light.brightRadiusCells < 0) {
+    errors.push(`${path}.brightRadiusCells debe ser un numero finito mayor o igual a 0.`)
+  }
+
+  if (!isFiniteNumber(light.dimRadiusCells) || light.dimRadiusCells < 0) {
+    errors.push(`${path}.dimRadiusCells debe ser un numero finito mayor o igual a 0.`)
+  }
+
+  if (
+    isFiniteNumber(light.brightRadiusCells)
+    && isFiniteNumber(light.dimRadiusCells)
+    && light.dimRadiusCells < light.brightRadiusCells
+  ) {
+    errors.push(`${path}.dimRadiusCells debe ser mayor o igual a ${path}.brightRadiusCells.`)
+  }
+
+  if (!["radius", "line-of-sight"].includes(String(light.mode))) {
+    errors.push(`${path}.mode debe ser uno de: radius, line-of-sight.`)
+  }
+
+  if (light.placement !== undefined && !["generated", "manual"].includes(String(light.placement))) {
+    errors.push(`${path}.placement debe ser uno de: generated, manual.`)
+  }
+
+  if (light.wallMounted !== undefined && typeof light.wallMounted !== "boolean") {
+    errors.push(`${path}.wallMounted debe ser boolean si esta presente.`)
+  }
+
+  if (light.orientation !== undefined && !["north", "east", "south", "west"].includes(String(light.orientation))) {
+    errors.push(`${path}.orientation debe ser uno de: north, east, south, west.`)
+  }
+
+  return errors.every((error) => !error.startsWith(path))
+}
+
 export function parseDungeonMapDocument(raw: string | unknown): unknown {
   if (typeof raw !== "string") {
     return raw
@@ -640,6 +704,24 @@ export function validateDungeonMapDocument(value: unknown): DungeonMapValidation
     }
   }
 
+  if (layout.lights !== undefined) {
+    if (!Array.isArray(layout.lights)) {
+      errors.push("layout.lights debe ser un arreglo si esta presente.")
+    } else {
+      layout.lights.forEach((light, index) => {
+        validateLightSource(light, index, errors)
+      })
+
+      if (errors.every((error) => !error.startsWith("layout.lights["))) {
+        layout.lights.forEach((light, index) => {
+          if (light.x < 0 || light.y < 0 || light.x + 1 > layout.width || light.y + 1 > layout.height) {
+            errors.push(`layout.lights[${index}] debe permanecer dentro de layout.width y layout.height.`)
+          }
+        })
+      }
+    }
+  }
+
   return errors.length === 0 ? { ok: true, value: document } : { ok: false, errors }
 }
 
@@ -676,7 +758,7 @@ export function normalizeDungeonMapDocument(document: DungeonMapDocument): Norma
     id: door.id.trim(),
     x: door.x,
     y: door.y,
-    direction: door.direction,
+    direction: door.direction as NormalizedDungeonDoor["direction"],
     kind: door.kind ?? DUNGEON_MAP_SCHEMA_DEFAULTS.door.kind,
   }))
   const markers: NormalizedDungeonMarker[] = (document.layout.markers ?? DUNGEON_MAP_SCHEMA_DEFAULTS.layout.markers).map(
@@ -686,6 +768,22 @@ export function normalizeDungeonMapDocument(document: DungeonMapDocument): Norma
       y: marker.y,
       kind: marker.kind.trim(),
       label: normalizeNullableString(marker.label),
+    }),
+  )
+  const lights: NormalizedDungeonLightSource[] = (document.layout.lights ?? DUNGEON_MAP_SCHEMA_DEFAULTS.layout.lights).map(
+    (light) => ({
+      id: light.id.trim(),
+      x: light.x,
+      y: light.y,
+      kind: light.kind,
+      label: normalizeNullableString(light.label),
+      enabled: light.enabled ?? DUNGEON_MAP_SCHEMA_DEFAULTS.light.enabled,
+      brightRadiusCells: light.brightRadiusCells,
+      dimRadiusCells: light.dimRadiusCells,
+      mode: light.mode,
+      placement: light.placement ?? DUNGEON_MAP_SCHEMA_DEFAULTS.light.placement,
+      wallMounted: light.wallMounted ?? DUNGEON_MAP_SCHEMA_DEFAULTS.light.wallMounted,
+      orientation: light.orientation ?? DUNGEON_MAP_SCHEMA_DEFAULTS.light.orientation,
     }),
   )
 
@@ -704,6 +802,7 @@ export function normalizeDungeonMapDocument(document: DungeonMapDocument): Norma
     corridors,
     doors,
     markers,
+    lights,
   }
 }
 

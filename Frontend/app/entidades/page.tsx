@@ -1,14 +1,26 @@
 "use client"
 
 import { Suspense, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 
-import { CharactersPageContent } from "@/components/characters/CharactersPageContent"
-import { BuildingsPageContent } from "@/components/entities/BuildingsPageContent"
-import { EstadosPageContent } from "@/components/entities/EstadosPageContent"
-import { LandmarksPageContent } from "@/components/entities/LandmarksPageContent"
-import { OrganizationsPageContent } from "@/components/entities/OrganizationsPageContent"
 import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
+
+const CharactersPageContent = dynamic(() =>
+  import("@/components/characters/CharactersPageContent").then((mod) => mod.CharactersPageContent),
+)
+const BuildingsPageContent = dynamic(() =>
+  import("@/components/entities/BuildingsPageContent").then((mod) => mod.BuildingsPageContent),
+)
+const EstadosPageContent = dynamic(() =>
+  import("@/components/entities/EstadosPageContent").then((mod) => mod.EstadosPageContent),
+)
+const LandmarksPageContent = dynamic(() =>
+  import("@/components/entities/LandmarksPageContent").then((mod) => mod.LandmarksPageContent),
+)
+const OrganizationsPageContent = dynamic(() =>
+  import("@/components/entities/OrganizationsPageContent").then((mod) => mod.OrganizationsPageContent),
+)
 
 type EntitySection = "personajes" | "jugadores" | "estados" | "edificios" | "organizaciones" | "landmarks"
 
@@ -35,26 +47,26 @@ function EntidadesPageContent() {
   }, [entidadesSubnavConfig, router, searchParams])
 
   if (activeSection === "jugadores") {
-    return <CharactersPageContent initialScope="players" showHeader={false} />
+    return <CharactersPageContent initialScope="players" showHeader={false} loadRelatedData={false} />
   }
 
   if (activeSection === "edificios") {
-    return <BuildingsPageContent showHeader={false} />
+    return <BuildingsPageContent showHeader={false} loadRelatedData={false} />
   }
   
   if (activeSection === "organizaciones") {
-    return <OrganizationsPageContent showHeader={false} />
+    return <OrganizationsPageContent showHeader={false} loadRelatedData={false} />
   }
   
   if (activeSection === "landmarks") {
-    return <LandmarksPageContent showHeader={false} />
+    return <LandmarksPageContent showHeader={false} loadRelatedData={false} />
   }
   
   if (activeSection === "estados") {
     return <EstadosPageContent showHeader={false} />
   }
 
-  return <CharactersPageContent initialScope="npcs" showHeader={false} />
+  return <CharactersPageContent initialScope="npcs" showHeader={false} loadRelatedData={false} />
 }
 
 export default function EntidadesPage() {

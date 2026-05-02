@@ -10,18 +10,6 @@
   touch-action: none;
 }
 
-.debugPanel {
-  position: absolute;
-  top: 0.85rem;
-  right: 0.85rem;
-  z-index: 3;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid rgba(224, 204, 168, 0.26);
-  border-radius: 0.6rem;
-  background: rgba(33, 24, 17, 0.84);
-  backdrop-filter: blur(6px);
-}
-
 .toolPanel {
   position: absolute;
   top: 0.85rem;
@@ -65,159 +53,66 @@
   height: 1rem;
 }
 
-.pendingAnchor {
-  position: absolute;
-  z-index: 2;
-  width: 0.9rem;
-  height: 0.9rem;
-  border: 2px solid rgba(217, 106, 86, 0.98);
-  border-radius: 999px;
-  background: rgba(255, 233, 226, 0.9);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  box-shadow: 0 0 0 4px rgba(217, 106, 86, 0.18);
+.lightConfig {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(224, 204, 168, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(33, 24, 17, 0.84);
+  color: rgba(255, 244, 222, 0.94);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(6px);
 }
 
-.debugCheckboxLabel {
-  display: flex;
+.lightConfigLabel {
+  display: grid;
+  grid-template-columns: 3rem 3.3rem;
   align-items: center;
-  gap: 0.45rem;
-  color: rgba(255, 244, 222, 0.94);
-  font-size: 0.82rem;
-  font-weight: 600;
-  user-select: none;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lightConfigInput {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(224, 204, 168, 0.24);
+  border-radius: 0.45rem;
+  background: rgba(9, 7, 5, 0.55);
+  color: rgba(255, 244, 222, 0.96);
+  font: inherit;
+  padding: 0.22rem 0.35rem;
+}
+
+.lightConfigCheckboxLabel {
+  grid-template-columns: 3.8rem auto;
+}
+
+.lightConfigCheckbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #d96a56;
+}
+
+.lightConfigHint {
+  max-width: 7.3rem;
+  color: rgba(255, 244, 222, 0.68);
+  font-size: 0.62rem;
+  line-height: 1.25;
 }
 
 .rootDragging {
   cursor: grabbing;
 }
 
-.gridBackdrop {
+.canvasSurface {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  background-image:
-    linear-gradient(to right, rgba(224, 204, 168, 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(224, 204, 168, 0.08) 1px, transparent 1px),
-    linear-gradient(to right, rgba(224, 204, 168, 0.16) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(224, 204, 168, 0.16) 1px, transparent 1px);
-  background-repeat: repeat;
-}
-
-.content {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 1;
-  will-change: transform;
-}
-
-.frame {
-  position: absolute;
-  inset: 0;
-  box-sizing: border-box;
-  border: 2px solid rgba(212, 181, 126, 0.4);
-  background: rgba(24, 18, 13, 0.18);
-}
-
-.corridor {
-  position: absolute;
-  background: rgb(213, 186, 142);
-}
-
-.corridorDebugLabel {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  padding: 0.18rem 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(25, 19, 14, 0.9);
-  color: rgba(255, 248, 236, 0.96);
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.1;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-}
-
-.room {
-  position: absolute;
-  box-sizing: border-box;
-  border: none;
-  background: rgba(199, 166, 117, 0.88);
-  overflow: hidden;
-}
-
-.roomLabelWrap {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.roomStart {
-  background: rgba(143, 191, 147, 0.9);
-}
-
-.roomBoss {
-  background: rgba(188, 108, 92, 0.92);
-}
-
-.roomTreasure {
-  background: rgba(216, 185, 90, 0.94);
-}
-
-.door {
-  position: absolute;
-  box-sizing: border-box;
-  background: rgba(66, 110, 165, 0.96);
-  border: none;
-  border-radius: 2px;
-}
-
-.doorLocked {
-  background: rgba(147, 91, 186, 0.96);
-}
-
-.doorSecret {
-  background: rgba(107, 158, 123, 0.96);
-}
-
-.label {
-  color: rgba(28, 22, 18, 0.95);
-  font-size: 1.45rem;
-  font-weight: 700;
-  text-align: center;
-  padding: 0 0.5rem;
-  user-select: none;
-  pointer-events: none;
-}
-
-.markerWrap {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-}
-
-.marker {
-  width: 0.85rem;
-  height: 0.85rem;
-  border-radius: 999px;
-  background: rgba(244, 235, 211, 0.95);
-  border: 1px solid rgba(77, 58, 39, 0.9);
-}
-
-.markerLabel {
-  color: rgba(250, 244, 233, 0.94);
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-  user-select: none;
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .state {

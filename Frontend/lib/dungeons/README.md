@@ -60,7 +60,7 @@ Este contrato es el piso estable para el adaptador y el generador futuros. No de
 - `roomOptions`
   - `count`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `padding`
 - `corridorOptions`
-  - `enabled`, `width`, `maxSteps`
+  - `enabled`, `width`, `maxSteps`, `allowIntersections`
 - `topologyOptions`
   - `extraConnections`
 - `debugOptions`
@@ -79,6 +79,11 @@ Este contrato es el piso estable para el adaptador y el generador futuros. No de
   - respetan `maxSteps`,
   - no crean pares directos duplicados entre la misma pareja de salas,
   - mantienen consistencia de puertas para endpoints validos.
+
+### Intersecciones de corredores
+- `corridorOptions.allowIntersections` controla si los corredores pueden reutilizar tramos ya existentes y formar intersecciones.
+- Default: `true`.
+- Legacy flat alias: `allowCorridorIntersections`.
 
 ### Variabilidad por seed
 - Con el mismo `seed` y misma configuracion, el layout es determinista.

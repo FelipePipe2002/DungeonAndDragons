@@ -44,6 +44,13 @@ export interface BattleFogReveal {
   height: number
 }
 
+export interface BattleDungeonFogState {
+  enabled: boolean
+  exploredCellKeys: string[]
+  playerVisionBrightRadiusCells?: number
+  playerVisionDimRadiusCells?: number
+}
+
 export interface BattleSummary {
   id: number
   slug: string
@@ -88,6 +95,7 @@ export interface BattleState {
   nextObstacleId: number
   fogEnabled: boolean
   nextFogRevealId: number
+  dungeonFog: BattleDungeonFogState
   currentTurnTokenNumber?: number | null
   tokens: BattleToken[]
   obstacles: BattleObstacle[]

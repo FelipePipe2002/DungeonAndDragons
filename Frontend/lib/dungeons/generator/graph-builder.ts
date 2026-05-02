@@ -54,6 +54,15 @@ function buildMainPathPositionIndex(mainPathRoomIndexes: number[]) {
   return indexByRoom
 }
 
+function connectionRoleForTreeEdge(edge: RoomEdge, mainPathEdges: Set<string>, adjacency: Map<number, Set<number>>) {
+  if (mainPathEdges.has(edgeKey(edge.fromIndex, edge.toIndex))) {
+    return "main-path" as const
+  }
+
+  const isLeafConnection = (adjacency.get(edge.toIndex)?.size ?? 0) <= 1 || (adjacency.get(edge.fromIndex)?.size ?? 0) <= 1
+  return isLeafConnection ? "service/dead-end" as const : "branch" as const
+}
+
 function loopCandidateScore(
   edge: RoomEdge,
   maxDistance: number,
@@ -321,11 +330,7 @@ export function buildRoomGraphPlan(
 
   const branchRoomIndexes = new Set<number>()
   const connections: RoomConnection[] = treeEdges.map((edge) => {
-    const role = mainPathEdges.has(edgeKey(edge.fromIndex, edge.toIndex))
-      ? "main-path"
-      : (adjacency.get(edge.toIndex)?.size ?? 0) <= 1 || (adjacency.get(edge.fromIndex)?.size ?? 0) <= 1
-        ? "service/dead-end"
-        : "branch"
+    const role = connectionRoleForTreeEdge(edge, mainPathEdges, adjacency)
 
     if (role === "branch" || role === "service/dead-end") {
       branchRoomIndexes.add(edge.fromIndex)
@@ -359,13 +364,15 @@ export function buildRoomGraphPlan(
         return first.edge.distance - second.edge.distance
       })
 
+    let optionalLoopCount = 0
     for (const candidate of loopCandidates) {
-      if (connections.filter((connection) => connection.role === "optional-loop").length >= targetLoopCount) break
+      if (optionalLoopCount >= targetLoopCount) break
       connections.push({
         fromIndex: candidate.edge.fromIndex,
         toIndex: candidate.edge.toIndex,
         role: "optional-loop",
       })
+      optionalLoopCount += 1
     }
   }
 

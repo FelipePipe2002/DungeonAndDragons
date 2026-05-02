@@ -17,6 +17,7 @@ import { Plus, Swords } from "lucide-react"
 type CharactersPageContentProps = {
   initialScope?: "players" | "npcs"
   showHeader?: boolean
+  loadRelatedData?: boolean
 }
 
 const CHARACTER_SCOPE_LABELS = {
@@ -36,7 +37,7 @@ const CHARACTER_SCOPE_LABELS = {
   },
 } as const
 
-export function CharactersPageContent({ initialScope = "npcs", showHeader = true }: CharactersPageContentProps) {
+export function CharactersPageContent({ initialScope = "npcs", showHeader = true, loadRelatedData = true }: CharactersPageContentProps) {
   const [charactersData, setCharactersData] = useState<Character[]>([])
   const [landmarkNamesById, setLandmarkNamesById] = useState<Record<number, string>>({})
   const [buildingNamesById, setBuildingNamesById] = useState<Record<number, string>>({})
@@ -59,20 +60,27 @@ export function CharactersPageContent({ initialScope = "npcs", showHeader = true
     setLoadError(null)
 
     try {
-      const [characters, references] = await Promise.all([fetchCharacters(), fetchCharacterReferences()])
+      const characters = await fetchCharacters({ isPlayer: scope === "players" })
 
       setCharactersData(characters)
-      setLandmarkNamesById(
-        Object.fromEntries(references.landmarks.map((landmark) => [landmark.id, landmark.nombre])),
-      )
-      setBuildingNamesById(
-        Object.fromEntries(references.buildings.map((building) => [building.id, building.nombre])),
-      )
-      setOrganizationNamesById(
-        Object.fromEntries(
-          references.organizations.map((organization) => [organization.id, organization.nombre]),
-        ),
-      )
+      if (loadRelatedData) {
+        const references = await fetchCharacterReferences()
+        setLandmarkNamesById(
+          Object.fromEntries(references.landmarks.map((landmark) => [landmark.id, landmark.nombre])),
+        )
+        setBuildingNamesById(
+          Object.fromEntries(references.buildings.map((building) => [building.id, building.nombre])),
+        )
+        setOrganizationNamesById(
+          Object.fromEntries(
+            references.organizations.map((organization) => [organization.id, organization.nombre]),
+          ),
+        )
+      } else {
+        setLandmarkNamesById({})
+        setBuildingNamesById({})
+        setOrganizationNamesById({})
+      }
     } catch (error) {
       setLoadError(getBackendErrorMessage(error, "No se pudieron cargar los personajes."))
       setCharactersData([])
@@ -82,7 +90,7 @@ export function CharactersPageContent({ initialScope = "npcs", showHeader = true
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [loadRelatedData, scope])
 
   useEffect(() => {
     void loadPageData()
@@ -100,10 +108,10 @@ export function CharactersPageContent({ initialScope = "npcs", showHeader = true
   }, [loadPageData])
 
   const getLandmarkName = (landmarkId: number) =>
-    landmarkId > 0 ? (landmarkNamesById[landmarkId] ?? "Desconocido") : "Sin ubicacion"
+    landmarkId > 0 ? (landmarkNamesById[landmarkId] ?? (loadRelatedData ? "Desconocido" : `Ubicacion #${landmarkId}`)) : "Sin ubicacion"
   const getBuildingName = (buildingId: number) => buildingNamesById[buildingId] ?? "Desconocido"
   const getOrganizationName = (organizationId: number) =>
-    organizationNamesById[organizationId] ?? "Desconocido"
+    organizationNamesById[organizationId] ?? (loadRelatedData ? "Desconocido" : "")
 
   const scopedCharacters = useMemo(
     () => charactersData.filter((character) => (scope === "players" ? character.isPlayer : !character.isPlayer)),
@@ -125,7 +133,7 @@ export function CharactersPageContent({ initialScope = "npcs", showHeader = true
           character.organizationIds.map((organizationId) => getOrganizationName(organizationId)),
         ),
       ),
-    [buildingNamesById, landmarkNamesById, organizationNamesById, scopedCharacters, searchQuery],
+    [buildingNamesById, landmarkNamesById, loadRelatedData, organizationNamesById, scopedCharacters, searchQuery],
   )
 
   const scopeLabels = CHARACTER_SCOPE_LABELS[scope]
@@ -211,7 +219,7 @@ export function CharactersPageContent({ initialScope = "npcs", showHeader = true
             key={character.id}
             character={character}
             landmarkName={getLandmarkName(character.landmarkId)}
-            organizationNames={character.organizationIds.map((organizationId) => getOrganizationName(organizationId))}
+            organizationNames={character.organizationIds.map((organizationId) => getOrganizationName(organizationId)).filter(Boolean)}
             onOpenDetail={handleOpenCharacterDialog}
             onOpenSheet={handleOpenCharacterSheet}
           />

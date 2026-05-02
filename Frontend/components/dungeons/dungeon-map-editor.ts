@@ -1,7 +1,6 @@
 import { normalizeDungeonMapDocument } from "@/lib/dungeons/adapter"
 import type {
   DungeonCorridor,
-  DungeonDoor,
   DungeonDoorDirection,
   DungeonMapDocument,
   DungeonRoom,
@@ -121,10 +120,51 @@ export function corridorCellKeySet(corridors: NormalizedDungeonMap["corridors"])
   return occupied
 }
 
-export function rebuildDoorsFromCorridors(dungeon: NormalizedDungeonMap, corridors: NormalizedDungeonMap["corridors"]) {
+export function rebuildDoorsFromCorridors(
+  dungeon: NormalizedDungeonMap,
+  corridors: NormalizedDungeonMap["corridors"],
+): NormalizedDungeonMap["doors"] {
   const roomByCell = new Map<string, NormalizedDungeonMap["rooms"][number]>()
-  const nextDoors: DungeonDoor[] = []
+  const nextDoors: NormalizedDungeonMap["doors"] = []
   const seenDoorKeys = new Set<string>()
+
+  const addDoor = (roomId: string, x: number, y: number, direction: DungeonDoorDirection) => {
+    const key = `${roomId}:${direction}:${x},${y}`
+    if (seenDoorKeys.has(key)) return
+    seenDoorKeys.add(key)
+    nextDoors.push({
+      id: `door-${nextDoors.length + 1}`,
+      x,
+      y,
+      direction,
+      kind: "door",
+    })
+  }
+
+  const addDoorFromOutsideEndpoint = (point: Point) => {
+    const westRoom = roomByCell.get(pointKey({ x: point.x - 1, y: point.y }))
+    if (westRoom) {
+      addDoor(westRoom.id, point.x - 1, point.y, "east")
+      return
+    }
+
+    const eastRoom = roomByCell.get(pointKey({ x: point.x + 1, y: point.y }))
+    if (eastRoom) {
+      addDoor(eastRoom.id, point.x + 1, point.y, "west")
+      return
+    }
+
+    const northRoom = roomByCell.get(pointKey({ x: point.x, y: point.y - 1 }))
+    if (northRoom) {
+      addDoor(northRoom.id, point.x, point.y - 1, "south")
+      return
+    }
+
+    const southRoom = roomByCell.get(pointKey({ x: point.x, y: point.y + 1 }))
+    if (southRoom) {
+      addDoor(southRoom.id, point.x, point.y + 1, "north")
+    }
+  }
 
   for (const room of dungeon.rooms) {
     for (const cell of room.cells) {
@@ -140,18 +180,10 @@ export function rebuildDoorsFromCorridors(dungeon: NormalizedDungeonMap, corrido
     if (startRoom) {
       const direction = directionBetween(start, corridor.points[1])
       if (direction) {
-        const key = `${startRoom.id}:${direction}:${start.x},${start.y}`
-        if (!seenDoorKeys.has(key)) {
-          seenDoorKeys.add(key)
-          nextDoors.push({
-            id: `door-${nextDoors.length + 1}`,
-            x: start.x,
-            y: start.y,
-            direction,
-            kind: "door",
-          })
-        }
+        addDoor(startRoom.id, start.x, start.y, direction)
       }
+    } else {
+      addDoorFromOutsideEndpoint(start)
     }
 
     const end = corridor.points[corridor.points.length - 1]
@@ -159,18 +191,10 @@ export function rebuildDoorsFromCorridors(dungeon: NormalizedDungeonMap, corrido
     if (endRoom) {
       const direction = directionBetween(end, corridor.points[corridor.points.length - 2])
       if (direction) {
-        const key = `${endRoom.id}:${direction}:${end.x},${end.y}`
-        if (!seenDoorKeys.has(key)) {
-          seenDoorKeys.add(key)
-          nextDoors.push({
-            id: `door-${nextDoors.length + 1}`,
-            x: end.x,
-            y: end.y,
-            direction,
-            kind: "door",
-          })
-        }
+        addDoor(endRoom.id, end.x, end.y, direction)
       }
+    } else {
+      addDoorFromOutsideEndpoint(end)
     }
   }
 
@@ -225,12 +249,29 @@ export function normalizedDungeonToDocument(dungeon: NormalizedDungeonMap): Dung
       corridors: dungeon.corridors.map((corridor) => ({ id: corridor.id, points: corridor.points, width: corridor.width ?? undefined })),
       doors: dungeon.doors.map((door) => ({ id: door.id, x: door.x, y: door.y, direction: door.direction, kind: door.kind })),
       markers: dungeon.markers.map((marker) => ({ id: marker.id, x: marker.x, y: marker.y, kind: marker.kind, label: marker.label ?? undefined })),
+      lights: dungeon.lights.map((light) => ({
+        id: light.id,
+        x: light.x,
+        y: light.y,
+        kind: light.kind,
+        label: light.label ?? undefined,
+        enabled: light.enabled,
+        brightRadiusCells: light.brightRadiusCells,
+        dimRadiusCells: light.dimRadiusCells,
+        mode: light.mode,
+        placement: light.placement ?? undefined,
+        wallMounted: light.wallMounted,
+        orientation: light.orientation,
+      })),
     },
   }
 }
 
-export function buildEditedDungeonWithCorridors(dungeon: NormalizedDungeonMap, nextCorridors: DungeonCorridor[]) {
-  const nextNormalizedCorridors = nextCorridors.map((corridor) => ({
+export function buildEditedDungeonWithCorridors(
+  dungeon: NormalizedDungeonMap,
+  nextCorridors: Array<DungeonCorridor | NormalizedDungeonMap["corridors"][number]>,
+) {
+  const nextNormalizedCorridors: NormalizedDungeonMap["corridors"] = nextCorridors.map((corridor) => ({
     ...corridor,
     width: corridor.width ?? null,
   }))
@@ -241,7 +282,11 @@ export function buildEditedDungeonWithCorridors(dungeon: NormalizedDungeonMap, n
     ...baseDocument,
     layout: {
       ...baseDocument.layout,
-      corridors: nextCorridors,
+      corridors: nextNormalizedCorridors.map((corridor) => ({
+        id: corridor.id,
+        points: corridor.points,
+        width: corridor.width ?? undefined,
+      })),
       doors: nextDoors,
     },
   })
@@ -256,10 +301,18 @@ export function pickRoomSideAnchor(
 ): RoomSideAnchor {
   const relativeX = Math.min(0.999999, Math.max(0, (pointer.clientX - rect.left) / Math.max(rect.width, 1)))
   const relativeY = Math.min(0.999999, Math.max(0, (pointer.clientY - rect.top) / Math.max(rect.height, 1)))
-  const clickedPoint: Point = {
+  const clickedPoint = {
     x: span.x + Math.floor(relativeX * span.width),
     y: span.y + Math.floor(relativeY * span.height),
   }
+
+  return pickRoomSideAnchorFromPoint(room, clickedPoint)
+}
+
+export function pickRoomSideAnchorFromPoint(
+  room: NormalizedDungeonMap["rooms"][number],
+  clickedPoint: Point,
+): RoomSideAnchor {
 
   const roomCellKeys = new Set(room.cells.map(pointKey))
   let bestAnchor: RoomSideAnchor | null = null

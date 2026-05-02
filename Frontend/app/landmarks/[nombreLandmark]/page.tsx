@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type ChangeEvent as ReactChangeEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react"
@@ -17,6 +18,7 @@ import {
   BookOpenText,
   Building2,
   CalendarDays,
+  Download,
   Expand,
   Link2,
   Map as MapIcon,
@@ -42,10 +44,12 @@ import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResume
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
 import BuildingsMap from "@/components/buildings/BuildingsMap"
-import DungeonMap from "@/components/dungeons/DungeonMap"
+import DungeonMap, { DEFAULT_DUNGEON_DISPLAY_STYLE, type DungeonDisplayStyle } from "@/components/dungeons/DungeonMap"
+import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { generateDungeonMapDocument, stringifyDungeonMapDocument } from "@/lib/dungeons/generator"
 import type { DungeonMapDocument } from "@/lib/dungeons/types"
@@ -134,6 +138,42 @@ type DungeonEditorDraft = {
   maxRoomHeight: string
   roomPadding: string
   roomDispersion: string
+  allowIntersections: boolean
+  generateTorches: boolean
+  torchDensityPercent: string
+  roomColor: string
+  corridorColor: string
+  roomTextureUrl: string
+  corridorTextureUrl: string
+  roomTextureUrls: string[]
+  corridorTextureUrls: string[]
+  roomTextureRandomRotation: boolean
+  corridorTextureRandomRotation: boolean
+  doorColor: string
+  showCorridorWalls: boolean
+  wallWidth: string
+  corridorWallColor: string
+  roomWallColor: string
+}
+
+type DungeonGeneratorConfig = {
+  version: 1
+  preset: "rooms-corridors"
+  name: string
+  seed: string
+  width: number
+  height: number
+  roomCount: number
+  minRoomWidth: number
+  maxRoomWidth: number
+  minRoomHeight: number
+  maxRoomHeight: number
+  roomPadding: number
+  roomDispersion: number
+  allowIntersections: boolean
+  generateTorches: boolean
+  torchDensityPercent: number
+  displayStyle: DungeonDisplayStyle
 }
 
 type ReferenceIndexes = {
@@ -292,6 +332,8 @@ function decodeSlug(raw: string | undefined) {
 }
 
 function toDefaultDungeonEditorDraft(name: string | undefined): DungeonEditorDraft {
+  const defaultRoomTextureUrl = DEFAULT_DUNGEON_DISPLAY_STYLE.roomTextureUrl ?? ""
+  const defaultCorridorTextureUrl = DEFAULT_DUNGEON_DISPLAY_STYLE.corridorTextureUrl ?? ""
   return {
     name: name ?? "",
     seed: "",
@@ -304,7 +346,214 @@ function toDefaultDungeonEditorDraft(name: string | undefined): DungeonEditorDra
     maxRoomHeight: "8",
     roomPadding: "1",
     roomDispersion: "0",
+    allowIntersections: true,
+    generateTorches: true,
+    torchDensityPercent: "100",
+    roomColor: DEFAULT_DUNGEON_DISPLAY_STYLE.roomColor,
+    corridorColor: DEFAULT_DUNGEON_DISPLAY_STYLE.corridorColor,
+    roomTextureUrl: defaultRoomTextureUrl,
+    corridorTextureUrl: defaultCorridorTextureUrl,
+    roomTextureUrls: defaultRoomTextureUrl ? [defaultRoomTextureUrl] : [],
+    corridorTextureUrls: defaultCorridorTextureUrl ? [defaultCorridorTextureUrl] : [],
+    roomTextureRandomRotation: DEFAULT_DUNGEON_DISPLAY_STYLE.roomTextureRandomRotation ?? false,
+    corridorTextureRandomRotation: DEFAULT_DUNGEON_DISPLAY_STYLE.corridorTextureRandomRotation ?? false,
+    doorColor: DEFAULT_DUNGEON_DISPLAY_STYLE.doorColor,
+    showCorridorWalls: DEFAULT_DUNGEON_DISPLAY_STYLE.showCorridorWalls,
+    wallWidth: String(DEFAULT_DUNGEON_DISPLAY_STYLE.wallWidth),
+    corridorWallColor: DEFAULT_DUNGEON_DISPLAY_STYLE.corridorWallColor,
+    roomWallColor: DEFAULT_DUNGEON_DISPLAY_STYLE.roomWallColor,
   }
+}
+
+function parseDungeonGeneratorConfig(value: string | undefined): DungeonGeneratorConfig | null {
+  if (!value) return null
+
+  try {
+    const parsed = JSON.parse(value) as Partial<DungeonGeneratorConfig>
+    if (!parsed || typeof parsed !== "object") return null
+    if (parsed.version !== 1 || parsed.preset !== "rooms-corridors") return null
+    if (typeof parsed.seed !== "string") return null
+
+    const numericFields = [
+      parsed.width,
+      parsed.height,
+      parsed.roomCount,
+      parsed.minRoomWidth,
+      parsed.maxRoomWidth,
+      parsed.minRoomHeight,
+      parsed.maxRoomHeight,
+      parsed.roomPadding,
+      parsed.roomDispersion,
+    ]
+    if (numericFields.some((field) => typeof field !== "number" || !Number.isFinite(field))) {
+      return null
+    }
+    if (typeof parsed.allowIntersections !== "boolean") return null
+    const generateTorches = typeof parsed.generateTorches === "boolean" ? parsed.generateTorches : true
+    const torchDensityPercent = typeof parsed.torchDensityPercent === "number" && Number.isFinite(parsed.torchDensityPercent)
+      ? Math.min(300, Math.max(0, Math.round(parsed.torchDensityPercent)))
+      : 100
+    const rawDisplayStyle = parsed.displayStyle
+    const displayStyle = {
+      ...DEFAULT_DUNGEON_DISPLAY_STYLE,
+      ...(rawDisplayStyle && typeof rawDisplayStyle === "object" ? rawDisplayStyle : {}),
+    }
+    if (
+      typeof displayStyle.roomColor !== "string"
+      || typeof displayStyle.corridorColor !== "string"
+      || typeof (displayStyle.roomTextureUrl ?? "") !== "string"
+      || typeof (displayStyle.corridorTextureUrl ?? "") !== "string"
+      || !Array.isArray(displayStyle.roomTextureUrls ?? [])
+      || !Array.isArray(displayStyle.corridorTextureUrls ?? [])
+      || (displayStyle.roomTextureUrls ?? []).some((value) => typeof value !== "string")
+      || (displayStyle.corridorTextureUrls ?? []).some((value) => typeof value !== "string")
+      || typeof (displayStyle.roomTextureRandomRotation ?? false) !== "boolean"
+      || typeof (displayStyle.corridorTextureRandomRotation ?? false) !== "boolean"
+      || typeof displayStyle.doorColor !== "string"
+      || typeof displayStyle.wallWidth !== "number"
+      || !Number.isFinite(displayStyle.wallWidth)
+      || typeof displayStyle.corridorWallColor !== "string"
+      || typeof displayStyle.roomWallColor !== "string"
+      || typeof displayStyle.showCorridorWalls !== "boolean"
+    ) {
+      return null
+    }
+
+    const roomTextureUrls = (displayStyle.roomTextureUrls ?? [])
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const corridorTextureUrls = (displayStyle.corridorTextureUrls ?? [])
+      .map((value) => value.trim())
+      .filter(Boolean)
+
+    if (roomTextureUrls.length === 0 && displayStyle.roomTextureUrl?.trim()) {
+      roomTextureUrls.push(displayStyle.roomTextureUrl.trim())
+    }
+    if (corridorTextureUrls.length === 0 && displayStyle.corridorTextureUrl?.trim()) {
+      corridorTextureUrls.push(displayStyle.corridorTextureUrl.trim())
+    }
+
+    const width = parsed.width
+    const height = parsed.height
+    const roomCount = parsed.roomCount
+    const minRoomWidth = parsed.minRoomWidth
+    const maxRoomWidth = parsed.maxRoomWidth
+    const minRoomHeight = parsed.minRoomHeight
+    const maxRoomHeight = parsed.maxRoomHeight
+    const roomPadding = parsed.roomPadding
+    const roomDispersion = parsed.roomDispersion
+    if (
+      typeof width !== "number" ||
+      typeof height !== "number" ||
+      typeof roomCount !== "number" ||
+      typeof minRoomWidth !== "number" ||
+      typeof maxRoomWidth !== "number" ||
+      typeof minRoomHeight !== "number" ||
+      typeof maxRoomHeight !== "number" ||
+      typeof roomPadding !== "number" ||
+      typeof roomDispersion !== "number"
+    ) {
+      return null
+    }
+
+    return {
+      version: 1,
+      preset: "rooms-corridors",
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      seed: parsed.seed,
+      width,
+      height,
+      roomCount,
+      minRoomWidth,
+      maxRoomWidth,
+      minRoomHeight,
+      maxRoomHeight,
+      roomPadding,
+      roomDispersion,
+      allowIntersections: parsed.allowIntersections,
+      generateTorches,
+      torchDensityPercent,
+      displayStyle: {
+        ...displayStyle,
+        roomTextureUrl: roomTextureUrls[0] ?? "",
+        corridorTextureUrl: corridorTextureUrls[0] ?? "",
+        roomTextureUrls,
+        corridorTextureUrls,
+      },
+    }
+  } catch {
+    return null
+  }
+}
+
+function toDungeonEditorDraftFromLandmark(landmark: Landmark | null): DungeonEditorDraft {
+  const fallback = toDefaultDungeonEditorDraft(landmark?.nombre)
+  const config = parseDungeonGeneratorConfig(landmark?.dungeonGeneratorConfig)
+  if (!config) {
+    return fallback
+  }
+
+  const roomTextureUrls = (config.displayStyle.roomTextureUrls ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const corridorTextureUrls = (config.displayStyle.corridorTextureUrls ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const roomTextureUrl = roomTextureUrls[0] ?? config.displayStyle.roomTextureUrl ?? ""
+  const corridorTextureUrl = corridorTextureUrls[0] ?? config.displayStyle.corridorTextureUrl ?? ""
+
+  return {
+    name: config.name || landmark?.nombre || "",
+    seed: config.seed,
+    width: String(config.width),
+    height: String(config.height),
+    roomCount: String(config.roomCount),
+    minRoomWidth: String(config.minRoomWidth),
+    maxRoomWidth: String(config.maxRoomWidth),
+    minRoomHeight: String(config.minRoomHeight),
+    maxRoomHeight: String(config.maxRoomHeight),
+    roomPadding: String(config.roomPadding),
+    roomDispersion: String(config.roomDispersion),
+    allowIntersections: config.allowIntersections,
+    generateTorches: config.generateTorches,
+    torchDensityPercent: String(config.torchDensityPercent),
+    roomColor: config.displayStyle.roomColor,
+    corridorColor: config.displayStyle.corridorColor,
+    roomTextureUrl,
+    corridorTextureUrl,
+    roomTextureUrls: roomTextureUrls.length > 0 ? roomTextureUrls : (roomTextureUrl ? [roomTextureUrl] : []),
+    corridorTextureUrls: corridorTextureUrls.length > 0 ? corridorTextureUrls : (corridorTextureUrl ? [corridorTextureUrl] : []),
+    roomTextureRandomRotation: config.displayStyle.roomTextureRandomRotation ?? false,
+    corridorTextureRandomRotation: config.displayStyle.corridorTextureRandomRotation ?? false,
+    doorColor: config.displayStyle.doorColor,
+    showCorridorWalls: config.displayStyle.showCorridorWalls,
+    wallWidth: String(config.displayStyle.wallWidth),
+    corridorWallColor: config.displayStyle.corridorWallColor,
+    roomWallColor: config.displayStyle.roomWallColor,
+  }
+}
+
+function readDungeonGeneratorConfigFromJson(value: string): DungeonGeneratorConfig | null {
+  try {
+    const parsed = JSON.parse(value) as { generatorConfig?: unknown }
+    if (!parsed || typeof parsed !== "object") return null
+    if (parsed.generatorConfig === undefined) return null
+    return parseDungeonGeneratorConfig(JSON.stringify(parsed.generatorConfig))
+  } catch {
+    return null
+  }
+}
+
+function downloadTextFile(filename: string, contents: string) {
+  const blob = new Blob([contents], { type: "application/json;charset=utf-8" })
+  const objectUrl = window.URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = objectUrl
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  window.URL.revokeObjectURL(objectUrl)
 }
 
 function sanitizeDungeonEditorIntegerInput(value: string) {
@@ -560,8 +809,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [isGridPanelOpen, setIsGridPanelOpen] = useState(false)
   const [isSavingMapGrid, setIsSavingMapGrid] = useState(false)
   const [isSavingDungeonMap, setIsSavingDungeonMap] = useState(false)
+  const [isSavingDungeonConfig, setIsSavingDungeonConfig] = useState(false)
   const [mapGridDraft, setMapGridDraft] = useState<MapGridDraft>(() => toMapGridDraft(null))
   const [dungeonEditorDraft, setDungeonEditorDraft] = useState<DungeonEditorDraft>(() => toDefaultDungeonEditorDraft(undefined))
+  const [activeRoomTextureIndex, setActiveRoomTextureIndex] = useState(0)
+  const [activeCorridorTextureIndex, setActiveCorridorTextureIndex] = useState(0)
   const [autoDungeonSeed, setAutoDungeonSeed] = useState(() => createAutoDungeonSeed())
   const [mapViewportSize, setMapViewportSize] = useState<Size | null>(null)
   const [mapImageNaturalSize, setMapImageNaturalSize] = useState<Size | null>(null)
@@ -721,8 +973,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     : false
   const canManageLandmarkBattles = landmark
     ? Boolean(mapUrlByReference) &&
-      persistedMapMode === "image" &&
-      Boolean(landmark.mapGridEnabled)
+      (persistedMapMode === "dungeon-json" ||
+        (persistedMapMode === "image" && Boolean(landmark.mapGridEnabled)))
     : false
   const dungeonEditorConfig = useMemo(() => {
     const width = normalizeDungeonEditorInteger(dungeonEditorDraft.width, 48, 8, 512)
@@ -734,6 +986,32 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     const maxRoomHeight = normalizeDungeonEditorInteger(dungeonEditorDraft.maxRoomHeight, 8, 3, height)
     const roomPadding = normalizeDungeonEditorInteger(dungeonEditorDraft.roomPadding, 1, 0, 8)
     const roomDispersion = normalizeDungeonEditorDecimal(dungeonEditorDraft.roomDispersion, 0, 0, 1)
+    const torchDensityPercent = normalizeDungeonEditorInteger(dungeonEditorDraft.torchDensityPercent, 100, 0, 300)
+    const allowIntersections = dungeonEditorDraft.allowIntersections
+    const roomTextureUrls = dungeonEditorDraft.roomTextureUrls
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const corridorTextureUrls = dungeonEditorDraft.corridorTextureUrls
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const wallWidth = normalizeDungeonEditorDecimal(dungeonEditorDraft.wallWidth, DEFAULT_DUNGEON_DISPLAY_STYLE.wallWidth, 0.02, 0.48)
+    const displayStyle: DungeonDisplayStyle = {
+      roomColor: dungeonEditorDraft.roomColor,
+      corridorColor: dungeonEditorDraft.corridorColor,
+      roomTextureUrl: roomTextureUrls[0] ?? "",
+      corridorTextureUrl: corridorTextureUrls[0] ?? "",
+      roomTextureUrls,
+      corridorTextureUrls,
+      roomTextureRandomRotation: dungeonEditorDraft.roomTextureRandomRotation,
+      corridorTextureRandomRotation: dungeonEditorDraft.corridorTextureRandomRotation,
+      doorColor: dungeonEditorDraft.doorColor,
+      showCorridorWalls: dungeonEditorDraft.showCorridorWalls,
+      wallWidth,
+      corridorWallColor: dungeonEditorDraft.corridorWallColor,
+      roomWallColor: dungeonEditorDraft.roomWallColor,
+      imageSmoothingEnabled: DEFAULT_DUNGEON_DISPLAY_STYLE.imageSmoothingEnabled,
+      snapGridToPixel: DEFAULT_DUNGEON_DISPLAY_STYLE.snapGridToPixel,
+    }
     const errors: string[] = []
 
     if (minRoomWidth > maxRoomWidth) {
@@ -754,9 +1032,14 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       maxRoomHeight,
       roomPadding,
       roomDispersion,
+      torchDensityPercent,
+      allowIntersections,
+      displayStyle,
       errors,
     }
   }, [dungeonEditorDraft])
+  const activeRoomTextureUrl = dungeonEditorDraft.roomTextureUrls[activeRoomTextureIndex] ?? ""
+  const activeCorridorTextureUrl = dungeonEditorDraft.corridorTextureUrls[activeCorridorTextureIndex] ?? ""
   const mapRotationDegrees = normalizeMapRotationDegrees(landmark?.mapRotationDegrees)
   const parsedMapGridCellSize = parseMapGridNumber(mapGridDraft.cellSize)
   const parsedMapGridOffsetX = parseMapGridNumber(mapGridDraft.offsetX)
@@ -948,10 +1231,26 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   }, [landmark?.id])
 
   useEffect(() => {
-    setDungeonEditorDraft(toDefaultDungeonEditorDraft(landmark?.nombre))
+    setDungeonEditorDraft(toDungeonEditorDraftFromLandmark(landmark))
+    setActiveRoomTextureIndex(0)
+    setActiveCorridorTextureIndex(0)
     setDungeonEditorError(null)
     setAutoDungeonSeed(createAutoDungeonSeed())
-  }, [landmark?.id, landmark?.nombre])
+  }, [landmark?.id, landmark?.nombre, landmark?.dungeonGeneratorConfig])
+
+  useEffect(() => {
+    setActiveRoomTextureIndex((current) => {
+      const maxIndex = Math.max(0, dungeonEditorDraft.roomTextureUrls.length - 1)
+      return Math.min(current, maxIndex)
+    })
+  }, [dungeonEditorDraft.roomTextureUrls])
+
+  useEffect(() => {
+    setActiveCorridorTextureIndex((current) => {
+      const maxIndex = Math.max(0, dungeonEditorDraft.corridorTextureUrls.length - 1)
+      return Math.min(current, maxIndex)
+    })
+  }, [dungeonEditorDraft.corridorTextureUrls])
 
   useEffect(() => {
     scaleRef.current = scale
@@ -1108,6 +1407,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         const dungeonMapError = isDungeonLandmark && !isDungeonJsonDocument(jsonText)
           ? getDungeonJsonUploadError(jsonText)
           : null
+        const importedDungeonConfig = isDungeonLandmark ? readDungeonGeneratorConfigFromJson(jsonText) : null
 
         if (dungeonMapError) {
           throw new Error(dungeonMapError)
@@ -1119,6 +1419,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           ...landmark,
           mapAssetId: uploaded.id,
           mapAssetKind: uploaded.kind,
+          dungeonGeneratorConfig: importedDungeonConfig ? JSON.stringify(importedDungeonConfig) : undefined,
           mapa: undefined,
         })
       } else if (file.type.startsWith("image/")) {
@@ -1130,6 +1431,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           ...landmark,
           mapAssetId: uploaded.id,
           mapAssetKind: uploaded.kind,
+          dungeonGeneratorConfig: undefined,
           mapa: undefined,
         })
       } else {
@@ -1142,6 +1444,26 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       setBuildingsMapError(getBackendErrorMessage(error, "No se pudo guardar el mapa del landmark."))
     }
   }
+
+  const buildDungeonGeneratorConfig = useCallback((seed: string): DungeonGeneratorConfig => ({
+    version: 1,
+    preset: "rooms-corridors",
+    name: dungeonEditorDraft.name,
+    seed,
+    width: dungeonEditorConfig.width,
+    height: dungeonEditorConfig.height,
+    roomCount: dungeonEditorConfig.roomCount,
+    minRoomWidth: dungeonEditorConfig.minRoomWidth,
+    maxRoomWidth: dungeonEditorConfig.maxRoomWidth,
+    minRoomHeight: dungeonEditorConfig.minRoomHeight,
+    maxRoomHeight: dungeonEditorConfig.maxRoomHeight,
+    roomPadding: dungeonEditorConfig.roomPadding,
+    roomDispersion: dungeonEditorConfig.roomDispersion,
+    allowIntersections: dungeonEditorConfig.allowIntersections,
+    generateTorches: dungeonEditorDraft.generateTorches,
+    torchDensityPercent: dungeonEditorConfig.torchDensityPercent,
+    displayStyle: dungeonEditorConfig.displayStyle,
+  }), [dungeonEditorConfig, dungeonEditorDraft.generateTorches, dungeonEditorDraft.name])
 
   const handleSaveGeneratedDungeonMap = useCallback(async () => {
     if (!landmark || !isDungeonLandmark || dungeonEditorConfig.errors.length > 0) {
@@ -1157,19 +1479,26 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     try {
       const explicitSeed = dungeonEditorDraft.seed.trim()
       const seedToUse = explicitSeed || createAutoDungeonSeed()
+      const generatorConfig = buildDungeonGeneratorConfig(seedToUse)
       const documentToSave = generateDungeonMapDocument({
         preset: "rooms-corridors",
-        name: dungeonEditorDraft.name,
-        seed: seedToUse,
-        width: dungeonEditorConfig.width,
-        height: dungeonEditorConfig.height,
-        roomCount: dungeonEditorConfig.roomCount,
-        minRoomWidth: dungeonEditorConfig.minRoomWidth,
-        maxRoomWidth: dungeonEditorConfig.maxRoomWidth,
-        minRoomHeight: dungeonEditorConfig.minRoomHeight,
-        maxRoomHeight: dungeonEditorConfig.maxRoomHeight,
-        roomPadding: dungeonEditorConfig.roomPadding,
-        roomDispersion: dungeonEditorConfig.roomDispersion,
+        name: generatorConfig.name,
+        seed: generatorConfig.seed,
+        width: generatorConfig.width,
+        height: generatorConfig.height,
+        roomCount: generatorConfig.roomCount,
+        minRoomWidth: generatorConfig.minRoomWidth,
+        maxRoomWidth: generatorConfig.maxRoomWidth,
+        minRoomHeight: generatorConfig.minRoomHeight,
+        maxRoomHeight: generatorConfig.maxRoomHeight,
+        roomPadding: generatorConfig.roomPadding,
+        roomDispersion: generatorConfig.roomDispersion,
+        allowCorridorIntersections: generatorConfig.allowIntersections,
+        lightingOptions: {
+          enabled: generatorConfig.generateTorches,
+          placement: "rooms-and-corridors",
+          densityPercent: generatorConfig.torchDensityPercent,
+        },
       })
       const jsonToSave = stringifyDungeonMapDocument(documentToSave)
 
@@ -1191,6 +1520,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         ...landmark,
         mapAssetId: uploaded.id,
         mapAssetKind: uploaded.kind,
+        dungeonGeneratorConfig: JSON.stringify(generatorConfig),
         mapa: undefined,
       })
 
@@ -1219,7 +1549,83 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     } finally {
       setIsSavingDungeonMap(false)
     }
-  }, [dungeonEditorConfig, dungeonEditorDraft, isDungeonLandmark, landmark, persistLandmark])
+  }, [buildDungeonGeneratorConfig, dungeonEditorConfig.errors.length, dungeonEditorDraft.seed, isDungeonLandmark, landmark, persistLandmark])
+
+  const handleSaveDungeonGeneratorConfig = useCallback(async () => {
+    if (!landmark || !isDungeonLandmark || dungeonEditorConfig.errors.length > 0) {
+      return
+    }
+
+    setIsSavingDungeonConfig(true)
+    setDungeonEditorError(null)
+    setBuildingsMapError(null)
+
+    try {
+      const explicitSeed = dungeonEditorDraft.seed.trim()
+      const seedToUse = explicitSeed || autoDungeonSeed
+      const generatorConfig = buildDungeonGeneratorConfig(seedToUse)
+
+      if (!explicitSeed) {
+        setAutoDungeonSeed(seedToUse)
+      }
+
+      await persistLandmark({
+        ...landmark,
+        dungeonGeneratorConfig: JSON.stringify(generatorConfig),
+      })
+      setEditError(null)
+    } catch (error) {
+      const message = getBackendErrorMessage(error, "No se pudo guardar la configuracion de la mazmorra.")
+      setDungeonEditorError(message)
+      setBuildingsMapError(message)
+    } finally {
+      setIsSavingDungeonConfig(false)
+    }
+  }, [autoDungeonSeed, buildDungeonGeneratorConfig, dungeonEditorConfig.errors.length, dungeonEditorDraft.seed, isDungeonLandmark, landmark, persistLandmark])
+
+  const handleExportDungeonJson = useCallback(() => {
+    if (!landmark || !isDungeonLandmark || dungeonEditorConfig.errors.length > 0) {
+      return
+    }
+
+    try {
+      const explicitSeed = dungeonEditorDraft.seed.trim()
+      const seedToUse = explicitSeed || createAutoDungeonSeed()
+      const generatorConfig = buildDungeonGeneratorConfig(seedToUse)
+      const documentToExport = generateDungeonMapDocument({
+        preset: "rooms-corridors",
+        name: generatorConfig.name,
+        seed: generatorConfig.seed,
+        width: generatorConfig.width,
+        height: generatorConfig.height,
+        roomCount: generatorConfig.roomCount,
+        minRoomWidth: generatorConfig.minRoomWidth,
+        maxRoomWidth: generatorConfig.maxRoomWidth,
+        minRoomHeight: generatorConfig.minRoomHeight,
+        maxRoomHeight: generatorConfig.maxRoomHeight,
+        roomPadding: generatorConfig.roomPadding,
+        roomDispersion: generatorConfig.roomDispersion,
+        allowCorridorIntersections: generatorConfig.allowIntersections,
+        lightingOptions: {
+          enabled: generatorConfig.generateTorches,
+          placement: "rooms-and-corridors",
+          densityPercent: generatorConfig.torchDensityPercent,
+        },
+      })
+
+      if (!explicitSeed) {
+        setAutoDungeonSeed(seedToUse)
+      }
+
+      downloadTextFile(
+        `${landmarkNameToSlug(landmark.nombre) || "mazmorra"}.dungeon.json`,
+        JSON.stringify({ ...documentToExport, generatorConfig }, null, 2),
+      )
+      setDungeonEditorError(null)
+    } catch (error) {
+      setDungeonEditorError(getBackendErrorMessage(error, "No se pudo exportar el JSON de la mazmorra."))
+    }
+  }, [buildDungeonGeneratorConfig, dungeonEditorConfig.errors.length, dungeonEditorDraft.seed, isDungeonLandmark, landmark])
 
   const handlePersistEditedDungeonDocument = useCallback(async (document: DungeonMapDocument) => {
     if (!landmark || !isDungeonLandmark) {
@@ -1287,7 +1693,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     (
       field: keyof Pick<
         DungeonEditorDraft,
-        "width" | "height" | "roomCount" | "minRoomWidth" | "maxRoomWidth" | "minRoomHeight" | "maxRoomHeight" | "roomPadding"
+        "width" | "height" | "roomCount" | "minRoomWidth" | "maxRoomWidth" | "minRoomHeight" | "maxRoomHeight" | "roomPadding" | "torchDensityPercent"
       >,
       fallback: number,
       min: number,
@@ -1315,6 +1721,163 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       roomDispersion: String(normalizeDungeonEditorDecimal(current.roomDispersion, 0, 0, 1)),
     }))
   }, [])
+
+  const handleDungeonEditorWallWidthChange = useCallback((event: ReactChangeEvent<HTMLInputElement>) => {
+    const value = sanitizeDungeonEditorDecimalInput(event.target.value)
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      wallWidth: value,
+    }))
+  }, [])
+
+  const handleDungeonEditorWallWidthBlur = useCallback(() => {
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      wallWidth: String(normalizeDungeonEditorDecimal(current.wallWidth, DEFAULT_DUNGEON_DISPLAY_STYLE.wallWidth, 0.02, 0.48)),
+    }))
+  }, [])
+
+  const setRoomTextureAtIndex = useCallback((index: number, value: string) => {
+    setDungeonEditorDraft((current) => {
+      const next = [...current.roomTextureUrls]
+      if (next.length === 0) {
+        next.push("")
+      }
+      if (index < 0 || index >= next.length) {
+        return current
+      }
+
+      const normalizedValue = value.trim()
+      const hadImage = Boolean((next[index] ?? "").trim())
+
+      if (!normalizedValue && hadImage) {
+        next.splice(index, 1)
+      } else {
+        next[index] = normalizedValue
+      }
+
+      if (next.length === 0) {
+        next.push("")
+      }
+
+      return {
+        ...current,
+        roomTextureUrls: next,
+        roomTextureUrl: next[0] ?? "",
+      }
+    })
+  }, [])
+
+  const setCorridorTextureAtIndex = useCallback((index: number, value: string) => {
+    setDungeonEditorDraft((current) => {
+      const next = [...current.corridorTextureUrls]
+      if (next.length === 0) {
+        next.push("")
+      }
+      if (index < 0 || index >= next.length) {
+        return current
+      }
+
+      const normalizedValue = value.trim()
+      const hadImage = Boolean((next[index] ?? "").trim())
+
+      if (!normalizedValue && hadImage) {
+        next.splice(index, 1)
+      } else {
+        next[index] = normalizedValue
+      }
+
+      if (next.length === 0) {
+        next.push("")
+      }
+
+      return {
+        ...current,
+        corridorTextureUrls: next,
+        corridorTextureUrl: next[0] ?? "",
+      }
+    })
+  }, [])
+
+  const handleAddRoomTextureSlot = useCallback(() => {
+    setDungeonEditorDraft((current) => {
+      const next = [...current.roomTextureUrls, ""]
+      return {
+        ...current,
+        roomTextureUrls: next,
+        roomTextureUrl: next[0] ?? "",
+      }
+    })
+    setActiveRoomTextureIndex((current) => current + 1)
+  }, [])
+
+  const handleAddCorridorTextureSlot = useCallback(() => {
+    setDungeonEditorDraft((current) => {
+      const next = [...current.corridorTextureUrls, ""]
+      return {
+        ...current,
+        corridorTextureUrls: next,
+        corridorTextureUrl: next[0] ?? "",
+      }
+    })
+    setActiveCorridorTextureIndex((current) => current + 1)
+  }, [])
+
+  const handleRemoveRoomTextureSlot = useCallback((index: number) => {
+    const currentUrls = dungeonEditorDraft.roomTextureUrls
+    if (index < 0 || index >= currentUrls.length) {
+      if (!(index === 0 && currentUrls.length === 0)) {
+        return
+      }
+    }
+
+    const next = currentUrls.filter((_, slotIndex) => slotIndex !== index)
+    if (next.length === 0) {
+      next.push("")
+    }
+
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      roomTextureUrls: next,
+      roomTextureUrl: next[0] ?? "",
+    }))
+    setActiveRoomTextureIndex(Math.min(activeRoomTextureIndex, next.length - 1))
+  }, [activeRoomTextureIndex, dungeonEditorDraft.roomTextureUrls])
+
+  const handleRemoveCorridorTextureSlot = useCallback((index: number) => {
+    const currentUrls = dungeonEditorDraft.corridorTextureUrls
+    if (index < 0 || index >= currentUrls.length) {
+      if (!(index === 0 && currentUrls.length === 0)) {
+        return
+      }
+    }
+
+    const next = currentUrls.filter((_, slotIndex) => slotIndex !== index)
+    if (next.length === 0) {
+      next.push("")
+    }
+
+    setDungeonEditorDraft((current) => ({
+      ...current,
+      corridorTextureUrls: next,
+      corridorTextureUrl: next[0] ?? "",
+    }))
+    setActiveCorridorTextureIndex(Math.min(activeCorridorTextureIndex, next.length - 1))
+  }, [activeCorridorTextureIndex, dungeonEditorDraft.corridorTextureUrls])
+
+  const handleRoomTexturePickerContextMenu = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey) return
+    event.preventDefault()
+    event.stopPropagation()
+    handleRemoveRoomTextureSlot(activeRoomTextureIndex)
+  }, [activeRoomTextureIndex, handleRemoveRoomTextureSlot])
+
+  const handleCorridorTexturePickerContextMenu = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey) return
+    event.preventDefault()
+    event.stopPropagation()
+    handleRemoveCorridorTextureSlot(activeCorridorTextureIndex)
+  }, [activeCorridorTextureIndex, handleRemoveCorridorTextureSlot])
 
   const handleApplyPreloadedMap = useCallback(async () => {
     if (!landmark) return
@@ -2250,6 +2813,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               dataUrl={effectiveMapUrl}
               onLoadError={setBuildingsMapError}
               onDocumentChange={handlePersistEditedDungeonDocument}
+              displayStyle={dungeonEditorConfig.displayStyle}
             />
             {buildingsMapError ? (
               <div className={styles.mapErrorPrompt}>
@@ -3027,13 +3591,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           </TabsContent>
 
           {isDungeonLandmark ? (
-            <TabsContent value="mazmorra" className="m-0 flex-1">
-              <ScrollArea className="h-full">
-                <div className="space-y-4 p-4">
+            <TabsContent value="mazmorra" className="m-0 flex-1 min-h-0 overflow-hidden">
+              <ScrollArea className={styles.dungeonEditorScrollArea}>
+                <div className={styles.dungeonEditorContent}>
                   <div className={styles.dungeonEditorPanel}>
                     <div className={styles.dungeonEditorSection}>
                       <div className={styles.dungeonEditorSectionTitle}>Mapa</div>
-                      <div className={styles.dungeonEditorGrid}>
+                      <div className={`${styles.dungeonEditorGrid} ${styles.dungeonEditorGridCompact}`}>
                         <label className={styles.dungeonEditorField}>
                           <span>Ancho</span>
                           <input
@@ -3082,12 +3646,51 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                           />
                         </label>
 
+                        <label className={styles.dungeonEditorToggleField}>
+                          <span>Intersecciones</span>
+                          <Switch
+                            checked={dungeonEditorDraft.allowIntersections}
+                            onCheckedChange={(checked) => {
+                              setDungeonEditorDraft((current) => ({ ...current, allowIntersections: checked }))
+                            }}
+                            aria-label={dungeonEditorDraft.allowIntersections ? "Desactivar intersecciones" : "Activar intersecciones"}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorToggleField}>
+                          <span>Generar antorchas</span>
+                          <Switch
+                            checked={dungeonEditorDraft.generateTorches}
+                            onCheckedChange={(checked) => {
+                              setDungeonEditorDraft((current) => ({ ...current, generateTorches: checked }))
+                            }}
+                            aria-label={dungeonEditorDraft.generateTorches ? "Desactivar antorchas generadas" : "Activar antorchas generadas"}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Densidad antorchas %</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={300}
+                            value={dungeonEditorDraft.torchDensityPercent}
+                            className={styles.dungeonEditorInput}
+                            onChange={(event) => {
+                              const value = sanitizeDungeonEditorIntegerInput(event.target.value)
+                              setDungeonEditorDraft((current) => ({ ...current, torchDensityPercent: value }))
+                            }}
+                            onBlur={handleDungeonEditorIntegerBlur("torchDensityPercent", 100, 0, 300)}
+                            placeholder="0 a 300"
+                          />
+                        </label>
+
                       </div>
                     </div>
 
                     <div className={styles.dungeonEditorSection}>
                       <div className={styles.dungeonEditorSectionTitle}>Salas</div>
-                      <div className={styles.dungeonEditorGrid}>
+                      <div className={`${styles.dungeonEditorGrid} ${styles.dungeonEditorGridCompact}`}>
                         <label className={styles.dungeonEditorField}>
                           <span>Cantidad</span>
                           <input
@@ -3162,19 +3765,246 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       </div>
                     </div>
 
+                    <div className={styles.dungeonEditorSection}>
+                      <div className={styles.dungeonEditorSectionTitle}>Estilo</div>
+                      <div className={styles.dungeonEditorGrid}>
+                        <label className={styles.dungeonEditorField}>
+                          <span>Habitaciones</span>
+                          <input
+                            type="color"
+                            value={dungeonEditorDraft.roomColor}
+                            className={styles.dungeonEditorColorInput}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, roomColor: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Pasillos</span>
+                          <input
+                            type="color"
+                            value={dungeonEditorDraft.corridorColor}
+                            className={styles.dungeonEditorColorInput}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, corridorColor: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Textura habitaciones</span>
+                          <div
+                            className={styles.dungeonEditorTexturePickerWrap}
+                            onContextMenuCapture={handleRoomTexturePickerContextMenu}
+                          >
+                            <ImageEmbeddingPicker
+                              value={activeRoomTextureUrl}
+                              usage="generic"
+                              label="Textura de habitaciones"
+                              placeholder="/textures/stone-floor.png"
+                              previewClassName={styles.dungeonEditorTexturePreview}
+                              previewMode="contain"
+                              showUrlControls={false}
+                              compact
+                              overlayTopRight={(
+                                <input
+                                  type="checkbox"
+                                  className={styles.dungeonEditorTextureRotateToggle}
+                                  checked={Boolean(dungeonEditorDraft.roomTextureRandomRotation)}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked
+                                    setDungeonEditorDraft((current) => ({ ...current, roomTextureRandomRotation: checked }))
+                                  }}
+                                  aria-label="Rotacion aleatoria de textura de habitaciones"
+                                />
+                              )}
+                              onChange={(value) => setRoomTextureAtIndex(activeRoomTextureIndex, value)}
+                            />
+                            <div className={styles.dungeonEditorTextureNav}>
+                              <button
+                                type="button"
+                                className={styles.dungeonEditorTextureNavButton}
+                                onClick={() => {
+                                  setActiveRoomTextureIndex((current) => Math.max(0, current - 1))
+                                }}
+                                disabled={activeRoomTextureIndex <= 0}
+                                aria-label="Textura anterior de habitaciones"
+                              >
+                                &lt;
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.dungeonEditorTextureNavButton}
+                                onClick={() => {
+                                  if (activeRoomTextureIndex >= dungeonEditorDraft.roomTextureUrls.length - 1) {
+                                    handleAddRoomTextureSlot()
+                                    return
+                                  }
+                                  setActiveRoomTextureIndex((current) => current + 1)
+                                }}
+                                aria-label={activeRoomTextureIndex >= dungeonEditorDraft.roomTextureUrls.length - 1
+                                  ? "Agregar textura de habitaciones"
+                                  : "Siguiente textura de habitaciones"}
+                              >
+                                {activeRoomTextureIndex >= dungeonEditorDraft.roomTextureUrls.length - 1 ? "+" : ">"}
+                              </button>
+                            </div>
+                          </div>
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Textura pasillos</span>
+                          <div
+                            className={styles.dungeonEditorTexturePickerWrap}
+                            onContextMenuCapture={handleCorridorTexturePickerContextMenu}
+                          >
+                            <ImageEmbeddingPicker
+                              value={activeCorridorTextureUrl}
+                              usage="generic"
+                              label="Textura de pasillos"
+                              placeholder="/textures/dirt-floor.png"
+                              previewClassName={styles.dungeonEditorTexturePreview}
+                              previewMode="contain"
+                              showUrlControls={false}
+                              compact
+                              overlayTopRight={(
+                                <input
+                                  type="checkbox"
+                                  className={styles.dungeonEditorTextureRotateToggle}
+                                  checked={Boolean(dungeonEditorDraft.corridorTextureRandomRotation)}
+                                  onChange={(event) => {
+                                    const checked = event.target.checked
+                                    setDungeonEditorDraft((current) => ({ ...current, corridorTextureRandomRotation: checked }))
+                                  }}
+                                  aria-label="Rotacion aleatoria de textura de pasillos"
+                                />
+                              )}
+                              onChange={(value) => setCorridorTextureAtIndex(activeCorridorTextureIndex, value)}
+                            />
+                            <div className={styles.dungeonEditorTextureNav}>
+                              <button
+                                type="button"
+                                className={styles.dungeonEditorTextureNavButton}
+                                onClick={() => {
+                                  setActiveCorridorTextureIndex((current) => Math.max(0, current - 1))
+                                }}
+                                disabled={activeCorridorTextureIndex <= 0}
+                                aria-label="Textura anterior de pasillos"
+                              >
+                                &lt;
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.dungeonEditorTextureNavButton}
+                                onClick={() => {
+                                  if (activeCorridorTextureIndex >= dungeonEditorDraft.corridorTextureUrls.length - 1) {
+                                    handleAddCorridorTextureSlot()
+                                    return
+                                  }
+                                  setActiveCorridorTextureIndex((current) => current + 1)
+                                }}
+                                aria-label={activeCorridorTextureIndex >= dungeonEditorDraft.corridorTextureUrls.length - 1
+                                  ? "Agregar textura de pasillos"
+                                  : "Siguiente textura de pasillos"}
+                              >
+                                {activeCorridorTextureIndex >= dungeonEditorDraft.corridorTextureUrls.length - 1 ? "+" : ">"}
+                              </button>
+                            </div>
+                          </div>
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Puertas</span>
+                          <input
+                            type="color"
+                            value={dungeonEditorDraft.doorColor}
+                            className={styles.dungeonEditorColorInput}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, doorColor: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorToggleField}>
+                          <span>Paredes</span>
+                          <Switch
+                            checked={dungeonEditorDraft.showCorridorWalls}
+                            onCheckedChange={(checked) => {
+                              setDungeonEditorDraft((current) => ({ ...current, showCorridorWalls: checked }))
+                            }}
+                            aria-label={dungeonEditorDraft.showCorridorWalls ? "Desactivar paredes de pasillo" : "Activar paredes de pasillo"}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Ancho pared</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={dungeonEditorDraft.wallWidth}
+                            className={styles.dungeonEditorInput}
+                            disabled={!dungeonEditorDraft.showCorridorWalls}
+                            onChange={handleDungeonEditorWallWidthChange}
+                            onBlur={handleDungeonEditorWallWidthBlur}
+                            placeholder="0.02 a 0.48"
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Pared pasillo</span>
+                          <input
+                            type="color"
+                            value={dungeonEditorDraft.corridorWallColor}
+                            className={styles.dungeonEditorColorInput}
+                            disabled={!dungeonEditorDraft.showCorridorWalls}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, corridorWallColor: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className={styles.dungeonEditorField}>
+                          <span>Pared habitacion</span>
+                          <input
+                            type="color"
+                            value={dungeonEditorDraft.roomWallColor}
+                            className={styles.dungeonEditorColorInput}
+                            disabled={!dungeonEditorDraft.showCorridorWalls}
+                            onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, roomWallColor: event.target.value }))}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
                     {(dungeonEditorConfig.errors[0] || dungeonEditorError) ? (
                       <div className={styles.dungeonEditorError}>{dungeonEditorConfig.errors[0] ?? dungeonEditorError}</div>
                     ) : null}
 
                     <div className={styles.dungeonEditorActions}>
                       <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleExportDungeonJson}
+                        disabled={isSavingDungeonMap || isSavingDungeonConfig || dungeonEditorConfig.errors.length > 0}
+                        aria-label="Exportar JSON"
+                        title="Exportar JSON"
+                      >
+                        <Download className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSaveDungeonGeneratorConfig}
+                        disabled={isSavingDungeonMap || isSavingDungeonConfig || dungeonEditorConfig.errors.length > 0}
+                        aria-label={isSavingDungeonConfig ? "Guardando configuracion" : "Guardar configuracion"}
+                        title={isSavingDungeonConfig ? "Guardando configuracion" : "Guardar configuracion"}
+                      >
+                        <Save className={isSavingDungeonConfig ? "size-3.5 animate-spin" : "size-3.5"} />
+                      </Button>
+                      <Button
                         size="sm"
                         className={styles.dungeonEditorSaveButton}
                         onClick={handleSaveGeneratedDungeonMap}
-                        disabled={isSavingDungeonMap || dungeonEditorConfig.errors.length > 0}
+                        disabled={isSavingDungeonMap || isSavingDungeonConfig || dungeonEditorConfig.errors.length > 0}
+                        aria-label={isSavingDungeonMap ? "Guardando mapa" : "Generar y guardar mapa"}
+                        title={isSavingDungeonMap ? "Guardando mapa" : "Generar y guardar mapa"}
                       >
-                        <Save className="size-3.5" />
-                        {isSavingDungeonMap ? "Guardando..." : "Generar y guardar"}
+                        <RotateCw className={isSavingDungeonMap ? "size-3.5 animate-spin" : "size-3.5"} />
                       </Button>
                     </div>
                   </div>

@@ -128,6 +128,7 @@ type LandmarkApiDto = {
   mapGridOffsetY?: number | null
   organizationMapLinks?: string | null
   hiddenMapBuildings?: string | null
+  dungeonGeneratorConfig?: string | null
   mapa?: LandmarkApiMapDto | null
   edificios?: BuildingApiDto[] | null
   personajes?: CharacterApiDto[] | null
@@ -173,6 +174,7 @@ type LandmarkUpsertPayload = {
   mapGridOffsetY: number
   organizationMapLinks: string | null
   hiddenMapBuildings: string | null
+  dungeonGeneratorConfig: string | null
   mapAssetId: number | null
   mapa: LandmarkMapUpsertPayload | null
 }
@@ -466,6 +468,7 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
         : 0,
     organizationMapLinks,
     hiddenMapBuildings,
+    dungeonGeneratorConfig: toOptionalText(dto.dungeonGeneratorConfig),
     mapa: toLandmarkMapReference(dto.mapa),
     edificios: Array.isArray(dto.edificios) ? dto.edificios.map(toBuilding) : [],
     personajes: Array.isArray(dto.personajes) ? dto.personajes.map(toCharacter) : [],
@@ -568,6 +571,7 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
       input.hiddenMapBuildings && input.hiddenMapBuildings.length > 0
         ? JSON.stringify(input.hiddenMapBuildings)
         : null,
+    dungeonGeneratorConfig: toOptionalText(input.dungeonGeneratorConfig) ?? null,
     mapAssetId,
     mapa: mapAssetId ? null : toLandmarkMapPayload(input.mapa),
   }

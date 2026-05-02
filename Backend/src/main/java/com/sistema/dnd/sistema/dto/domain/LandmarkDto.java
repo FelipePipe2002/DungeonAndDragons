@@ -27,6 +27,7 @@ public record LandmarkDto(
     Double mapGridOffsetY,
     String organizationMapLinks,
     String hiddenMapBuildings,
+    String dungeonGeneratorConfig,
     LandmarkMapDto mapa,
     List<BuildingDto> edificios,
     List<CharacterDto> personajes,

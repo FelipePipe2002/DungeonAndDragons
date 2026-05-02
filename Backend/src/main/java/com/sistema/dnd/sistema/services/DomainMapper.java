@@ -159,6 +159,7 @@ public class DomainMapper {
             landmark.getMapGridOffsetY(),
             landmark.getOrganizationMapLinks(),
             landmark.getHiddenMapBuildings(),
+            landmark.getDungeonGeneratorConfig(),
             mapa,
             edificios,
             personajes,

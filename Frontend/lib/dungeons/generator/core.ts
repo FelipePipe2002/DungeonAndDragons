@@ -1,11 +1,7 @@
-import { readDungeonMapDocument } from "../adapter.ts"
 import {
   type DungeonDoor,
   type DungeonDoorDirection,
-  DUNGEON_MAP_DOCUMENT_TYPE,
-  DUNGEON_MAP_DOCUMENT_VERSION,
   type DungeonCorridor,
-  type DungeonMapDocument,
   type DungeonMapPoint,
   type DungeonRoom,
 } from "../types.ts"
@@ -40,6 +36,15 @@ export type CorridorGenerationOptions = {
   enabled?: boolean
   width?: number
   maxSteps?: number
+  allowIntersections?: boolean
+}
+
+export type LightingGenerationOptions = {
+  enabled?: boolean
+  placement?: "none" | "rooms" | "corridors" | "rooms-and-corridors"
+  densityPercent?: number
+  brightRadiusCells?: number
+  dimRadiusCells?: number
 }
 
 export type TopologyGenerationOptions = {
@@ -69,6 +74,7 @@ export type GenerateDungeonMapOptions = {
   preset?: DungeonGeneratorPreset
   roomOptions?: RoomGenerationOptions
   corridorOptions?: CorridorGenerationOptions
+  lightingOptions?: LightingGenerationOptions
   topologyOptions?: TopologyGenerationOptions
   debugOptions?: GeneratorDebugOptions
 
@@ -87,6 +93,8 @@ export type GenerateDungeonMapOptions = {
   corridorWidth?: number
   includeCorridors?: boolean
   maxCorridorSteps?: number
+  allowCorridorIntersections?: boolean
+  generateTorches?: boolean
   extraConnectionCount?: number
   name?: string
   seed?: string | number
@@ -135,6 +143,12 @@ export type GenerationContext = {
   includeCorridors: boolean
   corridorWidth: number
   maxCorridorSteps: number
+  allowCorridorIntersections: boolean
+  lightingEnabled: boolean
+  lightingPlacement: NonNullable<LightingGenerationOptions["placement"]>
+  lightDensityPercent: number
+  lightBrightRadiusCells: number
+  lightDimRadiusCells: number
   extraConnectionCount: number
   topologyMotif: TopologyMotif
   motifStrength: number
@@ -167,6 +181,9 @@ const DEFAULT_TOPOLOGY_MOTIF: TopologyMotif = "balanced"
 const DEFAULT_MOTIF_STRENGTH = 0.7
 const DEFAULT_LOOP_DENSITY: LoopDensity = "medium"
 const DEFAULT_LOOP_LENGTH_TARGET: LoopLengthTarget = "mixed"
+const DEFAULT_LIGHTING_PLACEMENT: NonNullable<LightingGenerationOptions["placement"]> = "rooms-and-corridors"
+const DEFAULT_LIGHT_BRIGHT_RADIUS_CELLS = 4
+const DEFAULT_LIGHT_DIM_RADIUS_CELLS = 8
 
 const TOPOLOGY_MOTIF_PROFILES: Record<TopologyMotif, {
   kNearestMultiplierByRole: Record<ConnectionRole, number>
@@ -320,7 +337,6 @@ const PRESET_COMPOSITIONS: Record<DungeonGeneratorPreset, {
  * - routing: exit selection, door leads, room-aware pathfinding
  * - topology: room graph edges/components, final-room selection rules
  * - cleanup: duplicate/parallel/loop corridor cleanup + door normalization
- * - serialization: generateDungeonMapDocument + metadata envelope
  */
 
 function clampInteger(value: number | undefined, fallback: number, min: number, max: number) {
@@ -675,6 +691,7 @@ function pickRoomExitCell(
     axis: CorridorAxis
     blockedRooms?: Set<string>
     blockedCorridors?: Set<string>
+    blockedDoorCells?: Set<string>
     mapWidth?: number
     mapHeight?: number
     connectionRole?: ConnectionRole
@@ -694,6 +711,7 @@ function pickRoomExitCell(
     if (options.mapWidth !== undefined && options.mapHeight !== undefined) {
       if (!pointWithinBounds(exitPoint, options.mapWidth, options.mapHeight)) return false
     }
+    if (options.blockedDoorCells?.has(pointKey(cell.point))) return false
     if (options.blockedRooms?.has(pointKey(exitPoint))) return false
     if (options.blockedCorridors?.has(pointKey(exitPoint))) return false
     return true
@@ -711,6 +729,7 @@ function pickRoomExitCell(
     )
       ? 10000
       : 0
+    const doorBlockedPenalty = options.blockedDoorCells?.has(pointKey(cell.point)) ? 800 : 0
     const roomBlockedPenalty = options.blockedRooms?.has(pointKey(exitPoint)) ? 600 : 0
     const corridorBlockedPenalty = options.blockedCorridors?.has(pointKey(exitPoint)) ? 220 : 0
     const cornerPenalty = cell.isRectCorner ? 900 : 0
@@ -728,14 +747,15 @@ function pickRoomExitCell(
 
     return (
       outOfBoundsPenalty
+      + doorBlockedPenalty
       + roomBlockedPenalty
       + corridorBlockedPenalty
       + cornerPenalty
       + preferredPenalty
       + axisPenalty
       + roleVarianceBoost
-      + sideDistance * 18
-      + alignmentDistance * 5
+      + sideDistance * 12
+      + alignmentDistance * 18
     )
   }
 
@@ -761,6 +781,7 @@ function pickRoomExitSide(
     axis: CorridorAxis
     blockedRooms?: Set<string>
     blockedCorridors?: Set<string>
+    blockedDoorCells?: Set<string>
     mapWidth?: number
     mapHeight?: number
     connectionRole?: ConnectionRole
@@ -783,7 +804,8 @@ function pickRoomExitSide(
     const sideAxis = directionAxis(side)
     const sideCellScores = sideCells.map((cell) => {
       const exitPoint = movePoint(cell.point, side)
-      const blockedPenalty = (options.blockedRooms?.has(pointKey(exitPoint)) ? 400 : 0)
+      const blockedPenalty = (options.blockedDoorCells?.has(pointKey(cell.point)) ? 700 : 0)
+        + (options.blockedRooms?.has(pointKey(exitPoint)) ? 400 : 0)
         + (options.blockedCorridors?.has(pointKey(exitPoint)) ? 140 : 0)
       const boundsPenalty = (
         options.mapWidth !== undefined
@@ -793,7 +815,10 @@ function pickRoomExitSide(
         ? 10000
         : 0
       const exitDistance = corridorDistance(exitPoint, target)
-      return blockedPenalty + boundsPenalty + exitDistance * 12
+      const alignmentDistance = sideAxis === "horizontal"
+        ? Math.abs(cell.point.y - target.y)
+        : Math.abs(cell.point.x - target.x)
+      return blockedPenalty + boundsPenalty + exitDistance * 8 + alignmentDistance * 16
     })
 
     const bestCellScore = Math.min(...sideCellScores)
@@ -838,6 +863,7 @@ function pickRoomExitPoint(
     axis: CorridorAxis
     blockedRooms?: Set<string>
     blockedCorridors?: Set<string>
+    blockedDoorCells?: Set<string>
     mapWidth?: number
     mapHeight?: number
     connectionRole?: ConnectionRole
@@ -1189,6 +1215,191 @@ function findRouteTarget(
 function corridorEndpointRoomId(rooms: DungeonRoom[], lookup: RoomSpatialLookup, point: DungeonMapPoint) {
   const roomIndex = roomIndexForPoint(lookup, point)
   return roomIndex >= 0 ? rooms[roomIndex]?.id : undefined
+}
+
+function appendEntranceDoorForStartRoom(
+  rooms: DungeonRoom[],
+  doors: DungeonDoor[],
+  mapWidth: number,
+  mapHeight: number,
+) {
+  const startIndex = rooms.findIndex((room) => room.kind === "start")
+  if (startIndex < 0) return
+
+  const startRoom = rooms[startIndex]
+  const bounds = getRoomBounds(startRoom)
+  const center = roomConnectionPoint(startRoom)
+  const roomLookup = buildRoomSpatialLookup(rooms)
+  const usedDirections = new Set<DungeonDoorDirection>()
+  const usedCells = new Set<string>(doors.map((door) => `${door.x},${door.y}`))
+
+  for (const door of doors) {
+    if (!door.direction) continue
+    const owner = roomIndexForPoint(roomLookup, { x: door.x, y: door.y })
+    if (owner === startIndex) {
+      usedDirections.add(door.direction)
+    }
+  }
+
+  const candidates: Array<{ direction: DungeonDoorDirection; distance: number }> = [
+    { direction: "west", distance: bounds.x },
+    { direction: "east", distance: mapWidth - (bounds.x + bounds.width) },
+    { direction: "north", distance: bounds.y },
+    { direction: "south", distance: mapHeight - (bounds.y + bounds.height) },
+  ]
+    .sort((first, second) => {
+      if (first.distance !== second.distance) return first.distance - second.distance
+      return first.direction.localeCompare(second.direction)
+    })
+
+  const direction = candidates.find((candidate) => !usedDirections.has(candidate.direction))?.direction
+  if (!direction) return
+
+  const borderCells = buildRoomBorderCellInfos(startRoom)
+    .filter((info) => info.openDirections.includes(direction))
+    .filter((info) => !usedCells.has(`${info.point.x},${info.point.y}`))
+
+  if (borderCells.length === 0) return
+
+  const isRectCorner = (point: DungeonMapPoint) => (
+    (point.x === bounds.x || point.x === bounds.x + bounds.width - 1)
+    && (point.y === bounds.y || point.y === bounds.y + bounds.height - 1)
+  )
+
+  const score = (point: DungeonMapPoint) => {
+    const exitPoint = movePoint(point, direction)
+    const outOfBoundsBonus = pointWithinBounds(exitPoint, mapWidth, mapHeight) ? 0 : -40
+    const cornerPenalty = isRectCorner(point) ? 1200 : 0
+    const centerOffset = (direction === "north" || direction === "south")
+      ? Math.abs(point.x - center.x)
+      : Math.abs(point.y - center.y)
+    return cornerPenalty + centerOffset * 12 + outOfBoundsBonus
+  }
+
+  borderCells.sort((first, second) => {
+    const firstScore = score(first.point)
+    const secondScore = score(second.point)
+    if (firstScore !== secondScore) return firstScore - secondScore
+    if (first.point.y !== second.point.y) return first.point.y - second.point.y
+    return first.point.x - second.point.x
+  })
+
+  const entrancePoint = borderCells[0].point
+
+  doors.push({
+    id: `door-${doors.length + 1}`,
+    x: entrancePoint.x,
+    y: entrancePoint.y,
+    direction,
+    kind: "door",
+  })
+}
+
+function findExteriorContactExitForImmediateTrim(
+  room: DungeonRoom,
+  exteriorPoint: DungeonMapPoint,
+  direction: DungeonDoorDirection,
+): RoomExitSelection | null {
+  const borderCell = buildRoomBorderCellInfos(room)
+    .filter((cell) => cell.openDirections.includes(direction))
+    .find((cell) => {
+      const outside = movePoint(cell.point, direction)
+      return outside.x === exteriorPoint.x && outside.y === exteriorPoint.y
+    })
+
+  if (!borderCell) return null
+
+  return {
+    point: borderCell.point,
+    direction,
+  }
+}
+
+function trimImmediateWallSlides(rooms: DungeonRoom[], corridors: DungeonCorridor[]) {
+  const roomLookup = buildRoomSpatialLookup(rooms)
+  const roomSideUsage = new Map<string, number>()
+
+  for (const corridor of corridors) {
+    if (corridor.points.length < 2) continue
+
+    const startRoomIndex = roomIndexForPoint(roomLookup, corridor.points[0])
+    const startDirection = directionBetween(corridor.points[0], corridor.points[1])
+    if (startRoomIndex >= 0 && startDirection) {
+      const key = `${rooms[startRoomIndex].id}:${startDirection}`
+      roomSideUsage.set(key, (roomSideUsage.get(key) ?? 0) + 1)
+    }
+
+    const end = corridor.points[corridor.points.length - 1]
+    const beforeEnd = corridor.points[corridor.points.length - 2]
+    const endRoomIndex = roomIndexForPoint(roomLookup, end)
+    const endDirection = directionBetween(end, beforeEnd)
+    if (endRoomIndex >= 0 && endDirection) {
+      const key = `${rooms[endRoomIndex].id}:${endDirection}`
+      roomSideUsage.set(key, (roomSideUsage.get(key) ?? 0) + 1)
+    }
+  }
+
+  for (const corridor of corridors) {
+    if (corridor.points.length < 3) continue
+
+    const trimStart = () => {
+      const [start, next, third] = corridor.points
+      const roomIndex = roomIndexForPoint(roomLookup, start)
+      if (roomIndex < 0) return
+      if (roomIndexForPoint(roomLookup, third) >= 0) return
+
+      const outwardDirection = directionBetween(start, next)
+      if (!outwardDirection) return
+      const roomSideKey = `${rooms[roomIndex].id}:${outwardDirection}`
+      if ((roomSideUsage.get(roomSideKey) ?? 0) !== 1) return
+
+      const nextDirection = directionBetween(next, third)
+      if (!nextDirection) return
+
+      const outwardAxis = outwardDirection === "east" || outwardDirection === "west" ? "horizontal" : "vertical"
+      const nextAxis = nextDirection === "east" || nextDirection === "west" ? "horizontal" : "vertical"
+      if (outwardAxis === nextAxis) return
+
+      const replacement = findExteriorContactExitForImmediateTrim(rooms[roomIndex], third, outwardDirection)
+      if (!replacement) return
+      if (replacement.point.x === start.x && replacement.point.y === start.y) return
+
+      corridor.points = [replacement.point, third, ...corridor.points.slice(3)]
+    }
+
+    const trimEnd = () => {
+      const pointCount = corridor.points.length
+      const end = corridor.points[pointCount - 1]
+      const beforeEnd = corridor.points[pointCount - 2]
+      const beforeBeforeEnd = corridor.points[pointCount - 3]
+      const roomIndex = roomIndexForPoint(roomLookup, end)
+      if (roomIndex < 0) return
+      if (roomIndexForPoint(roomLookup, beforeBeforeEnd) >= 0) return
+
+      const outwardDirection = directionBetween(end, beforeEnd)
+      if (!outwardDirection) return
+      const roomSideKey = `${rooms[roomIndex].id}:${outwardDirection}`
+      if ((roomSideUsage.get(roomSideKey) ?? 0) !== 1) return
+
+      const previousDirection = directionBetween(beforeBeforeEnd, beforeEnd)
+      if (!previousDirection) return
+
+      const outwardAxis = outwardDirection === "east" || outwardDirection === "west" ? "horizontal" : "vertical"
+      const previousAxis = previousDirection === "east" || previousDirection === "west" ? "horizontal" : "vertical"
+      if (outwardAxis === previousAxis) return
+
+      const replacement = findExteriorContactExitForImmediateTrim(rooms[roomIndex], beforeBeforeEnd, outwardDirection)
+      if (!replacement) return
+      if (replacement.point.x === end.x && replacement.point.y === end.y) return
+
+      corridor.points = [...corridor.points.slice(0, pointCount - 3), beforeBeforeEnd, replacement.point]
+    }
+
+    trimStart()
+    if (corridor.points.length >= 3) {
+      trimEnd()
+    }
+  }
 }
 
 function cleanupDoorsForCorridors(corridors: DungeonCorridor[], doors: DungeonDoor[]) {
@@ -1784,6 +1995,7 @@ function isolateLeafCorridorCluster(
   mapWidth: number,
   mapHeight: number,
   targetRoomIndex: number,
+  blockDoorReuse = false,
 ) {
   const startIndex = rooms.findIndex((room) => room.kind === "start")
   if (startIndex < 0 || targetRoomIndex < 0) return false
@@ -1818,10 +2030,15 @@ function isolateLeafCorridorCluster(
   const targetCenter = roomConnectionPoint(targetRoom)
   const neighborCenter = roomConnectionPoint(neighborRoom)
   const blockedCorridors = new Set<string>()
+  const blockedDoorCells = new Set<string>()
   const otherCorridors = corridors.filter((_, candidateIndex) => candidateIndex !== corridorIndex)
   const orientationMap = buildCorridorOrientationMap(otherCorridors, blockedRooms)
 
   for (const candidate of otherCorridors) {
+    if (candidate.points.length >= 2) {
+      blockedDoorCells.add(pointKey(candidate.points[0]))
+      blockedDoorCells.add(pointKey(candidate.points[candidate.points.length - 1]))
+    }
     corridorPolylineCells(candidate.points, blockedRooms).forEach((cell) => {
       blockedCorridors.add(pointKey(cell))
     })
@@ -1839,6 +2056,7 @@ function isolateLeafCorridorCluster(
         axis: targetAxis,
         blockedRooms,
         blockedCorridors,
+        blockedDoorCells: blockDoorReuse ? blockedDoorCells : undefined,
         mapWidth,
         mapHeight,
       })
@@ -1847,9 +2065,15 @@ function isolateLeafCorridorCluster(
         axis: neighborAxis,
         blockedRooms,
         blockedCorridors,
+        blockedDoorCells: blockDoorReuse ? blockedDoorCells : undefined,
         mapWidth,
         mapHeight,
       })
+      if (blockDoorReuse) {
+        const targetDoorKey = pointKey(targetExit.point)
+        const neighborDoorKey = pointKey(neighborExit.point)
+        if (blockedDoorCells.has(targetDoorKey) || blockedDoorCells.has(neighborDoorKey)) continue
+      }
       const targetLead = buildDoorLead(targetExit.point, targetExit.direction, blockedRooms, mapWidth, mapHeight, 1)
       const neighborLead = buildDoorLead(neighborExit.point, neighborExit.direction, blockedRooms, mapWidth, mapHeight, 1)
       const routeStart = targetLead[targetLead.length - 1]
@@ -1857,6 +2081,7 @@ function isolateLeafCorridorCluster(
       const blockedRouteCells = new Set<string>([
         ...targetLead.slice(0, -1).map(pointKey),
         ...neighborLead.slice(0, -1).map(pointKey),
+        ...(blockDoorReuse ? [...blockedDoorCells] : []),
       ])
       const corePath = findRoomAwareCorridorPath(
         routeStart,
@@ -2200,6 +2425,7 @@ export function createGenerationContext(options: GenerateDungeonMapOptions = {})
   const presetConfig = PRESET_COMPOSITIONS[preset]
   const roomOptions = options.roomOptions ?? {}
   const corridorOptions = options.corridorOptions ?? {}
+  const lightingOptions = options.lightingOptions ?? {}
   const topologyOptions = options.topologyOptions ?? {}
   const debugOptions = options.debugOptions ?? {}
 
@@ -2367,6 +2593,24 @@ export function createGenerationContext(options: GenerateDungeonMapOptions = {})
     Math.min(48, height),
   )
   const roomDispersion = clampNumber(roomOptions.dispersion ?? options.roomDispersion, 0, 0, 1)
+  const lightBrightRadiusCells = clampInteger(
+    lightingOptions.brightRadiusCells,
+    DEFAULT_LIGHT_BRIGHT_RADIUS_CELLS,
+    0,
+    64,
+  )
+  const lightDimRadiusCells = clampInteger(
+    lightingOptions.dimRadiusCells,
+    DEFAULT_LIGHT_DIM_RADIUS_CELLS,
+    lightBrightRadiusCells,
+    128,
+  )
+  const lightDensityPercent = clampInteger(
+    lightingOptions.densityPercent,
+    100,
+    0,
+    300,
+  )
 
   return {
     preset,
@@ -2382,6 +2626,12 @@ export function createGenerationContext(options: GenerateDungeonMapOptions = {})
     includeCorridors: corridorOptions.enabled ?? options.includeCorridors ?? presetConfig.includeCorridors,
     corridorWidth: clampInteger(corridorOptions.width ?? options.corridorWidth, 1, 1, 4),
     maxCorridorSteps,
+    allowCorridorIntersections: corridorOptions.allowIntersections ?? options.allowCorridorIntersections ?? true,
+    lightingEnabled: lightingOptions.enabled ?? options.generateTorches ?? false,
+    lightingPlacement: lightingOptions.placement ?? DEFAULT_LIGHTING_PLACEMENT,
+    lightDensityPercent,
+    lightBrightRadiusCells,
+    lightDimRadiusCells,
     extraConnectionCount,
     topologyMotif,
     motifStrength,
@@ -2508,6 +2758,7 @@ export function runCleanupStage(
 ) {
   const { corridors, doors } = plan
   if (!context.includeCorridors) {
+    appendEntranceDoorForStartRoom(rooms, doors, context.width, context.height)
     return {
       rooms,
       corridors,
@@ -2533,6 +2784,7 @@ export function runCleanupStage(
   }
 
   normalizeCorridorEndpointsToRoomsModule(rooms, corridors, doorHelpers)
+  trimImmediateWallSlides(rooms, corridors)
 
   const realizedLeafCandidates = buildFinalLeafCandidatesModule(rooms, corridors, finalHelpers).candidates
 
@@ -2543,13 +2795,17 @@ export function runCleanupStage(
     if (chosenCandidate?.touchesStartCluster) {
       const blockedRooms = buildRoomBlockedCells(rooms)
       if (finalIndex !== undefined) {
-        const clonedCorridors = corridors.map((corridor) => ({
-          id: corridor.id,
-          points: corridor.points.map((point) => ({ ...point })),
-          width: corridor.width,
-        }))
+        const clonedCorridors = cloneCorridors(corridors)
 
-        const isolatedChosen = isolateLeafCorridorCluster(rooms, clonedCorridors, blockedRooms, context.width, context.height, finalIndex)
+        const isolatedChosen = isolateLeafCorridorCluster(
+          rooms,
+          clonedCorridors,
+          blockedRooms,
+          context.width,
+          context.height,
+          finalIndex,
+          !context.allowCorridorIntersections,
+        )
         if (isolatedChosen) {
           corridors.length = 0
           corridors.push(...clonedCorridors)
@@ -2563,27 +2819,31 @@ export function runCleanupStage(
       if (!stillTouchingChosen) {
         // Keep farthest choice when we can isolate it.
       } else {
-      for (const candidate of realizedLeafCandidates) {
-        if (candidate.touchesStartCluster) continue
-        const clonedCorridors = corridors.map((corridor) => ({
-          id: corridor.id,
-          points: corridor.points.map((point) => ({ ...point })),
-          width: corridor.width,
-        }))
+        for (const candidate of realizedLeafCandidates) {
+          if (candidate.touchesStartCluster) continue
+          const clonedCorridors = cloneCorridors(corridors)
 
-        const isolated = isolateLeafCorridorCluster(rooms, clonedCorridors, blockedRooms, context.width, context.height, candidate.index)
-        if (!isolated) continue
+          const isolated = isolateLeafCorridorCluster(
+            rooms,
+            clonedCorridors,
+            blockedRooms,
+            context.width,
+            context.height,
+            candidate.index,
+            !context.allowCorridorIntersections,
+          )
+          if (!isolated) continue
 
-        corridors.length = 0
-        corridors.push(...clonedCorridors)
-        finalIndex = candidate.index
-        break
-      }
+          corridors.length = 0
+          corridors.push(...clonedCorridors)
+          finalIndex = candidate.index
+          break
+        }
 
-      const refreshedCandidates = buildFinalLeafCandidatesModule(rooms, corridors, finalHelpers).candidates
-      if (refreshedCandidates.find((candidate) => candidate.index === finalIndex)?.touchesStartCluster) {
-        finalIndex = pickBestFinalIndexModule(refreshedCandidates) ?? finalIndex
-      }
+        const refreshedCandidates = buildFinalLeafCandidatesModule(rooms, corridors, finalHelpers).candidates
+        if (refreshedCandidates.find((candidate) => candidate.index === finalIndex)?.touchesStartCluster) {
+          finalIndex = pickBestFinalIndexModule(refreshedCandidates) ?? finalIndex
+        }
       }
     }
   }
@@ -2609,6 +2869,7 @@ export function runCleanupStage(
 
   const finalizedRooms = assignFarthestFinalRoomModule(rooms, finalIndex)
   rebuildDoorsFromCorridorsModule(finalizedRooms, corridors, doors, doorHelpers)
+  appendEntranceDoorForStartRoom(finalizedRooms, doors, context.width, context.height)
 
   return {
     rooms: finalizedRooms,
@@ -2617,20 +2878,20 @@ export function runCleanupStage(
   }
 }
 
-function buildGeneratedRoomsLayout(
-  options: Required<Pick<GenerateDungeonMapOptions, "width" | "height" | "roomCount" | "roomPadding" | "roomDispersion">>
-    & {
-      minRoomWidth: number
-      maxRoomWidth: number
-      minRoomHeight: number
-      maxRoomHeight: number
-      corridorWidth: number
-      includeCorridors: boolean
-      maxCorridorSteps: number
-      extraConnectionCount: number
-      seed?: string | number
-    },
-) {
+type GeneratedRoomsLayoutOptions = {
+  width: number
+  height: number
+  roomCount: number
+  roomPadding: number
+  roomDispersion: number
+  minRoomWidth: number
+  maxRoomWidth: number
+  minRoomHeight: number
+  maxRoomHeight: number
+  seed?: string | number
+}
+
+function buildGeneratedRoomsLayout(options: GeneratedRoomsLayoutOptions) {
   const rooms: DungeonRoom[] = []
   const roomCount = clampInteger(options.roomCount, 4, 0, 64)
   const roomPadding = clampInteger(options.roomPadding, 1, 0, 8)
@@ -2723,78 +2984,10 @@ function buildGeneratedRoomsLayout(
   }
 }
 
-export function generateDungeonMapDocument(options: GenerateDungeonMapOptions = {}): DungeonMapDocument {
-  const preset = options.preset ?? "simple"
-  const width = clampInteger(options.width, preset === "minimal" ? 24 : 48, 8, 512)
-  const height = clampInteger(options.height, preset === "minimal" ? 24 : 32, 8, 512)
-  const maxCorridorSteps = clampInteger(options.maxCorridorSteps, DEFAULT_MAX_CORRIDOR_STEPS, 8, 512)
-  const extraConnectionCount = clampInteger(options.extraConnectionCount, width >= 56 ? 1 : 0, 0, 16)
-  const roomWidthRange = normalizeRoomRange(
-    options.minRoomWidth,
-    options.maxRoomWidth,
-    options.roomWidth,
-    5,
-    Math.max(6, Math.floor(width * 0.22)),
-    Math.min(48, width),
-  )
-  const roomHeightRange = normalizeRoomRange(
-    options.minRoomHeight,
-    options.maxRoomHeight,
-    options.roomHeight,
-    4,
-    Math.max(5, Math.floor(height * 0.2)),
-    Math.min(48, height),
-  )
-
-  let document: DungeonMapDocument
-
-  if (preset === "minimal") {
-    document = {
-      type: DUNGEON_MAP_DOCUMENT_TYPE,
-      version: DUNGEON_MAP_DOCUMENT_VERSION,
-      metadata: buildMetadata(options),
-      layout: {
-        width,
-        height,
-        rooms: [],
-      },
-    }
-  } else {
-    const { rooms, corridors, doors, warning } = buildGeneratedRoomsLayout({
-      width,
-      height,
-      roomCount: options.roomCount ?? (preset === "simple" ? 6 : 8),
-      minRoomWidth: roomWidthRange.min,
-      maxRoomWidth: roomWidthRange.max,
-      minRoomHeight: roomHeightRange.min,
-      maxRoomHeight: roomHeightRange.max,
-      roomPadding: options.roomPadding ?? 1,
-      roomDispersion: options.roomDispersion ?? 0,
-      corridorWidth: 1,
-      includeCorridors: options.includeCorridors ?? (preset === "rooms-corridors"),
-      maxCorridorSteps,
-      extraConnectionCount,
-      seed: options.seed,
-    })
-
-    document = {
-      type: DUNGEON_MAP_DOCUMENT_TYPE,
-      version: DUNGEON_MAP_DOCUMENT_VERSION,
-      metadata: buildMetadata(options, warning),
-      layout: {
-        width,
-        height,
-        rooms,
-        corridors,
-        doors,
-      },
-    }
-  }
-
-  readDungeonMapDocument(document)
-  return document
-}
-
-export function stringifyDungeonMapDocument(document: DungeonMapDocument) {
-  return `${JSON.stringify(document, null, 2)}\n`
+function cloneCorridors(corridors: DungeonCorridor[]): DungeonCorridor[] {
+  return corridors.map((corridor) => ({
+    id: corridor.id,
+    points: corridor.points.map((point) => ({ ...point })),
+    width: corridor.width,
+  }))
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type
 import { Accessibility, Bubbles, ChevronDown, Circle, EarOff, Eye, EyeOff, HatGlasses, Heart, Link2, Lock, Redo, Shell, Skull, Snowflake, Trash2, TriangleAlert, type LucideIcon } from "lucide-react"
 
 import type { BattleConditionDefinition } from "@/lib/battle/conditions"
+import type { BattleTokenFogVisibility } from "@/lib/battle/fog"
 import { resolveBattleTokenImagePresentation } from "@/lib/battle/token-image"
 import type { BattleObstacle, BattleToken, Character } from "@/lib/types"
 
@@ -52,6 +53,7 @@ type DragState =
 
 type BattleTokenOverlayProps = {
   tokens: BattleToken[]
+  tokenFogVisibilityByNumber?: Map<number, BattleTokenFogVisibility> | Record<number, BattleTokenFogVisibility>
   statusDefinitions?: BattleConditionDefinition[]
   obstacles?: BattleObstacle[]
   characterById?: Map<number, Character>
@@ -363,6 +365,15 @@ function resolveTokenStatusDefinition(
   return statusDefinitionByName.get(normalizedStatus) ?? null
 }
 
+function resolveTokenFogVisibility(
+  source: BattleTokenOverlayProps["tokenFogVisibilityByNumber"],
+  tokenNumber: number,
+): BattleTokenFogVisibility {
+  if (!source) return "visible"
+  if (source instanceof Map) return source.get(tokenNumber) ?? "visible"
+  return source[tokenNumber] ?? "visible"
+}
+
 function parseStatusDurationTurnsInput(value: string) {
   const trimmed = value.trim()
   if (!trimmed) {
@@ -566,6 +577,7 @@ function SelectedObstacleToolbar({ obstacle, renderedPosition, onRemoveObstacle 
 
 type BattleTokenItemProps = {
   token: BattleToken
+  fogVisibility: BattleTokenFogVisibility
   linkedCharacter: Character | null
   tokenStatusDefinition: BattleConditionDefinition | null
   renderedPosition: TokenPosition
@@ -584,6 +596,7 @@ type BattleTokenItemProps = {
 
 function BattleTokenItem({
   token,
+  fogVisibility,
   linkedCharacter,
   tokenStatusDefinition,
   renderedPosition,
@@ -604,6 +617,7 @@ function BattleTokenItem({
   const isDeadEnemy = isEnemy && (token.life ?? 1) <= 0
   const isDefeated = typeof token.life === "number" && token.life <= 0
   const isHidden = Boolean(token.hidden)
+  const isFogDimmed = fogVisibility === "dim"
   const isCurrentTurn = !neutralPalette && !isHidden && currentTurnTokenNumber !== null && token.number === currentTurnTokenNumber
   const isGhosted = isHidden && ghostHiddenTokens
   const tokenImagePresentation = resolveBattleTokenImagePresentation({
@@ -621,7 +635,7 @@ function BattleTokenItem({
   return (
     <button
       type="button"
-      className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : ""}`}
+      className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : isFogDimmed ? "opacity-70" : ""}`}
       data-battle-wheel-stop="true"
       style={{
         left: `${renderedPosition.x}%`,
@@ -714,7 +728,7 @@ function BattleTokenItem({
           </>
         ) : null}
         <span
-          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
+          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${isFogDimmed ? "brightness-75 saturate-50" : ""} ${
             neutralPalette
               ? tokenImage
                 ? ""
@@ -740,6 +754,7 @@ function BattleTokenItem({
           ) : (
             token.sourceType === "monster" ? "X" : token.number
           )}
+          {isFogDimmed ? <span className="pointer-events-none absolute inset-0 bg-slate-950/35" aria-hidden="true" /> : null}
         </span>
         {shouldShowTokenNumberBadge ? (
           <span
@@ -1040,6 +1055,7 @@ function BattleTokenInspector({
 
 export function BattleTokenOverlay({
   tokens,
+  tokenFogVisibilityByNumber,
   statusDefinitions = [],
   obstacles = [],
   characterById,
@@ -1116,12 +1132,14 @@ export function BattleTokenOverlay({
 
   const orderedTokens = useMemo(
     () =>
-      (hideHiddenTokens ? tokens.filter((token) => !token.hidden) : [...tokens]).sort((left, right) => {
+      (hideHiddenTokens ? tokens.filter((token) => !token.hidden) : [...tokens])
+        .filter((token) => resolveTokenFogVisibility(tokenFogVisibilityByNumber, token.number) !== "hidden")
+        .sort((left, right) => {
         if (left.number === selectedTokenNumber) return 1
         if (right.number === selectedTokenNumber) return -1
         return left.number - right.number
       }),
-    [hideHiddenTokens, selectedTokenNumber, tokens],
+    [hideHiddenTokens, selectedTokenNumber, tokenFogVisibilityByNumber, tokens],
   )
 
   const orderedObstacles = useMemo(
@@ -1752,11 +1770,13 @@ export function BattleTokenOverlay({
           typeof token.characterId === "number" ? (characterById?.get(token.characterId) ?? null) : null
         const tokenStatusDefinition = resolveTokenStatusDefinition(token.status, statusDefinitionByName)
         const renderedPosition = tokenPreviewPositions[token.number] ?? transformPosition({ x: token.x, y: token.y })
+        const fogVisibility = resolveTokenFogVisibility(tokenFogVisibilityByNumber, token.number)
 
         return (
           <BattleTokenItem
             key={`token-${token.number}`}
             token={token}
+            fogVisibility={fogVisibility}
             linkedCharacter={linkedCharacter}
             tokenStatusDefinition={tokenStatusDefinition}
             renderedPosition={renderedPosition}

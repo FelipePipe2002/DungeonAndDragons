@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ReactNode,
   type ChangeEvent as ReactChangeEvent,
   type ClipboardEvent as ReactClipboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils"
 
 type ImageEmbeddingSource = "url" | "pasted" | "uploaded"
 type ImageEmbeddingUsage = "character" | "organization" | "landmark-map" | "generic"
-type ImageEmbeddingPreviewMode = "fill" | "fitHeight"
+type ImageEmbeddingPreviewMode = "fill" | "fitHeight" | "contain"
 
 interface ImageEmbeddingPickerProps {
   value?: string
@@ -31,6 +32,9 @@ interface ImageEmbeddingPickerProps {
   replaceOnClick?: boolean
   editable?: boolean
   onRequestEdit?: () => void
+  showUrlControls?: boolean
+  compact?: boolean
+  overlayTopRight?: ReactNode
 }
 
 function isLikelyImageReference(value: string) {
@@ -136,6 +140,9 @@ export function ImageEmbeddingPicker({
   replaceOnClick = false,
   editable = true,
   onRequestEdit,
+  showUrlControls = true,
+  compact = false,
+  overlayTopRight,
 }: ImageEmbeddingPickerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [urlValue, setUrlValue] = useState("")
@@ -244,6 +251,19 @@ export function ImageEmbeddingPicker({
   }
 
   const handlePreviewContextMenu = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (event.ctrlKey) {
+      event.preventDefault()
+
+      if (!editable) {
+        onRequestEdit?.()
+        return
+      }
+
+      onChange("", null)
+      setUrlValue("")
+      return
+    }
+
     if (!event.shiftKey) return
     event.preventDefault()
 
@@ -294,7 +314,11 @@ export function ImageEmbeddingPicker({
               src={currentValue}
               alt={label}
               className={
-                previewMode === "fitHeight" ? "h-full w-auto object-contain" : "size-full object-cover"
+                previewMode === "fitHeight"
+                  ? "h-full w-auto object-contain"
+                  : previewMode === "contain"
+                    ? "size-full object-contain"
+                    : "size-full object-cover"
               }
             />
           ) : (
@@ -307,18 +331,30 @@ export function ImageEmbeddingPicker({
             {editable ? (
               <>
                 <ImagePlus className="size-6 opacity-40" />
-                <span className="text-xs uppercase tracking-wider opacity-70">
-                  Cargar Imagen
-                </span>
+                {!compact ? (
+                  <span className="text-xs uppercase tracking-wider opacity-70">
+                    Cargar Imagen
+                  </span>
+                ) : null}
               </>
             ) : (
               <span className="text-xs uppercase tracking-wider opacity-70">Sin imagen</span>
             )}
           </div>
         )}
+
+        {overlayTopRight ? (
+          <div
+            className="absolute right-1 top-1 z-10"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {overlayTopRight}
+          </div>
+        ) : null}
       </button>
 
-      {!hasImage && editable &&
+      {!hasImage && editable && showUrlControls &&
         (
           <div className="mt-2 flex gap-2">
             <Input

@@ -2,6 +2,7 @@ package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.BattleObstacleData;
 import com.sistema.dnd.sistema.dto.domain.BattleCenterHistoryDto;
+import com.sistema.dnd.sistema.dto.domain.BattleDungeonFogData;
 import com.sistema.dnd.sistema.dto.domain.BattleFogRevealData;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
 import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
@@ -36,17 +37,20 @@ public class BattleStateService {
     private final BattleStateJsonCodec battleStateJsonCodec;
     private final BattleObstacleJsonCodec battleObstacleJsonCodec;
     private final BattleFogRevealJsonCodec battleFogRevealJsonCodec;
+    private final BattleDungeonFogJsonCodec battleDungeonFogJsonCodec;
 
     public BattleStateService(
         BattleStateRepository battleStateRepository,
         BattleStateJsonCodec battleStateJsonCodec,
         BattleObstacleJsonCodec battleObstacleJsonCodec,
-        BattleFogRevealJsonCodec battleFogRevealJsonCodec
+        BattleFogRevealJsonCodec battleFogRevealJsonCodec,
+        BattleDungeonFogJsonCodec battleDungeonFogJsonCodec
     ) {
         this.battleStateRepository = battleStateRepository;
         this.battleStateJsonCodec = battleStateJsonCodec;
         this.battleObstacleJsonCodec = battleObstacleJsonCodec;
         this.battleFogRevealJsonCodec = battleFogRevealJsonCodec;
+        this.battleDungeonFogJsonCodec = battleDungeonFogJsonCodec;
     }
 
     public BattleStateDto findCurrent() {
@@ -171,6 +175,7 @@ public class BattleStateService {
         entity.setFogEnabled(false);
         entity.setNextFogRevealId(1);
         entity.setFogRevealsJson("[]");
+        entity.setDungeonFogJson(battleDungeonFogJsonCodec.write(normalizeDungeonFog(null)));
 
         return toDto(battleStateRepository.save(entity));
     }
@@ -183,6 +188,7 @@ public class BattleStateService {
         List<BattleTokenData> normalizedTokens = normalizeTokens(request == null ? null : request.tokens());
         List<BattleObstacleData> normalizedObstacles = normalizeObstacles(request == null ? null : request.obstacles());
         List<BattleFogRevealData> normalizedFogReveals = normalizeFogReveals(request == null ? null : request.fogReveals());
+        BattleDungeonFogData normalizedDungeonFog = normalizeDungeonFog(request == null ? null : request.dungeonFog());
         Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
             request == null ? null : request.currentTurnTokenNumber(),
             normalizedTokens
@@ -199,6 +205,7 @@ public class BattleStateService {
         entity.setFogEnabled(request != null && Boolean.TRUE.equals(request.fogEnabled()));
         entity.setNextFogRevealId(resolveNextFogRevealId(request == null ? null : request.nextFogRevealId(), normalizedFogReveals));
         entity.setFogRevealsJson(battleFogRevealJsonCodec.write(normalizedFogReveals));
+        entity.setDungeonFogJson(battleDungeonFogJsonCodec.write(normalizedDungeonFog));
         entity.setEndedAt(null);
 
         return toDto(battleStateRepository.save(entity));
@@ -334,6 +341,7 @@ public class BattleStateService {
         List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
         List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
         List<BattleFogRevealData> fogReveals = normalizeFogReveals(battleFogRevealJsonCodec.read(entity.getFogRevealsJson()));
+        BattleDungeonFogData dungeonFog = normalizeDungeonFog(battleDungeonFogJsonCodec.read(entity.getDungeonFogJson()));
         Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(entity.getCurrentTurnTokenNumber(), tokens);
 
         return new BattleStateDto(
@@ -354,6 +362,7 @@ public class BattleStateService {
             Boolean.TRUE.equals(entity.getFogEnabled()),
             resolveNextFogRevealId(entity.getNextFogRevealId(), fogReveals),
             fogReveals,
+            dungeonFog,
             entity.getCreatedAt(),
             entity.getUpdatedAt(),
             entity.getEndedAt()
@@ -394,6 +403,27 @@ public class BattleStateService {
             .map(this::normalizeFogReveal)
             .sorted(Comparator.comparing(BattleFogRevealData::id))
             .collect(Collectors.toList());
+    }
+
+    private BattleDungeonFogData normalizeDungeonFog(BattleDungeonFogData dungeonFog) {
+        List<String> exploredCellKeys = dungeonFog == null || dungeonFog.exploredCellKeys() == null
+            ? List.of()
+            : dungeonFog.exploredCellKeys().stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> value.matches("^-?\\d+,-?\\d+$"))
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        int brightRadius = clampInt(dungeonFog == null ? null : dungeonFog.playerVisionBrightRadiusCells(), 4, 0, 64);
+        int dimRadius = clampInt(dungeonFog == null ? null : dungeonFog.playerVisionDimRadiusCells(), 8, brightRadius, 128);
+
+        return new BattleDungeonFogData(
+            dungeonFog != null && Boolean.TRUE.equals(dungeonFog.enabled()),
+            exploredCellKeys,
+            brightRadius,
+            dimRadius
+        );
     }
 
     private Integer normalizeCurrentTurnTokenNumber(Integer requestedCurrentTurnTokenNumber, List<BattleTokenData> tokens) {
@@ -748,6 +778,11 @@ public class BattleStateService {
             return fallback;
         }
         return value;
+    }
+
+    private int clampInt(Integer value, int fallback, int min, int max) {
+        int normalized = value == null ? fallback : value;
+        return Math.max(min, Math.min(max, normalized));
     }
 
     private Integer positiveOptionalInt(Integer value) {

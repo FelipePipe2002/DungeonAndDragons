@@ -77,6 +77,10 @@ public class CharacterService {
         return characterRepository.findAll().stream().map(domainMapper::toCharacterDto).toList();
     }
 
+    public List<CharacterDto> findByPlayer(boolean player) {
+        return characterRepository.findByPlayerOrderByNombreAsc(player).stream().map(domainMapper::toCharacterDto).toList();
+    }
+
     public CharacterDto findById(Long id) {
         CharacterEntity entity = characterRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Personaje no encontrado"));

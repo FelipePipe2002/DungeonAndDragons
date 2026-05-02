@@ -46,6 +46,7 @@ public record LandmarkUpsertRequest(
     Double mapGridOffsetY,
     String organizationMapLinks,
     String hiddenMapBuildings,
+    String dungeonGeneratorConfig,
     @Valid LandmarkMapRequest mapa,
     Long mapAssetId
 ) {

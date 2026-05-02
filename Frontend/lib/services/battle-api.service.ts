@@ -5,6 +5,7 @@ import { backendRequest } from "@/lib/services/backend-api.service"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import type {
   BattleCenterHistory,
+  BattleDungeonFogState,
   BattleFogReveal,
   BattleObstacle,
   BattleObstacleShape,
@@ -57,6 +58,13 @@ type BattleFogRevealDto = {
   height?: number | null
 }
 
+type BattleDungeonFogStateDto = {
+  enabled?: boolean | null
+  exploredCellKeys?: string[] | null
+  playerVisionBrightRadiusCells?: number | null
+  playerVisionDimRadiusCells?: number | null
+}
+
 type BattleStateDto = {
   id?: number | null
   slug?: string | null
@@ -76,6 +84,7 @@ type BattleStateDto = {
   fogEnabled?: boolean | null
   nextFogRevealId?: number | null
   fogReveals?: BattleFogRevealDto[] | null
+  dungeonFog?: BattleDungeonFogStateDto | null
   createdAt?: string | null
   updatedAt?: string | null
   endedAt?: string | null
@@ -154,6 +163,7 @@ type UpdateBattlePayload = {
     width: number
     height: number
   }>
+  dungeonFog: BattleDungeonFogState
 }
 
 type CreateBattleInput =
@@ -349,6 +359,36 @@ function normalizeFogReveal(dto: BattleFogRevealDto): BattleFogReveal {
   }
 }
 
+function normalizeDungeonFogRadius(value: number | null | undefined, fallback: number, min: number, max: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return Math.round(clamp(fallback, min, max))
+  }
+
+  return Math.round(clamp(value, min, max))
+}
+
+function normalizeDungeonFogState(dto: BattleDungeonFogStateDto | null | undefined): BattleDungeonFogState {
+  const brightRadius = normalizeDungeonFogRadius(dto?.playerVisionBrightRadiusCells, 4, 0, 64)
+  const dimRadius = normalizeDungeonFogRadius(dto?.playerVisionDimRadiusCells, 8, brightRadius, 128)
+  const exploredCellKeys = Array.isArray(dto?.exploredCellKeys)
+    ? Array.from(
+        new Set(
+          dto.exploredCellKeys
+            .filter((key): key is string => typeof key === "string")
+            .map((key) => key.trim())
+            .filter((key) => /^-?\d+,-?\d+$/.test(key)),
+        ),
+      ).sort((left, right) => left.localeCompare(right))
+    : []
+
+  return {
+    enabled: Boolean(dto?.enabled),
+    exploredCellKeys,
+    playerVisionBrightRadiusCells: brightRadius,
+    playerVisionDimRadiusCells: dimRadius,
+  }
+}
+
 function compactBattleTokenNumbers(tokens: BattleToken[], currentTurnTokenNumber?: number | null) {
   const sortedTokens = [...tokens].sort((left, right) => left.number - right.number)
   const normalizedCurrentTurn =
@@ -384,6 +424,7 @@ function normalizeState(dto: BattleStateDto): BattleState {
   const compactedTokens = compactBattleTokenNumbers(tokens, dto.currentTurnTokenNumber ?? null)
   const obstacles = Array.isArray(dto.obstacles) ? dto.obstacles.map(normalizeObstacle) : []
   const fogReveals = Array.isArray(dto.fogReveals) ? dto.fogReveals.map(normalizeFogReveal) : []
+  const dungeonFog = normalizeDungeonFogState(dto.dungeonFog)
   const sceneSlug = resolveLegacyBattleSceneSlug(dto)
   const parentLandmarkSlug = resolveLegacyBattleParentLandmarkSlug(dto)
   const sortedObstacles = obstacles.sort((a, b) => a.id - b.id)
@@ -421,6 +462,7 @@ function normalizeState(dto: BattleStateDto): BattleState {
     nextObstacleId: minNextObstacleId,
     fogEnabled: Boolean(dto.fogEnabled),
     nextFogRevealId: minNextFogRevealId,
+    dungeonFog,
     currentTurnTokenNumber: normalizeCurrentTurnTokenNumber(
       compactedTokens.tokens,
       compactedTokens.currentTurnTokenNumber ?? dto.currentTurnTokenNumber ?? null,
@@ -475,6 +517,7 @@ function toPayload(input: BattleState): UpdateBattlePayload {
   const compactedTokens = compactBattleTokenNumbers(tokens, input.currentTurnTokenNumber ?? null)
   const obstacles = Array.isArray(input.obstacles) ? input.obstacles : []
   const fogReveals = Array.isArray(input.fogReveals) ? input.fogReveals : []
+  const dungeonFog = normalizeDungeonFogState(input.dungeonFog)
   const normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
     compactedTokens.tokens,
     compactedTokens.currentTurnTokenNumber ?? input.currentTurnTokenNumber ?? null,
@@ -593,6 +636,7 @@ function toPayload(input: BattleState): UpdateBattlePayload {
         height,
       }
     }),
+    dungeonFog,
   }
 }
 

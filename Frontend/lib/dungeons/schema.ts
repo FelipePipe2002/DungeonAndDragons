@@ -71,6 +71,7 @@ export const DUNGEON_MAP_SCHEMA_DEFAULTS = {
     corridors: [],
     doors: [],
     markers: [],
+    lights: [],
   },
   room: {
     kind: "room",
@@ -83,6 +84,13 @@ export const DUNGEON_MAP_SCHEMA_DEFAULTS = {
   marker: {
     label: null,
   },
+  light: {
+    enabled: true,
+    label: null,
+    placement: null,
+    wallMounted: false,
+    orientation: "south",
+  },
 } as const
 
 export const DUNGEON_MAP_SCHEMA_INVARIANTS = {
@@ -94,6 +102,7 @@ export const DUNGEON_MAP_SCHEMA_INVARIANTS = {
     "layout.corridors",
     "layout.doors",
     "layout.markers",
+    "layout.lights",
     "room.shape",
     "room.parts",
     "room.mask",
@@ -106,6 +115,11 @@ export const DUNGEON_MAP_SCHEMA_INVARIANTS = {
     "door.direction",
     "door.kind",
     "marker.label",
+    "light.label",
+    "light.enabled",
+    "light.placement",
+    "light.wallMounted",
+    "light.orientation",
   ],
   rejected: [
     'type distinto de "mazmorra"',

@@ -4,10 +4,15 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation"
 
 import { BattleInitiativeStrip } from "@/components/battle/BattleInitiativeStrip"
+import { BattleDungeonFogOverlay } from "@/components/battle/BattleDungeonFogOverlay"
 import { BattleFogOverlay } from "@/components/battle/BattleFogOverlay"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import { BATTLE_CONDITIONS } from "@/lib/battle/conditions"
-import { isBattleTokenNumberVisibleThroughFog, isBattleTokenVisibleThroughFog } from "@/lib/battle/fog"
+import {
+  calculateBattleDungeonFogVisibility,
+  getBattleTokenFogVisibility,
+  type BattleTokenFogVisibility,
+} from "@/lib/battle/fog"
 import {
   BATTLE_SCREEN_PRESENTATION_MIRROR_STORAGE_KEY,
   BATTLE_SCREEN_STORAGE_KEY,
@@ -15,7 +20,8 @@ import {
   readBattleScreenPayload,
   subscribeToBattleScreenEvents,
 } from "@/lib/battle/sync"
-import type { BattleState, Character } from "@/lib/types"
+import type { BattleState, BattleToken, Character } from "@/lib/types"
+import type { DungeonMapPoint, NormalizedDungeonMap } from "@/lib/dungeons/types"
 import { fetchActiveBattle, sanitizeBattleState } from "@/lib/services/battle-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { LandmarkMapOnlyClient } from "./LandmarkMapOnlyClient"
@@ -74,6 +80,16 @@ function resolvePresentationTarget(requestedTarget: PresentationScreenTarget | n
   }
 }
 
+function tokenToDungeonCell(token: Pick<BattleToken, "x" | "y">, dungeon: NormalizedDungeonMap): DungeonMapPoint {
+  const width = Math.max(1, dungeon.bounds.width)
+  const height = Math.max(1, dungeon.bounds.height)
+
+  return {
+    x: Math.min(width - 1, Math.max(0, Math.floor((token.x / 100) * width))),
+    y: Math.min(height - 1, Math.max(0, Math.floor((token.y / 100) * height))),
+  }
+}
+
 function PresentationFallbackImage() {
   return <PresentationCover className="absolute inset-0" />
 }
@@ -110,6 +126,7 @@ function PresentationPageContent() {
   const [showPresentationLabel, setShowPresentationLabel] = useState(true)
   const [isBlackout, setIsBlackout] = useState(false)
   const [isBlackoutImageVerticallyFlipped, setIsBlackoutImageVerticallyFlipped] = useState(false)
+  const [presentationDungeon, setPresentationDungeon] = useState<NormalizedDungeonMap | null>(null)
   const [isVerticallyMirrored, setIsVerticallyMirrored] = useState(() => readBattleScreenPresentationVerticalMirror())
   const [isFriendlyPresentationMode, setIsFriendlyPresentationMode] = useState(() => {
     return readBattleScreenPayload()?.presentationFriendlyMode === true
@@ -232,6 +249,8 @@ function PresentationPageContent() {
     const currentSceneKey = presentationTarget
       ? `${presentationTarget.sceneType}:${presentationTarget.sceneSlug}`
       : null
+
+    setPresentationDungeon(null)
 
     if (currentSceneKey && currentSceneKey !== lastPresentedSceneKeyRef.current) {
       setIsBlackout(true)
@@ -600,22 +619,70 @@ function PresentationPageContent() {
     renderedBattleState.sceneSlug === presentationTarget.sceneSlug
       ? renderedBattleState
       : null
+
+  const battleDungeonFogContext = useMemo(() => {
+    if (!visibleBattle?.dungeonFog.enabled || !presentationDungeon) {
+      return null
+    }
+
+    const tokenCellsByNumber = new Map(
+      visibleBattle.tokens.map((token) => [token.number, tokenToDungeonCell(token, presentationDungeon)] as const),
+    )
+
+    return {
+      visibility: calculateBattleDungeonFogVisibility({
+        dungeonFog: visibleBattle.dungeonFog,
+        bounds: {
+          width: presentationDungeon.bounds.width,
+          height: presentationDungeon.bounds.height,
+        },
+      }),
+      tokenCellsByNumber,
+    }
+  }, [presentationDungeon, visibleBattle])
+
+  const tokenFogVisibilityByNumber = useMemo(() => {
+    const visibilityByNumber = new Map<number, BattleTokenFogVisibility>()
+    if (!visibleBattle) {
+      return visibilityByNumber
+    }
+
+    for (const token of visibleBattle.tokens) {
+      if (visibleBattle.dungeonFog.enabled && !battleDungeonFogContext) {
+        visibilityByNumber.set(token.number, token.type === "enemy" ? "hidden" : "visible")
+        continue
+      }
+
+      visibilityByNumber.set(
+        token.number,
+        getBattleTokenFogVisibility({
+          battle: visibleBattle,
+          token,
+          dungeonVisibility: battleDungeonFogContext?.visibility ?? null,
+          tokenCell: battleDungeonFogContext?.tokenCellsByNumber.get(token.number) ?? null,
+        }),
+      )
+    }
+
+    return visibilityByNumber
+  }, [battleDungeonFogContext, visibleBattle])
+
   const visiblePresentationTokens = useMemo(() => {
     if (!visibleBattle) {
       return []
     }
 
-    return visibleBattle.tokens.filter((token) => isBattleTokenVisibleThroughFog(visibleBattle, token))
-  }, [visibleBattle])
+    return visibleBattle.tokens.filter((token) => tokenFogVisibilityByNumber.get(token.number) !== "hidden")
+  }, [tokenFogVisibilityByNumber, visibleBattle])
   const visibleInitiativeCurrentTurnTokenNumber = useMemo(() => {
     if (!visibleBattle || typeof visibleBattle.currentTurnTokenNumber !== "number") {
       return null
     }
 
-    return isBattleTokenNumberVisibleThroughFog(visibleBattle, visibleBattle.currentTurnTokenNumber)
+    return tokenFogVisibilityByNumber.get(visibleBattle.currentTurnTokenNumber) !== "hidden"
       ? visibleBattle.currentTurnTokenNumber
       : null
-  }, [visibleBattle])
+  }, [tokenFogVisibilityByNumber, visibleBattle])
   const charactersById = useMemo(
     () => new Map(characters.map((character) => [character.id, character])),
     [characters],
@@ -632,6 +699,8 @@ function PresentationPageContent() {
           emptyFallbackImageSrc="/presentacion.png"
           onSceneReady={handleSceneReady}
           onSceneLoadError={handleSceneLoadError}
+          onDungeonMapLoad={setPresentationDungeon}
+          showDungeonLighting
           flipVertical={isVerticallyMirrored}
           showBattleGrid={!isFriendlyPresentationMode}
           topOverlay={
@@ -649,6 +718,7 @@ function PresentationPageContent() {
               <div className="relative size-full">
                 <BattleTokenOverlay
                   tokens={visiblePresentationTokens}
+                  tokenFogVisibilityByNumber={tokenFogVisibilityByNumber}
                   statusDefinitions={BATTLE_CONDITIONS}
                   obstacles={visibleBattle.obstacles}
                   characterById={charactersById}
@@ -657,11 +727,20 @@ function PresentationPageContent() {
                   hideHiddenTokens
                   neutralPalette={isFriendlyPresentationMode}
                 />
-                <BattleFogOverlay
-                  fogEnabled={visibleBattle.fogEnabled}
-                  fogReveals={visibleBattle.fogReveals}
-                  verticalMirror={isVerticallyMirrored}
-                />
+                {battleDungeonFogContext ? (
+                  <BattleDungeonFogOverlay
+                    fogEnabled={visibleBattle.dungeonFog.enabled}
+                    visibilityMap={battleDungeonFogContext.visibility}
+                    overlayOpacity={1}
+                    blocksPointerEvents
+                  />
+                ) : (
+                  <BattleFogOverlay
+                    fogEnabled={visibleBattle.fogEnabled}
+                    fogReveals={visibleBattle.fogReveals}
+                    verticalMirror={isVerticallyMirrored}
+                  />
+                )}
               </div>
             ) : null
           }

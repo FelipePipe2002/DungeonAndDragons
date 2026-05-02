@@ -87,8 +87,17 @@ type BuildingRefDto = {
   duenoId?: number | null
 }
 
+type FetchCharactersOptions = {
+  forceRefresh?: boolean
+  isPlayer?: boolean
+}
+
 let charactersCache: Character[] | null = null
+let playerCharactersCache: Character[] | null = null
+let npcCharactersCache: Character[] | null = null
 let charactersPromise: Promise<Character[]> | null = null
+let playerCharactersPromise: Promise<Character[]> | null = null
+let npcCharactersPromise: Promise<Character[]> | null = null
 const characterByIdCache = new Map<number, Character>()
 
 function toOptionalText(value: string | null | undefined): string | undefined {
@@ -252,30 +261,59 @@ export async function fetchCharacterReferences(forceRefresh = false): Promise<Ch
   return { landmarks, buildings, organizations }
 }
 
-export async function fetchCharacters(forceRefresh = false): Promise<Character[]> {
-  if (!forceRefresh && charactersCache) {
-    return charactersCache
+export async function fetchCharacters(options: boolean | FetchCharactersOptions = false): Promise<Character[]> {
+  const forceRefresh = typeof options === "boolean" ? options : options.forceRefresh === true
+  const isPlayer = typeof options === "boolean" ? undefined : options.isPlayer
+  const scopedCache = isPlayer === true ? playerCharactersCache : isPlayer === false ? npcCharactersCache : charactersCache
+  const scopedPromise = isPlayer === true ? playerCharactersPromise : isPlayer === false ? npcCharactersPromise : charactersPromise
+
+  if (!forceRefresh && scopedCache) {
+    return scopedCache
   }
 
-  if (!forceRefresh && charactersPromise) {
-    return charactersPromise
+  if (!forceRefresh && scopedPromise) {
+    return scopedPromise
   }
 
-  const pendingRequest = backendRequest<CharacterApiDto[]>("/v1/characters")
+  const path = typeof isPlayer === "boolean" ? `/v1/characters?isPlayer=${isPlayer}` : "/v1/characters"
+  const pendingRequest = backendRequest<CharacterApiDto[]>(path)
     .then((response) => {
       const characters = response.map(toCharacter)
-      characterByIdCache.clear()
       for (const character of characters) {
         characterByIdCache.set(character.id, character)
       }
-      charactersCache = characters
+      if (isPlayer === true) {
+        playerCharactersCache = characters
+      } else if (isPlayer === false) {
+        npcCharactersCache = characters
+      } else {
+        characterByIdCache.clear()
+        for (const character of characters) {
+          characterByIdCache.set(character.id, character)
+        }
+        charactersCache = characters
+        playerCharactersCache = characters.filter((character) => character.isPlayer)
+        npcCharactersCache = characters.filter((character) => !character.isPlayer)
+      }
       return characters
     })
     .finally(() => {
-      charactersPromise = null
+      if (isPlayer === true) {
+        playerCharactersPromise = null
+      } else if (isPlayer === false) {
+        npcCharactersPromise = null
+      } else {
+        charactersPromise = null
+      }
     })
 
-  charactersPromise = pendingRequest
+  if (isPlayer === true) {
+    playerCharactersPromise = pendingRequest
+  } else if (isPlayer === false) {
+    npcCharactersPromise = pendingRequest
+  } else {
+    charactersPromise = pendingRequest
+  }
   return pendingRequest
 }
 
@@ -299,6 +337,10 @@ export async function createCharacter(input: Omit<Character, "id">): Promise<Cha
 
   charactersCache = null
   charactersPromise = null
+  playerCharactersCache = null
+  playerCharactersPromise = null
+  npcCharactersCache = null
+  npcCharactersPromise = null
   const character = toCharacter(response)
   characterByIdCache.set(character.id, character)
   return character
@@ -312,6 +354,10 @@ export async function updateCharacter(characterId: number, input: Omit<Character
 
   charactersCache = null
   charactersPromise = null
+  playerCharactersCache = null
+  playerCharactersPromise = null
+  npcCharactersCache = null
+  npcCharactersPromise = null
   const character = toCharacter(response)
   characterByIdCache.set(character.id, character)
   return character
@@ -324,5 +370,9 @@ export async function deleteCharacter(characterId: number): Promise<void> {
 
   charactersCache = null
   charactersPromise = null
+  playerCharactersCache = null
+  playerCharactersPromise = null
+  npcCharactersCache = null
+  npcCharactersPromise = null
   characterByIdCache.delete(characterId)
 }

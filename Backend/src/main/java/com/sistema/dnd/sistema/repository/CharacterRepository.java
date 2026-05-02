@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CharacterRepository extends JpaRepository<CharacterEntity, Long> {
 
+    List<CharacterEntity> findByPlayerOrderByNombreAsc(boolean player);
+
     List<CharacterEntity> findByLandmarkIdOrderByNombreAsc(Long landmarkId);
 
     boolean existsByImagenAsset_Id(Long imagenAssetId);

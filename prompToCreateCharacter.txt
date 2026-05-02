@@ -1,0 +1,38 @@
+Ilustración 2D estilo cómic semi-realista para fantasía (tipo Dungeons & Dragons).
+
+FORMATO:
+Vertical / portrait, half-body (cintura para arriba), manos visibles
+Composición: centrada, personaje en encuadre limpio y claro
+
+PERSONAJE / SUJETO:
+{descripcion_personaje}
+(apariencia, raza, actitud, expresión, detalles físicos)
+
+ROPA / EQUIPAMIENTO:
+{ropa_y_objetos}
+(materiales, desgaste, accesorios, detalles únicos)
+
+ACCIÓN:
+{accion}
+(qué está haciendo el personaje)
+
+PROPS / ELEMENTOS SECUNDARIOS:
+{props}
+(objetos cercanos, detalles ambientales sutiles)
+
+FONDO:
+{fondo}
+(simple, gradiente, taberna suave, bosque desenfocado, etc.)
+
+ESTILO ARTÍSTICO:
+Líneas entintadas claras y definidas con grosor moderado, sin exceso de negro.
+Sombreado suave a medio con transiciones visibles.
+Textura ligera tipo papel o pincel seco.
+Paleta de colores cálidos y naturales (madera, cuero, ámbar, ocres).
+Iluminación general clara, difusa y legible.
+Acabado limpio, ligeramente estilizado, con desgaste sutil en materiales.
+
+NEGATIVOS:
+no 3D, no fotorrealista, no anime, no cel shading duro, no neón,
+no colores ultra saturados, no sombras negras profundas,
+no iluminación dramática extrema, no estilo CGI

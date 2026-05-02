@@ -46,6 +46,7 @@ import {
   findBattleConditionByName,
   normalizeBattleConditionStatus,
 } from "@/lib/battle/conditions"
+import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
 import type { MonsterListItem, MonsterRecord } from "@/lib/monster/types"
 import { extractMonsterInitiativeModifier, resolveMonsterImage } from "@/lib/monster/utils"
 import { getOrderedInitiativeTokens, normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
@@ -285,7 +286,10 @@ function isLandmarkEligibleForBattle(landmark: Landmark) {
   const persistedMapReference = getLandmarkMapReference(landmark)
   const mapMode = resolveLandmarkMapMode(landmark, persistedMapReference)
 
-  return Boolean(persistedMapReference) && mapMode === "image" && Boolean(landmark.mapGridEnabled)
+  if (!persistedMapReference) return false
+  if (mapMode === "dungeon-json") return true
+
+  return mapMode === "image" && Boolean(landmark.mapGridEnabled)
 }
 
 function getBuildingMapReference(building: Building) {
@@ -393,6 +397,10 @@ function sortBattleState(battle: BattleState): BattleState {
     tokens,
     obstacles: [...normalizedBattle.obstacles].sort((left, right) => left.id - right.id),
     fogReveals: [...normalizedBattle.fogReveals].sort((left, right) => left.id - right.id),
+    dungeonFog: {
+      ...normalizedBattle.dungeonFog,
+      exploredCellKeys: [...normalizedBattle.dungeonFog.exploredCellKeys].sort((left, right) => left.localeCompare(right)),
+    },
   }
 }
 
@@ -401,7 +409,43 @@ function isLandmarkFogSupported(landmark: Landmark | null) {
     return true
   }
 
-  return resolveLandmarkMapMode(landmark, getLandmarkMapReference(landmark)) === "image"
+  const mapMode = resolveLandmarkMapMode(landmark, getLandmarkMapReference(landmark))
+  return mapMode === "image" || mapMode === "dungeon-json"
+}
+
+function getLandmarkFogMode(landmark: Landmark | null): "legacy-image" | "dungeon-json" | "unsupported" {
+  if (!landmark) return "legacy-image"
+
+  const mapMode = resolveLandmarkMapMode(landmark, getLandmarkMapReference(landmark))
+  if (mapMode === "dungeon-json") return "dungeon-json"
+  if (mapMode === "image") return "legacy-image"
+  return "unsupported"
+}
+
+function dungeonCellKeysForPercentArea(area: Omit<BattleFogReveal, "id">, dungeon: NormalizedDungeonMap) {
+  const width = Math.max(1, dungeon.bounds.width)
+  const height = Math.max(1, dungeon.bounds.height)
+  const left = Math.min(area.x, area.x + area.width)
+  const right = Math.max(area.x, area.x + area.width)
+  const top = Math.min(area.y, area.y + area.height)
+  const bottom = Math.max(area.y, area.y + area.height)
+  const keys: string[] = []
+
+  for (let y = 0; y < height; y++) {
+    const centerY = ((y + 0.5) / height) * 100
+    if (centerY < top || centerY > bottom) {
+      continue
+    }
+
+    for (let x = 0; x < width; x++) {
+      const centerX = ((x + 0.5) / width) * 100
+      if (centerX >= left && centerX <= right) {
+        keys.push(`${x},${y}`)
+      }
+    }
+  }
+
+  return keys
 }
 
 function isBuildingFogSupported(building: Building | null) {
@@ -510,6 +554,7 @@ function isTurnOnlyBattleChange(previous: BattleState | null, next: BattleState 
     previous.nextObstacleId === next.nextObstacleId &&
     previous.fogEnabled === next.fogEnabled &&
     previous.nextFogRevealId === next.nextFogRevealId &&
+    previous.dungeonFog === next.dungeonFog &&
     previous.tokens === next.tokens &&
     previous.obstacles === next.obstacles &&
     previous.fogReveals === next.fogReveals &&
@@ -625,6 +670,7 @@ export function BattlePageClient() {
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [activeBattle, setActiveBattle] = useState<BattleState | null>(null)
   const [selectedBattle, setSelectedBattle] = useState<BattleState | null>(null)
+  const [displayedDungeon, setDisplayedDungeon] = useState<NormalizedDungeonMap | null>(null)
   const [selectedSceneKey, setSelectedSceneKey] = useState<string | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [isBattleLoading, setIsBattleLoading] = useState(false)
@@ -1114,6 +1160,14 @@ export function BattlePageClient() {
     () => eligibleBattleScenes.find((entry) => entry.key === selectedSceneKey) ?? null,
     [eligibleBattleScenes, selectedSceneKey],
   )
+  const selectedSceneLandmark = useMemo(() => {
+    if (!selectedScene || selectedScene.sceneType !== "landmark") {
+      return null
+    }
+
+    return landmarks.find((landmark) => landmarkNameToSlug(landmark.nombre) === selectedScene.sceneSlug) ?? null
+  }, [landmarks, selectedScene])
+  const selectedSceneUsesDungeonJson = selectedScene?.sceneType === "landmark" && getLandmarkFogMode(selectedSceneLandmark) === "dungeon-json"
 
   useEffect(() => {
     if (selectedBattle?.sceneSlug) {
@@ -1660,6 +1714,11 @@ export function BattlePageClient() {
 
     return landmarks.find((landmark) => landmarkNameToSlug(landmark.nombre) === displayedSceneTarget.sceneSlug) ?? null
   }, [displayedSceneTarget, landmarks])
+  const landmarkFogMode = useMemo(
+    () => getLandmarkFogMode(displayedSceneLandmark),
+    [displayedSceneLandmark],
+  )
+  const isDungeonJsonFogMode = displayedSceneTarget?.sceneType === "landmark" && landmarkFogMode === "dungeon-json"
   const isFogOfWarSupported = useMemo(() => {
     if (!displayedSceneTarget) {
       return false
@@ -1675,6 +1734,10 @@ export function BattlePageClient() {
 
     return isLandmarkFogSupported(displayedSceneLandmark)
   }, [displayedSceneBuilding, displayedSceneLandmark, displayedSceneTarget, haveResolvedBuildings])
+
+  useEffect(() => {
+    setDisplayedDungeon(null)
+  }, [displayedSceneTarget?.sceneSlug, displayedSceneTarget?.sceneType])
 
   const openSceneInPresentation = useCallback((target: PresentationScreenTarget) => {
     openPresentationScreen(target)
@@ -1798,7 +1861,9 @@ export function BattlePageClient() {
 
       pushBattleEditHistory(current)
       selectedBattleRef.current = nextBattle
-      setActiveBattle((activeCurrent) => (activeCurrent?.id === nextBattle.id ? nextBattle : activeCurrent))
+      setActiveBattle((activeCurrent) =>
+        activeCurrent?.id === nextBattle.id || nextBattle.status === "active" ? nextBattle : activeCurrent,
+      )
       return nextBattle
     })
   }, [isSelectedBattleEditable, pushBattleEditHistory])
@@ -2720,6 +2785,29 @@ export function BattlePageClient() {
         return
       }
 
+      if (isDungeonJsonFogMode) {
+        if (!displayedDungeon) {
+          return
+        }
+
+        const revealedCellKeys = dungeonCellKeysForPercentArea(draftReveal, displayedDungeon)
+        if (revealedCellKeys.length === 0) {
+          return
+        }
+
+        updateSelectedBattle((current) => ({
+          ...current,
+          dungeonFog: {
+            ...current.dungeonFog,
+            enabled: true,
+            exploredCellKeys: Array.from(new Set([...current.dungeonFog.exploredCellKeys, ...revealedCellKeys])).sort((left, right) =>
+              left.localeCompare(right),
+            ),
+          },
+        }))
+        return
+      }
+
       updateSelectedBattle((current) => {
         const nextReveal: BattleFogReveal = {
           id: current.nextFogRevealId,
@@ -2737,12 +2825,33 @@ export function BattlePageClient() {
         }
       })
     },
-    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+    [displayedDungeon, isDungeonJsonFogMode, isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const coverFogArea = useCallback(
     (coveredArea: Omit<BattleFogReveal, "id">) => {
       if (!isSelectedBattleEditable) {
+        return
+      }
+
+      if (isDungeonJsonFogMode) {
+        if (!displayedDungeon) {
+          return
+        }
+
+        const coveredCellKeys = new Set(dungeonCellKeysForPercentArea(coveredArea, displayedDungeon))
+        if (coveredCellKeys.size === 0) {
+          return
+        }
+
+        updateSelectedBattle((current) => ({
+          ...current,
+          dungeonFog: {
+            ...current.dungeonFog,
+            enabled: true,
+            exploredCellKeys: current.dungeonFog.exploredCellKeys.filter((key) => !coveredCellKeys.has(key)),
+          },
+        }))
         return
       }
 
@@ -2771,7 +2880,7 @@ export function BattlePageClient() {
         }
       })
     },
-    [isSelectedBattleEditable, updateSelectedBattle],
+    [displayedDungeon, isDungeonJsonFogMode, isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const setFogEnabled = useCallback(
@@ -2783,17 +2892,19 @@ export function BattlePageClient() {
       if (!isFogOfWarSupported) {
         serviceMessage.info({
           title: "Niebla no disponible",
-          description: "Por ahora la niebla de guerra solo funciona sobre mapas de imagen.",
+          description: "La niebla de guerra funciona sobre mapas de imagen o mazmorras JSON.",
         })
         return
       }
 
       updateSelectedBattle((current) => ({
         ...current,
-        fogEnabled: nextEnabled,
+        ...(isDungeonJsonFogMode
+          ? { dungeonFog: { ...current.dungeonFog, enabled: nextEnabled } }
+          : { fogEnabled: nextEnabled }),
       }))
     },
-    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+    [isDungeonJsonFogMode, isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const clearFogReveals = useCallback(() => {
@@ -2803,10 +2914,11 @@ export function BattlePageClient() {
 
     updateSelectedBattle((current) => ({
       ...current,
-      fogEnabled: true,
-      fogReveals: [],
+      ...(isDungeonJsonFogMode
+        ? { dungeonFog: { ...current.dungeonFog, enabled: true, exploredCellKeys: [] } }
+        : { fogEnabled: true, fogReveals: [] }),
     }))
-  }, [isSelectedBattleEditable, updateSelectedBattle])
+  }, [isDungeonJsonFogMode, isSelectedBattleEditable, updateSelectedBattle])
 
   const handleApplyLifeModifier = useCallback(() => {
     if (!isSelectedBattleEditable) {
@@ -2954,6 +3066,9 @@ export function BattlePageClient() {
           : await fetchBattleById(battleId)
 
       const normalizedBattle = sortBattleState(nextBattle)
+      if (normalizedBattle.status === "active") {
+        setActiveBattle(normalizedBattle)
+      }
       applySelectedBattle(normalizedBattle)
       lastSyncedSnapshotRef.current = JSON.stringify(normalizedBattle)
       setIsBattleCenterOpen(false)
@@ -2984,9 +3099,19 @@ export function BattlePageClient() {
             : selectedScene.sceneSlug,
         ),
       )
-      setActiveBattle(createdBattle)
-      applySelectedBattle(createdBattle)
-      setSelectedSceneActiveBattle(createdBattle)
+      const battleWithSceneDefaults: BattleState = selectedSceneUsesDungeonJson
+        ? {
+            ...createdBattle,
+            dungeonFog: {
+              ...createdBattle.dungeonFog,
+              enabled: true,
+            },
+          }
+        : createdBattle
+
+      setActiveBattle(battleWithSceneDefaults)
+      applySelectedBattle(battleWithSceneDefaults)
+      setSelectedSceneActiveBattle(battleWithSceneDefaults)
       lastSyncedSnapshotRef.current = JSON.stringify(createdBattle)
       await loadBattleCenterHistory(battleHistoryPage)
       setIsBattleCenterOpen(false)
@@ -3002,6 +3127,7 @@ export function BattlePageClient() {
     loadBattleCenterHistory,
     selectedScene,
     selectedSceneActiveBattle,
+    selectedSceneUsesDungeonJson,
   ])
 
   const handleReopenBattle = useCallback(async (battleId: number) => {
@@ -3248,11 +3374,12 @@ export function BattlePageClient() {
           onRemoveObstacle={removeObstacle}
         />
         <BattleFogOverlay
-          fogEnabled={selectedBattle.fogEnabled}
-          fogReveals={selectedBattle.fogReveals}
+          fogEnabled={isDungeonJsonFogMode ? selectedBattle.dungeonFog.enabled : selectedBattle.fogEnabled}
+          fogReveals={isDungeonJsonFogMode ? [] : selectedBattle.fogReveals}
           interactive={isSelectedBattleEditable && isFogEditorOpen && isFogOfWarSupported && fogEditorMode !== "idle"}
           editorMode={fogEditorMode}
           overlayOpacity={isFogEditorOpen ? 0.56 : 0.68}
+          overlayVisible={!isDungeonJsonFogMode}
           interactionPaddingPx={72}
           onCreateReveal={createFogReveal}
           onCoverArea={coverFogArea}
@@ -3265,11 +3392,13 @@ export function BattlePageClient() {
     coverFogArea,
     fogEditorMode,
     isSelectedBattleEditable,
+    isDungeonJsonFogMode,
     isFogEditorOpen,
     isFogOfWarSupported,
     isLifeModifierDialogOpen,
     isStatusLoaderDialogOpen,
     selectedBattle?.id,
+    selectedBattle?.dungeonFog,
     selectedBattle?.fogEnabled,
     selectedBattle?.fogReveals,
     selectedBattle?.sceneSlug,
@@ -3298,6 +3427,14 @@ export function BattlePageClient() {
     () => [...(selectedBattle?.tokens ?? [])].filter((token) => token.hidden).sort((left, right) => left.number - right.number),
     [selectedBattle?.tokens],
   )
+  const selectedBattleFogEnabled = isDungeonJsonFogMode
+    ? selectedBattle?.dungeonFog.enabled
+    : selectedBattle?.fogEnabled
+  const selectedBattleFogStatusLabel = selectedBattleFogEnabled
+    ? isDungeonJsonFogMode
+      ? `${selectedBattle?.dungeonFog.exploredCellKeys.length ?? 0} exploradas`
+      : `${selectedBattle?.fogReveals.length ?? 0} visibles`
+    : "apagada"
 
   const handleClearMapSelection = useCallback(() => {
     setSelectedTokenNumber(null)
@@ -3584,7 +3721,7 @@ export function BattlePageClient() {
             if (open && !isFogOfWarSupported) {
               serviceMessage.info({
                 title: "Niebla no disponible",
-                description: "Por ahora la niebla de guerra solo funciona sobre mapas de imagen.",
+                description: "La niebla de guerra funciona sobre mapas de imagen o mazmorras JSON.",
               })
               return
             }
@@ -3595,15 +3732,15 @@ export function BattlePageClient() {
         >
           <DelayedControlTooltip label="Editor de niebla" side="right">
             <PopoverTrigger asChild>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant={selectedBattle?.fogEnabled ? "default" : "outline"}
-                aria-label="Abrir editor de niebla"
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant={selectedBattleFogEnabled ? "default" : "outline"}
+                  aria-label="Abrir editor de niebla"
                 className="rounded-xl"
                 disabled={!isSelectedBattleEditable || !displayedSceneTarget}
               >
-                {selectedBattle?.fogEnabled ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {selectedBattleFogEnabled ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </Button>
             </PopoverTrigger>
           </DelayedControlTooltip>
@@ -3620,7 +3757,7 @@ export function BattlePageClient() {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-stone-900">Niebla</p>
                 <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-600">
-                  {selectedBattle?.fogEnabled ? `${selectedBattle.fogReveals.length} visibles` : "apagada"}
+                  {selectedBattleFogStatusLabel}
                 </span>
               </div>
 
@@ -3628,20 +3765,20 @@ export function BattlePageClient() {
                 <Button
                   type="button"
                   className="rounded-xl"
-                  variant={selectedBattle?.fogEnabled ? "outline" : "default"}
+                  variant={selectedBattleFogEnabled ? "outline" : "default"}
                   onClick={() => {
-                    setFogEnabled(!selectedBattle?.fogEnabled)
+                    setFogEnabled(!selectedBattleFogEnabled)
                   }}
                   disabled={!isSelectedBattleEditable}
                 >
-                  {selectedBattle?.fogEnabled ? "Apagar" : "Activar"}
+                  {selectedBattleFogEnabled ? "Apagar" : "Activar"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className="rounded-xl"
                   onClick={clearFogReveals}
-                  disabled={!isSelectedBattleEditable || !selectedBattle?.fogEnabled}
+                  disabled={!isSelectedBattleEditable || !selectedBattleFogEnabled}
                 >
                   <Trash2 className="mr-2 size-4" />
                   Reset
@@ -3654,7 +3791,7 @@ export function BattlePageClient() {
                   variant={fogEditorMode === "reveal" ? "default" : "outline"}
                   className="rounded-xl"
                   onClick={() => setFogEditorMode((current) => (current === "reveal" ? "idle" : "reveal"))}
-                  disabled={!selectedBattle?.fogEnabled}
+                  disabled={!selectedBattleFogEnabled}
                 >
                   Mostrar
                 </Button>
@@ -3663,15 +3800,26 @@ export function BattlePageClient() {
                   variant={fogEditorMode === "erase" ? "default" : "outline"}
                   className="rounded-xl"
                   onClick={() => setFogEditorMode((current) => (current === "erase" ? "idle" : "erase"))}
-                  disabled={!selectedBattle?.fogEnabled || selectedBattle.fogReveals.length === 0}
+                  disabled={
+                    !selectedBattleFogEnabled ||
+                    (isDungeonJsonFogMode
+                      ? (selectedBattle?.dungeonFog.exploredCellKeys.length ?? 0) === 0
+                      : selectedBattle?.fogReveals.length === 0)
+                  }
                 >
                   Tapar
                 </Button>
               </div>
 
               <p className="rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2 text-[11px] leading-relaxed text-stone-600">
-                {selectedBattle?.fogEnabled
-                  ? fogEditorMode === "reveal"
+                {selectedBattleFogEnabled
+                  ? isDungeonJsonFogMode
+                    ? fogEditorMode === "reveal"
+                      ? "Arrastrá sobre la mazmorra para marcar celdas exploradas en presentación."
+                      : fogEditorMode === "erase"
+                        ? "Arrastrá sobre la mazmorra para volver a tapar celdas exploradas."
+                        : "Elegí Mostrar o Tapar para editar la niebla por celdas de la mazmorra."
+                    : fogEditorMode === "reveal"
                     ? "Arrastrá sobre el mapa. Ya podés empezar el drag un poco fuera de la imagen para revelar esquinas."
                     : fogEditorMode === "erase"
                       ? "Arrastrá el rectángulo a tapar. Con Alt, las esquinas se pegan a la grilla."
@@ -3874,6 +4022,7 @@ export function BattlePageClient() {
       handleTokenSelectionPopoverInteractOutside,
       isFogEditorOpen,
       isFogOfWarSupported,
+      isDungeonJsonFogMode,
       isLifeModifierDialogOpen,
       isSelectedBattleEditable,
       isStatusLoaderDialogOpen,
@@ -3881,6 +4030,10 @@ export function BattlePageClient() {
       lifeModifierTokenNumber,
       lifeModifierValue,
       scheduleInputFocus,
+      selectedBattleFogEnabled,
+      selectedBattleFogStatusLabel,
+      selectedBattle?.dungeonFog.enabled,
+      selectedBattle?.dungeonFog.exploredCellKeys.length,
       selectedBattle?.fogEnabled,
       selectedBattle?.fogReveals.length,
       statusLoaderError,
@@ -3916,6 +4069,7 @@ export function BattlePageClient() {
             overlay={battleOverlay}
             leftControls={battleLeftControls}
             middleLeftControls={battleMiddleLeftControls}
+            onDungeonMapLoad={setDisplayedDungeon}
           />
         ) : (
           <>
@@ -3925,7 +4079,7 @@ export function BattlePageClient() {
             <div className="flex h-full min-h-[50dvh] flex-col items-center justify-center gap-3 px-8 text-center">
               <p className="text-base font-semibold text-stone-100">No hay mapas listos para batalla.</p>
               <p className="max-w-md text-sm font-medium text-stone-300">
-                {loadError ? loadError : "Configurá un landmark con mapa de imagen y grilla para usar /batalla."}
+                {loadError ? loadError : "Configurá un landmark con mapa de imagen y grilla, o una mazmorra JSON, para usar /batalla."}
               </p>
             </div>
           </>
@@ -4312,11 +4466,15 @@ export function BattlePageClient() {
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Niebla</p>
-                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.fogEnabled ? "Activa" : "Desactivada"}</p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattleFogEnabled ? "Activa" : "Desactivada"}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Zonas reveladas</p>
-                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.fogReveals.length}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                          {isDungeonJsonFogMode ? "Celdas exploradas" : "Zonas reveladas"}
+                        </p>
+                        <p className="mt-1 text-sm text-stone-900">
+                          {isDungeonJsonFogMode ? selectedBattle.dungeonFog.exploredCellKeys.length : selectedBattle.fogReveals.length}
+                        </p>
                       </div>
                     </div>
                   </div>

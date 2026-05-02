@@ -16,7 +16,8 @@ import {
 import { Maximize2, RotateCw } from "lucide-react"
 
 import BuildingsMap from "@/components/buildings/BuildingsMap"
-import DungeonMap from "@/components/dungeons/DungeonMap"
+import DungeonMap, { type DungeonDisplayStyle } from "@/components/dungeons/DungeonMap"
+import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
@@ -76,6 +77,8 @@ interface LandmarkMapOnlyClientProps {
   topRightControls?: ReactNode
   topOverlay?: ReactNode
   overlay?: ReactNode
+  onDungeonMapLoad?: (dungeon: NormalizedDungeonMap | null) => void
+  showDungeonLighting?: boolean
   fitParentHeight?: boolean
 }
 
@@ -184,6 +187,47 @@ function decodeSlug(raw: string | undefined) {
   }
 }
 
+function parseDungeonDisplayStyle(configText: string | undefined): Partial<DungeonDisplayStyle> | undefined {
+  if (!configText) return undefined
+
+  try {
+    const parsed = JSON.parse(configText) as { displayStyle?: unknown }
+    const displayStyleRaw = parsed.displayStyle
+    if (!displayStyleRaw || typeof displayStyleRaw !== "object") return undefined
+
+    const displayStyleRecord = displayStyleRaw as Record<string, unknown>
+    const style: Partial<DungeonDisplayStyle> = {}
+
+    if (typeof displayStyleRecord.roomColor === "string") style.roomColor = displayStyleRecord.roomColor
+    if (typeof displayStyleRecord.corridorColor === "string") style.corridorColor = displayStyleRecord.corridorColor
+    if (typeof displayStyleRecord.roomTextureUrl === "string") style.roomTextureUrl = displayStyleRecord.roomTextureUrl
+    if (typeof displayStyleRecord.corridorTextureUrl === "string") style.corridorTextureUrl = displayStyleRecord.corridorTextureUrl
+    if (Array.isArray(displayStyleRecord.roomTextureUrls)) {
+      const normalized = displayStyleRecord.roomTextureUrls.filter((value): value is string => typeof value === "string")
+      style.roomTextureUrls = normalized
+    }
+    if (Array.isArray(displayStyleRecord.corridorTextureUrls)) {
+      const normalized = displayStyleRecord.corridorTextureUrls.filter((value): value is string => typeof value === "string")
+      style.corridorTextureUrls = normalized
+    }
+    if (typeof displayStyleRecord.roomTextureRandomRotation === "boolean") style.roomTextureRandomRotation = displayStyleRecord.roomTextureRandomRotation
+    if (typeof displayStyleRecord.corridorTextureRandomRotation === "boolean") style.corridorTextureRandomRotation = displayStyleRecord.corridorTextureRandomRotation
+    if (typeof displayStyleRecord.doorColor === "string") style.doorColor = displayStyleRecord.doorColor
+    if (typeof displayStyleRecord.showCorridorWalls === "boolean") style.showCorridorWalls = displayStyleRecord.showCorridorWalls
+    if (typeof displayStyleRecord.wallWidth === "number" && Number.isFinite(displayStyleRecord.wallWidth)) {
+      style.wallWidth = displayStyleRecord.wallWidth
+    }
+    if (typeof displayStyleRecord.corridorWallColor === "string") style.corridorWallColor = displayStyleRecord.corridorWallColor
+    if (typeof displayStyleRecord.roomWallColor === "string") style.roomWallColor = displayStyleRecord.roomWallColor
+    if (typeof displayStyleRecord.imageSmoothingEnabled === "boolean") style.imageSmoothingEnabled = displayStyleRecord.imageSmoothingEnabled
+    if (typeof displayStyleRecord.snapGridToPixel === "boolean") style.snapGridToPixel = displayStyleRecord.snapGridToPixel
+
+    return Object.keys(style).length > 0 ? style : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function findBuildingBySlug(buildings: Building[], slug: string) {
   const normalizedSlug = slug.trim().toLowerCase()
   return buildings.find((candidate) => landmarkNameToSlug(candidate.nombre) === normalizedSlug) ?? null
@@ -208,6 +252,8 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   topRightControls,
   topOverlay,
   overlay,
+  onDungeonMapLoad,
+  showDungeonLighting = false,
   fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
   const slugSource = sceneSlug ?? nombreLandmark ?? ""
@@ -509,6 +555,16 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   )
   const mapMainOverlayClassName = flipVertical ? styles.mapBottomOverlay : styles.mapTopOverlay
   const shouldShowSilentFallbackCover = Boolean(emptyFallbackImageSrc) && !isSceneReady
+  const dungeonDisplayStyle = useMemo(
+    () => parseDungeonDisplayStyle(landmark?.dungeonGeneratorConfig),
+    [landmark?.dungeonGeneratorConfig],
+  )
+
+  useEffect(() => {
+    if (!shouldUseDungeonMapPlaceholder) {
+      onDungeonMapLoad?.(null)
+    }
+  }, [onDungeonMapLoad, shouldUseDungeonMapPlaceholder])
 
   const notifySceneReady = useCallback(() => {
     setIsSceneReady(true)
@@ -865,9 +921,53 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   if (shouldUseDungeonMapPlaceholder) {
     return (
       <section className={fitParentHeight ? `${styles.root} ${styles.rootFitParent}` : styles.root}>
-        <div className={styles.mapViewport}>
+        <div
+          className={styles.mapViewport}
+          onPointerDown={onMapBackgroundPointerDown ? () => onMapBackgroundPointerDown() : undefined}
+        >
+          {(showControls || bottomRightControls) && (
+            <div className={styles.mapBottomRightControls} onPointerDown={(event) => event.stopPropagation()}>
+              {bottomRightControls}
+            </div>
+          )}
+          {leftControls ? (
+            <div className={styles.mapLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+              {leftControls}
+            </div>
+          ) : null}
+          {middleLeftControls ? (
+            <div className={styles.mapMiddleLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+              {middleLeftControls}
+            </div>
+          ) : null}
+          {topLeftControls ? (
+            <div className={styles.mapTopLeftControls} onPointerDown={(event) => event.stopPropagation()}>
+              {topLeftControls}
+            </div>
+          ) : null}
+          {topRightControls ? (
+            <div className={styles.mapTopRightControls} onPointerDown={(event) => event.stopPropagation()}>
+              {topRightControls}
+            </div>
+          ) : null}
+          {topOverlay ? (
+            <div className={mapMainOverlayClassName}>
+              <div className={styles.mapTopOverlayContent} onPointerDown={(event) => event.stopPropagation()}>
+                {topOverlay}
+              </div>
+            </div>
+          ) : null}
           {presentationLabel}
-          <DungeonMap dataUrl={effectiveMapUrl} onLoadError={setBuildingsMapError} onLoadComplete={notifySceneReady} />
+          <DungeonMap
+            dataUrl={effectiveMapUrl}
+            onLoadError={setBuildingsMapError}
+            onLoadComplete={notifySceneReady}
+            onDungeonLoad={onDungeonMapLoad}
+            displayStyle={dungeonDisplayStyle}
+            lightingOverlayEnabled={showDungeonLighting}
+            lightingOverlayShowRadiusRings={false}
+          />
+          {overlay ? <div className={styles.dungeonMapOverlayLayer}>{overlay}</div> : null}
           {buildingsMapError && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>{buildingsMapError}</div> : null}
         </div>
       </section>

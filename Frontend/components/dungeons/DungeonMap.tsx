@@ -1,19 +1,20 @@
 "use client"
 
 import {
-  Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from "react"
 
 import { readDungeonMapDocument } from "@/lib/dungeons/adapter"
+import {
+  createNextDungeonLightId,
+  normalizeDungeonLightSource,
+} from "@/lib/dungeons/lights"
 import type {
   DungeonCorridor,
+  DungeonLightOrientation,
   DungeonMapDocument,
   NormalizedDungeonMap,
 } from "@/lib/dungeons/types"
@@ -21,262 +22,76 @@ import { fetchJsonAsset } from "@/lib/services/asset-api.service"
 import {
   buildEditedDungeonWithCorridors,
   createNextCorridorId,
+  corridorCells,
   corridorCellKeySet,
   findGridPath,
   movePoint,
   normalizedDungeonToDocument,
-  pickRoomSideAnchor,
+  pickRoomSideAnchorFromPoint,
   pointKey,
   rebuildDoorsFromCorridors,
   compressPath,
   type Point,
   type RoomSideAnchor,
 } from "./dungeon-map-editor"
+import {
+  DEFAULT_DUNGEON_DISPLAY_STYLE,
+  type DungeonDisplayStyle,
+} from "./canvas/render-types"
+import DungeonCanvas from "./DungeonCanvas"
 import styles from "./DungeonMap.module.css"
+
+export { DEFAULT_DUNGEON_DISPLAY_STYLE }
+export type { DungeonDisplayStyle }
 
 type DungeonMapProps = {
   dataUrl: string
   onLoadError?: (message: string | null) => void
   onLoadComplete?: () => void
+  onDungeonLoad?: (dungeon: NormalizedDungeonMap) => void
   onDocumentChange?: (document: DungeonMapDocument) => Promise<void> | void
+  displayStyle?: Partial<DungeonDisplayStyle>
+  lightingOverlayEnabled?: boolean
+  lightingOverlayShowRadiusRings?: boolean
 }
 
-type DragState = {
-  pointerId: number
-  startClientX: number
-  startClientY: number
-  origin: Point
-}
+type ActiveTool = "none" | "remove-corridor" | "create-corridor" | "place-light" | "remove-light"
 
-type CorridorRenderSegment = {
-  key: string
-  corridorId: string
-  point: Point
-  left: number
-  top: number
-  width: number
-  height: number
-  color?: string
-}
+const LIGHT_ORIENTATIONS: DungeonLightOrientation[] = ["north", "east", "south", "west"]
 
-type ActiveTool = "none" | "remove-corridor" | "create-corridor"
-
-const BASE_CELL_SIZE = 32
-const ROOM_SPAN_OVERLAP_PX = 1
-const DOOR_VISUAL_THICKNESS = 0.22
-const HOME_PADDING_PX = 40
-const MIN_SCALE = 0.2
-const MAX_SCALE = 4
-const ZOOM_SENSITIVITY = 0.0015
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function corridorDebugColor(index: number) {
-  const hue = (index * 67) % 360
-  return `hsl(${hue} 72% 58%)`
-}
-
-function findNearestRoomForPoint(dungeon: NormalizedDungeonMap, point: Point) {
-  let bestRoom: NormalizedDungeonMap["rooms"][number] | null = null
-  let bestDistance = Number.POSITIVE_INFINITY
-
-  for (const room of dungeon.rooms) {
-    for (const cell of room.cells) {
-      const distance = Math.abs(cell.x - point.x) + Math.abs(cell.y - point.y)
-      if (distance >= bestDistance) continue
-      bestDistance = distance
-      bestRoom = room
-      if (distance === 0) return room
-    }
-  }
-
-  return bestRoom
-}
-
-function roomClassName(kind: NormalizedDungeonMap["rooms"][number]["kind"]) {
-  if (kind === "start") return `${styles.room} ${styles.roomStart}`
-  if (kind === "boss") return `${styles.room} ${styles.roomBoss}`
-  if (kind === "treasure") return `${styles.room} ${styles.roomTreasure}`
-  return styles.room
-}
-
-function doorClassName(kind: NormalizedDungeonMap["doors"][number]["kind"]) {
-  if (kind === "locked") return `${styles.door} ${styles.doorLocked}`
-  if (kind === "secret") return `${styles.door} ${styles.doorSecret}`
-  return styles.door
-}
-
-function roomLabelStyle(room: NormalizedDungeonMap["rooms"][number], renderOrigin: { x: number; y: number }) {
-  return {
-    left: `${(room.labelAnchor.x - renderOrigin.x) * BASE_CELL_SIZE}px`,
-    top: `${(room.labelAnchor.y - renderOrigin.y) * BASE_CELL_SIZE}px`,
-  }
-}
-
-function roomSpanStyle(span: { x: number; y: number; width: number; height: number }, renderOrigin: { x: number; y: number }) {
-  const left = (span.x - renderOrigin.x) * BASE_CELL_SIZE
-  const top = (span.y - renderOrigin.y) * BASE_CELL_SIZE
-  const width = span.width * BASE_CELL_SIZE
-  const height = span.height * BASE_CELL_SIZE
-
-  return {
-    left: `${left - ROOM_SPAN_OVERLAP_PX / 2}px`,
-    top: `${top - ROOM_SPAN_OVERLAP_PX / 2}px`,
-    width: `${width + ROOM_SPAN_OVERLAP_PX}px`,
-    height: `${height + ROOM_SPAN_OVERLAP_PX}px`,
-  }
-}
-
-function doorStyle(
-  door: NormalizedDungeonMap["doors"][number],
-  renderOrigin: { x: number; y: number },
-): CSSProperties | null {
-  if (!door.direction) return null
-
-  const length = 1
-  const thickness = DOOR_VISUAL_THICKNESS
-  const cellX = door.x - renderOrigin.x
-  const cellY = door.y - renderOrigin.y
-
-  if (door.direction === "east") {
-    return {
-      left: `${(cellX + 1 - thickness / 2) * BASE_CELL_SIZE}px`,
-      top: `${(cellY + 0.5 - length / 2) * BASE_CELL_SIZE}px`,
-      width: `${thickness * BASE_CELL_SIZE}px`,
-      height: `${length * BASE_CELL_SIZE}px`,
-    }
-  }
-
-  if (door.direction === "west") {
-    return {
-      left: `${(cellX - thickness / 2) * BASE_CELL_SIZE}px`,
-      top: `${(cellY + 0.5 - length / 2) * BASE_CELL_SIZE}px`,
-      width: `${thickness * BASE_CELL_SIZE}px`,
-      height: `${length * BASE_CELL_SIZE}px`,
-    }
-  }
-
-  if (door.direction === "south") {
-    return {
-      left: `${(cellX + 0.5 - length / 2) * BASE_CELL_SIZE}px`,
-      top: `${(cellY + 1 - thickness / 2) * BASE_CELL_SIZE}px`,
-      width: `${length * BASE_CELL_SIZE}px`,
-      height: `${thickness * BASE_CELL_SIZE}px`,
-    }
-  }
-
-  return {
-    left: `${(cellX + 0.5 - length / 2) * BASE_CELL_SIZE}px`,
-    top: `${(cellY - thickness / 2) * BASE_CELL_SIZE}px`,
-    width: `${length * BASE_CELL_SIZE}px`,
-    height: `${thickness * BASE_CELL_SIZE}px`,
-  }
-}
-
-function createInitialCamera(dungeon: NormalizedDungeonMap, viewport: { width: number; height: number }) {
-  const worldWidth = Math.max(BASE_CELL_SIZE, dungeon.bounds.width * BASE_CELL_SIZE)
-  const worldHeight = Math.max(BASE_CELL_SIZE, dungeon.bounds.height * BASE_CELL_SIZE)
-
-  if (viewport.width <= 0 || viewport.height <= 0) {
-    return {
-      scale: 1,
-      offset: {
-        x: HOME_PADDING_PX,
-        y: HOME_PADDING_PX,
-      },
-    }
-  }
-
-  const usableWidth = Math.max(1, viewport.width - HOME_PADDING_PX * 2)
-  const usableHeight = Math.max(1, viewport.height - HOME_PADDING_PX * 2)
-  const scale = clamp(Math.min(usableWidth / worldWidth, usableHeight / worldHeight), MIN_SCALE, MAX_SCALE)
-  const offsetX = (viewport.width - worldWidth * scale) / 2
-  const offsetY = (viewport.height - worldHeight * scale) / 2
-
-  return {
-    scale,
-    offset: { x: offsetX, y: offsetY },
-  }
-}
-
-function buildCorridorSegments(points: Array<{ x: number; y: number }>, width: number, roomOccupiedCells: Set<string>) {
-  const occupiedCells = new Map<string, Point>()
-  const safeWidth = Math.max(1, Math.round(width))
-  const offsetMin = -Math.floor((safeWidth - 1) / 2)
-  const offsetMax = offsetMin + safeWidth - 1
-
-  const occupy = (x: number, y: number) => {
-    if (roomOccupiedCells.has(`${x},${y}`)) return
-    for (let offsetY = offsetMin; offsetY <= offsetMax; offsetY += 1) {
-      for (let offsetX = offsetMin; offsetX <= offsetMax; offsetX += 1) {
-        occupiedCells.set(`${x + offsetX},${y + offsetY}`, { x: x + offsetX, y: y + offsetY })
-      }
-    }
-  }
-
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1]
-    const current = points[index]
-
-    if (previous.x === current.x) {
-      const start = Math.min(previous.y, current.y)
-      const end = Math.max(previous.y, current.y)
-      for (let y = start; y <= end; y += 1) {
-        if (index > 1 && y === previous.y) continue
-        occupy(previous.x, y)
-      }
-      continue
-    }
-
-    if (previous.y === current.y) {
-      const start = Math.min(previous.x, current.x)
-      const end = Math.max(previous.x, current.x)
-      for (let x = start; x <= end; x += 1) {
-        if (index > 1 && x === previous.x) continue
-        occupy(x, previous.y)
-      }
-    }
-  }
-
-  const segments: Array<{ point: Point; left: number; top: number; width: number; height: number }> = []
-
-  for (const [, point] of occupiedCells) {
-    segments.push({
-      point,
-      left: point.x,
-      top: point.y,
-      width: 1,
-      height: 1,
-    })
-  }
-
-  return segments
+function normalizeLightRadius(value: number, fallback: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.round(value)))
 }
 
 export default function DungeonMap({
   dataUrl,
   onLoadError,
   onLoadComplete,
+  onDungeonLoad,
   onDocumentChange,
+  displayStyle,
+  lightingOverlayEnabled = false,
+  lightingOverlayShowRadiusRings = false,
 }: DungeonMapProps) {
   const isEditable = typeof onDocumentChange === "function"
   const [dungeon, setDungeon] = useState<NormalizedDungeonMap | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState<Point>({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [showCorridorDebug, setShowCorridorDebug] = useState(false)
+  const [openDoorIds, setOpenDoorIds] = useState<Set<string>>(() => new Set())
   const [activeTool, setActiveTool] = useState<ActiveTool>("none")
+  const [lightingPreviewEnabled, setLightingPreviewEnabled] = useState(false)
+  const [newLightBrightRadiusCells, setNewLightBrightRadiusCells] = useState(4)
+  const [newLightDimRadiusCells, setNewLightDimRadiusCells] = useState(8)
+  const [newLightWallMounted, setNewLightWallMounted] = useState(false)
+  const [newLightOrientation, setNewLightOrientation] = useState<DungeonLightOrientation>("south")
+  const [newLightManualOrientation, setNewLightManualOrientation] = useState(false)
+  const [hoveredDungeonCell, setHoveredDungeonCell] = useState<Point | null>(null)
   const [pendingCorridorAnchor, setPendingCorridorAnchor] = useState<RoomSideAnchor | null>(null)
+  const [pendingCorridorPoint, setPendingCorridorPoint] = useState<Point | null>(null)
   const [isPersistingEdit, setIsPersistingEdit] = useState(false)
-  const rootRef = useRef<HTMLDivElement | null>(null)
-  const dragRef = useRef<DragState | null>(null)
-  const lastAutoFitDataUrlRef = useRef<string | null>(null)
   const onLoadErrorRef = useRef(onLoadError)
   const onLoadCompleteRef = useRef(onLoadComplete)
+  const onDungeonLoadRef = useRef(onDungeonLoad)
 
   useEffect(() => {
     onLoadErrorRef.current = onLoadError
@@ -286,10 +101,14 @@ export default function DungeonMap({
     onLoadCompleteRef.current = onLoadComplete
   }, [onLoadComplete])
 
-  const renderOrigin = useMemo(
-    () => ({ x: dungeon?.bounds.originX ?? 0, y: dungeon?.bounds.originY ?? 0 }),
-    [dungeon?.bounds.originX, dungeon?.bounds.originY],
-  )
+  useEffect(() => {
+    onDungeonLoadRef.current = onDungeonLoad
+  }, [onDungeonLoad])
+
+  const effectiveDisplayStyle = useMemo<DungeonDisplayStyle>(() => ({
+    ...DEFAULT_DUNGEON_DISPLAY_STYLE,
+    ...displayStyle,
+  }), [displayStyle])
 
   const roomOccupiedCells = useMemo(() => {
     const occupied = new Set<string>()
@@ -302,44 +121,55 @@ export default function DungeonMap({
     return occupied
   }, [dungeon])
 
-  const roomByCell = useMemo(() => {
-    const roomLookup = new Map<string, NormalizedDungeonMap["rooms"][number]>()
-    if (!dungeon) return roomLookup
-
-    for (const room of dungeon.rooms) {
-      for (const cell of room.cells) {
-        roomLookup.set(pointKey(cell), room)
-      }
-    }
-
-    return roomLookup
-  }, [dungeon])
-
-  const roomIndexById = useMemo(() => {
-    const indexById = new Map<string, number>()
-    if (!dungeon) return indexById
-
-    dungeon.rooms.forEach((room, index) => {
-      indexById.set(room.id, index + 1)
-    })
-
-    return indexById
-  }, [dungeon])
-
   const corridorCellKeys = useMemo(
     () => dungeon ? corridorCellKeySet(dungeon.corridors) : new Set<string>(),
     [dungeon],
   )
 
+  const floorCellKeys = useMemo(() => {
+    const occupied = new Set(roomOccupiedCells)
+    for (const key of corridorCellKeys) {
+      occupied.add(key)
+    }
+    return occupied
+  }, [corridorCellKeys, roomOccupiedCells])
+
+  useEffect(() => {
+    if (!isEditable || activeTool !== "place-light") return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "r") return
+      const target = event.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return
+
+      event.preventDefault()
+      if (dungeon && hoveredDungeonCell) {
+        const hoveredLight = dungeon.lights.find((light) => light.x === hoveredDungeonCell.x && light.y === hoveredDungeonCell.y)
+        if (hoveredLight) {
+          const currentIndex = LIGHT_ORIENTATIONS.indexOf(hoveredLight.orientation)
+          const nextOrientation = LIGHT_ORIENTATIONS[(currentIndex + 1) % LIGHT_ORIENTATIONS.length]
+          const nextLights = dungeon.lights.map((light) => light.id === hoveredLight.id
+            ? { ...light, orientation: nextOrientation, wallMounted: true }
+            : light)
+          void persistDungeonChange({ ...dungeon, lights: nextLights }, dungeon)
+          return
+        }
+      }
+
+      setNewLightManualOrientation(true)
+      setNewLightOrientation((current) => {
+        const currentIndex = LIGHT_ORIENTATIONS.indexOf(current)
+        return LIGHT_ORIENTATIONS[(currentIndex + 1) % LIGHT_ORIENTATIONS.length]
+      })
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [activeTool, dungeon, hoveredDungeonCell, isEditable])
+
   useEffect(() => {
     let isActive = true
-    setDungeon(null)
     setError(null)
-    setIsDragging(false)
-    setActiveTool("none")
-    setPendingCorridorAnchor(null)
-    dragRef.current = null
-    lastAutoFitDataUrlRef.current = null
     onLoadErrorRef.current?.(null)
 
     void fetchJsonAsset<unknown>(dataUrl)
@@ -347,6 +177,7 @@ export default function DungeonMap({
         if (!isActive) return
         const normalized = readDungeonMapDocument(raw)
         setDungeon(normalized)
+        onDungeonLoadRef.current?.(normalized)
         onLoadCompleteRef.current?.()
       })
       .catch((cause) => {
@@ -361,184 +192,16 @@ export default function DungeonMap({
     }
   }, [dataUrl])
 
-  useEffect(() => {
-    const root = rootRef.current
-    if (!root) return
-
-    const syncViewportSize = () => {
-      setViewportSize({
-        width: root.clientWidth,
-        height: root.clientHeight,
-      })
-    }
-
-    syncViewportSize()
-
-    if (typeof ResizeObserver === "undefined") {
-      return
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      syncViewportSize()
-    })
-
-    resizeObserver.observe(root)
-    return () => resizeObserver.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!dungeon || viewportSize.width <= 0 || viewportSize.height <= 0) {
-      return
-    }
-
-    if (lastAutoFitDataUrlRef.current === dataUrl) {
-      return
-    }
-
-    const camera = createInitialCamera(dungeon, viewportSize)
-    setScale(camera.scale)
-    setOffset(camera.offset)
-    setIsDragging(false)
-    dragRef.current = null
-    lastAutoFitDataUrlRef.current = dataUrl
-  }, [dataUrl, dungeon, viewportSize.height, viewportSize.width])
-
-  const worldSize = useMemo(() => {
-    if (!dungeon) {
-      return { width: 0, height: 0 }
-    }
-
-    return {
-      width: dungeon.bounds.width * BASE_CELL_SIZE,
-      height: dungeon.bounds.height * BASE_CELL_SIZE,
-    }
-  }, [dungeon])
-
-  const corridorSegmentsById = useMemo(() => {
-    const segmentsById = new Map<string, CorridorRenderSegment[]>()
-    if (!dungeon) return segmentsById
-
-    dungeon.corridors.forEach((corridor, corridorIndex) => {
-      segmentsById.set(
-        corridor.id,
-        buildCorridorSegments(corridor.points, corridor.width ?? 1, roomOccupiedCells).map((segment, index) => ({
-          key: `${corridor.id}-${segment.point.x}-${segment.point.y}-${corridorIndex}-${index}`,
-          corridorId: corridor.id,
-          ...segment,
-        })),
-      )
-    })
-
-    return segmentsById
-  }, [dungeon, roomOccupiedCells])
-
-  const corridorSegments = useMemo(
-    () => [...corridorSegmentsById.values()].flat(),
-    [corridorSegmentsById],
-  )
-
-  const debugCorridors = useMemo(() => {
-    if (!dungeon) {
-      return [] as Array<{
-        id: string
-        color: string
-        segments: Array<{ key: string; left: number; top: number; width: number; height: number }>
-        label: { key: string; text: string; x: number; y: number }
-      }>
-    }
-    return dungeon.corridors.map((corridor, index) => {
-      const color = corridorDebugColor(index)
-      const start = corridor.points[0]
-      const end = corridor.points[corridor.points.length - 1]
-      const startRoom = roomByCell.get(pointKey(start)) ?? findNearestRoomForPoint(dungeon, start)
-      const endRoom = roomByCell.get(pointKey(end)) ?? findNearestRoomForPoint(dungeon, end)
-      const startRoomIndex = startRoom ? String(roomIndexById.get(startRoom.id) ?? startRoom.id) : "?"
-      const endRoomIndex = endRoom ? String(roomIndexById.get(endRoom.id) ?? endRoom.id) : "?"
-
-        return {
-          id: corridor.id,
-          color,
-          segments: corridorSegmentsById.get(corridor.id) ?? [],
-        label: {
-          key: `${corridor.id}-${index}-start`,
-          text: `${startRoomIndex} -> ${endRoomIndex} : ${index + 1}`,
-          x: start.x,
-          y: start.y,
-        },
+  const handleDoorToggle = (doorId: string) => {
+    setOpenDoorIds((current) => {
+      const next = new Set(current)
+      if (next.has(doorId)) {
+        next.delete(doorId)
+      } else {
+        next.add(doorId)
       }
+      return next
     })
-  }, [corridorSegmentsById, dungeon, roomByCell, roomIndexById])
-
-  const contentStyle = useMemo<CSSProperties>(() => ({
-    width: `${worldSize.width}px`,
-    height: `${worldSize.height}px`,
-    transform: `matrix(${scale}, 0, 0, ${scale}, ${offset.x}, ${offset.y})`,
-    transformOrigin: "top left",
-  }), [offset.x, offset.y, scale, worldSize.height, worldSize.width])
-
-  const gridStyle = useMemo<CSSProperties>(() => {
-    const minor = Math.max(BASE_CELL_SIZE * scale, 1)
-    const major = Math.max(BASE_CELL_SIZE * 5 * scale, 5)
-
-    return {
-      backgroundSize: `${minor}px ${minor}px, ${minor}px ${minor}px, ${major}px ${major}px, ${major}px ${major}px`,
-      backgroundPosition: `${offset.x}px ${offset.y}px, ${offset.x}px ${offset.y}px, ${offset.x}px ${offset.y}px, ${offset.x}px ${offset.y}px`,
-    }
-  }, [offset.x, offset.y, scale])
-
-  const isEditToolActive = isEditable && activeTool !== "none"
-
-  const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    if (!rootRef.current) return
-    event.preventDefault()
-
-    const rect = rootRef.current.getBoundingClientRect()
-    const pointerX = event.clientX - rect.left
-    const pointerY = event.clientY - rect.top
-    const nextScale = clamp(scale * Math.exp(-event.deltaY * ZOOM_SENSITIVITY), MIN_SCALE, MAX_SCALE)
-    const scaleRatio = nextScale / scale
-
-    setOffset((current) => ({
-      x: pointerX - (pointerX - current.x) * scaleRatio,
-      y: pointerY - (pointerY - current.y) * scaleRatio,
-    }))
-    setScale(nextScale)
-  }
-
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (isEditable && activeTool !== "none") {
-      return
-    }
-    event.preventDefault()
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      origin: offset,
-    }
-    setIsDragging(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-
-    setOffset({
-      x: drag.origin.x + (event.clientX - drag.startClientX),
-      y: drag.origin.y + (event.clientY - drag.startClientY),
-    })
-  }
-
-  const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    dragRef.current = null
-    setIsDragging(false)
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
   }
 
   const persistDungeonChange = async (
@@ -569,27 +232,102 @@ export default function DungeonMap({
   const handleCorridorRemove = (corridorId: string) => {
     if (!dungeon || isPersistingEdit) return
 
+    const removedCorridor = dungeon.corridors.find((corridor) => corridor.id === corridorId)
+    if (!removedCorridor) return
+
     const nextCorridors = dungeon.corridors.filter((corridor) => corridor.id !== corridorId)
-    if (nextCorridors.length === dungeon.corridors.length) return
+    const remainingCorridorCells = corridorCellKeySet(nextCorridors)
+    const removedOnlyCells = new Set(
+      corridorCells(removedCorridor.points)
+        .map(pointKey)
+        .filter((key) => !remainingCorridorCells.has(key)),
+    )
+    const nextLights = dungeon.lights.filter((light) => !removedOnlyCells.has(pointKey(light)))
 
     const nextDungeon = {
       ...dungeon,
       corridors: nextCorridors,
       doors: rebuildDoorsFromCorridors(dungeon, nextCorridors),
+      lights: nextLights,
     }
 
     void persistDungeonChange(nextDungeon, dungeon)
   }
 
+  const isPointWithinDungeonBounds = (point: Point) => {
+    if (!dungeon) return false
+    return point.x >= dungeon.bounds.originX
+      && point.y >= dungeon.bounds.originY
+      && point.x < dungeon.bounds.originX + dungeon.bounds.width
+      && point.y < dungeon.bounds.originY + dungeon.bounds.height
+  }
+
+  const isFloorCell = (point: Point) => floorCellKeys.has(pointKey(point))
+  const isDoorCell = (point: Point) => dungeon?.doors.some((door) => door.x === point.x && door.y === point.y) ?? false
+
+  const adjacentWallDirections = (point: Point): DungeonLightOrientation[] => {
+    if (!isFloorCell(point)) return []
+    const candidates: Array<{ direction: DungeonLightOrientation; point: Point }> = [
+      { direction: "north", point: { x: point.x, y: point.y - 1 } },
+      { direction: "east", point: { x: point.x + 1, y: point.y } },
+      { direction: "south", point: { x: point.x, y: point.y + 1 } },
+      { direction: "west", point: { x: point.x - 1, y: point.y } },
+    ]
+
+    return candidates
+      .filter((candidate) => !isPointWithinDungeonBounds(candidate.point) || !isFloorCell(candidate.point))
+      .map((candidate) => candidate.direction)
+  }
+
+  const handleLightCellClick = (point: Point) => {
+    if (!isEditable || !dungeon || isPersistingEdit) return
+    if (!isPointWithinDungeonBounds(point)) return
+
+    if (activeTool === "place-light") {
+      const brightRadiusCells = normalizeLightRadius(newLightBrightRadiusCells, 4, 0, 64)
+      const dimRadiusCells = normalizeLightRadius(newLightDimRadiusCells, 8, brightRadiusCells, 128)
+      const existingLight = dungeon.lights.find((light) => light.x === point.x && light.y === point.y)
+      if (existingLight) return
+      if (isDoorCell(point)) return
+
+      const wallDirections = adjacentWallDirections(point)
+      if (newLightWallMounted && wallDirections.length === 0) return
+
+      const orientation = newLightWallMounted && !newLightManualOrientation
+        ? wallDirections[0]
+        : newLightOrientation
+
+      const nextLight = normalizeDungeonLightSource({
+        id: createNextDungeonLightId(dungeon.lights),
+        x: point.x,
+        y: point.y,
+        kind: "torch",
+        enabled: true,
+        brightRadiusCells,
+        dimRadiusCells,
+        mode: "radius",
+        placement: "manual",
+        wallMounted: newLightWallMounted,
+        orientation,
+      })
+      void persistDungeonChange({ ...dungeon, lights: [...dungeon.lights, nextLight] }, dungeon)
+      return
+    }
+
+    if (activeTool === "remove-light") {
+      const nextLights = dungeon.lights.filter((light) => light.x !== point.x || light.y !== point.y)
+      if (nextLights.length === dungeon.lights.length) return
+      void persistDungeonChange({ ...dungeon, lights: nextLights }, dungeon)
+    }
+  }
+
   const handleCreateCorridorFromRoom = (
-    room: NormalizedDungeonMap["rooms"][number],
-    span: { x: number; y: number; width: number; height: number },
-    event: ReactPointerEvent<HTMLDivElement>,
+    anchor: RoomSideAnchor,
   ) => {
     if (!isEditable || !dungeon || activeTool !== "create-corridor" || isPersistingEdit) return
 
-    const anchor = pickRoomSideAnchor(room, span, event, event.currentTarget.getBoundingClientRect())
     if (!pendingCorridorAnchor) {
+      setPendingCorridorPoint(null)
       setPendingCorridorAnchor(anchor)
       return
     }
@@ -615,26 +353,187 @@ export default function DungeonMap({
     const nextDungeon = buildEditedDungeonWithCorridors(dungeon, [...dungeon.corridors, nextCorridor])
 
     setPendingCorridorAnchor(null)
+    setPendingCorridorPoint(null)
     void persistDungeonChange(nextDungeon, dungeon)
   }
 
-  const handleCreateCorridorToIntersection = (_corridorId: string, point: Point) => {
-    if (!isEditable || !dungeon || activeTool !== "create-corridor" || !pendingCorridorAnchor || isPersistingEdit) return
+  const handleCreateCorridorFromCanvas = (
+    room: NormalizedDungeonMap["rooms"][number],
+    point: Point,
+  ) => {
+    const anchor = pickRoomSideAnchorFromPoint(room, point)
+    handleCreateCorridorFromRoom(anchor)
+  }
 
-    const startHub = movePoint(pendingCorridorAnchor.point, pendingCorridorAnchor.direction)
+  const renderEditToolPanel = () => {
+    if (!isEditable) return null
+
+    return (
+      <div
+        className={styles.toolPanel}
+        onPointerDown={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        <div className={styles.toolStack}>
+          <button
+            type="button"
+            className={activeTool === "remove-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+            aria-pressed={activeTool === "remove-corridor"}
+            title="Eliminar corredor"
+            onClick={() => {
+              setPendingCorridorAnchor(null)
+              setPendingCorridorPoint(null)
+              setActiveTool((current) => current === "remove-corridor" ? "none" : "remove-corridor")
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+              <path d="M9 4 4 9l3 3-3 3 5 5 3-3 3 3 5-5-3-3 3-3-5-5-3 3-3-3Z" fill="currentColor" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className={activeTool === "create-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+            aria-pressed={activeTool === "create-corridor"}
+            title="Crear corredor"
+            onClick={() => {
+              setPendingCorridorAnchor(null)
+              setPendingCorridorPoint(null)
+              setActiveTool((current) => current === "create-corridor" ? "none" : "create-corridor")
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+              <path d="M4 11h6V5h4v6h6v4h-6v6h-4v-6H4z" fill="currentColor" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className={lightingPreviewEnabled ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+            aria-pressed={lightingPreviewEnabled}
+            title="Vista previa de iluminación"
+            onClick={() => setLightingPreviewEnabled((current) => !current)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+              <path d="M12 2 9.6 8.2 3 9l5 4.2L6.6 20 12 16.4 17.4 20 16 13.2 21 9l-6.6-.8L12 2Z" fill="currentColor" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className={activeTool === "place-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+            aria-pressed={activeTool === "place-light"}
+            title="Colocar antorcha"
+            onClick={() => {
+              setPendingCorridorAnchor(null)
+              setPendingCorridorPoint(null)
+              setActiveTool((current) => current === "place-light" ? "none" : "place-light")
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+              <path d="M9 2h6l-2 6h3l-4 6-4-6h3L9 2Zm1 13h4v7h-4v-7Z" fill="currentColor" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className={activeTool === "remove-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+            aria-pressed={activeTool === "remove-light"}
+            title="Eliminar antorcha"
+            onClick={() => {
+              setPendingCorridorAnchor(null)
+              setPendingCorridorPoint(null)
+              setActiveTool((current) => current === "remove-light" ? "none" : "remove-light")
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+              <path d="M7 4h10v2H7V4Zm2 4h6l-1 12h-4L9 8Zm-5 3 2-2 14 14-2 2L4 11Z" fill="currentColor" />
+            </svg>
+          </button>
+
+          <div className={styles.lightConfig}>
+            <label className={styles.lightConfigLabel}>
+              Bright
+              <input
+                className={styles.lightConfigInput}
+                type="number"
+                min={0}
+                max={64}
+                value={newLightBrightRadiusCells}
+                onChange={(event) => setNewLightBrightRadiusCells(Number(event.target.value))}
+              />
+            </label>
+            <label className={styles.lightConfigLabel}>
+              Dim
+              <input
+                className={styles.lightConfigInput}
+                type="number"
+                min={0}
+                max={128}
+                value={newLightDimRadiusCells}
+                onChange={(event) => setNewLightDimRadiusCells(Number(event.target.value))}
+              />
+            </label>
+            <label className={`${styles.lightConfigLabel} ${styles.lightConfigCheckboxLabel}`}>
+              On Wall
+              <input
+                className={styles.lightConfigCheckbox}
+                type="checkbox"
+                checked={newLightWallMounted}
+                onChange={(event) => {
+                  setNewLightWallMounted(event.target.checked)
+                  setNewLightManualOrientation(false)
+                }}
+              />
+            </label>
+            <div className={styles.lightConfigHint}>
+              Rotation: {newLightManualOrientation ? newLightOrientation : newLightWallMounted ? "wall" : newLightOrientation}. Press R to rotate.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
+  const handleCreateCorridorToIntersection = (_corridorId: string, point: Point) => {
+    if (!isEditable || !dungeon || activeTool !== "create-corridor" || isPersistingEdit) return
+
+    if (!pendingCorridorAnchor && !pendingCorridorPoint) {
+      setPendingCorridorPoint(point)
+      return
+    }
+
+    if (pendingCorridorPoint && pendingCorridorPoint.x === point.x && pendingCorridorPoint.y === point.y) {
+      setPendingCorridorPoint(point)
+      return
+    }
+
+    const startHub = pendingCorridorAnchor
+      ? movePoint(pendingCorridorAnchor.point, pendingCorridorAnchor.direction)
+      : pendingCorridorPoint
+    if (!startHub) return
+
     const blockedRoomCells = new Set<string>(roomOccupiedCells)
-    blockedRoomCells.delete(pointKey(pendingCorridorAnchor.point))
+    if (pendingCorridorAnchor) {
+      blockedRoomCells.delete(pointKey(pendingCorridorAnchor.point))
+    }
     const route = findGridPath(startHub, point, dungeon.bounds, blockedRoomCells, corridorCellKeys)
     if (!route) return
 
     const nextCorridor: DungeonCorridor = {
       id: createNextCorridorId(dungeon.corridors),
-      points: compressPath([pendingCorridorAnchor.point, ...route]),
+      points: compressPath(
+        pendingCorridorAnchor
+          ? [pendingCorridorAnchor.point, ...route]
+          : route,
+      ),
       width: 1,
     }
     const nextDungeon = buildEditedDungeonWithCorridors(dungeon, [...dungeon.corridors, nextCorridor])
 
     setPendingCorridorAnchor(null)
+    setPendingCorridorPoint(null)
     void persistDungeonChange(nextDungeon, dungeon)
   }
 
@@ -647,193 +546,30 @@ export default function DungeonMap({
   }
 
   return (
-    <div
-      ref={rootRef}
-      className={isDragging ? `${styles.root} ${styles.rootDragging}` : styles.root}
-      onWheel={handleWheel}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onDragStart={(event) => event.preventDefault()}
+    <DungeonCanvas
+      dungeon={dungeon}
+      displayStyle={effectiveDisplayStyle}
+      isEditable={isEditable}
+      activeTool={activeTool}
+      lightingPreviewEnabled={lightingPreviewEnabled || lightingOverlayEnabled}
+      lightingRadiusRingsEnabled={lightingPreviewEnabled || lightingOverlayShowRadiusRings}
+      pendingCorridorAnchorPoint={pendingCorridorAnchor?.point ?? pendingCorridorPoint}
+      openDoorIds={openDoorIds}
+      onDoorClick={handleDoorToggle}
+      onRoomSpanClick={({ room, point }) => {
+        handleCreateCorridorFromCanvas(room, point)
+      }}
+      onCorridorSegmentClick={({ corridorId, point }) => {
+        if (activeTool === "remove-corridor") {
+          handleCorridorRemove(corridorId)
+          return
+        }
+        handleCreateCorridorToIntersection(corridorId, point)
+      }}
+      onDungeonCellClick={({ point }) => handleLightCellClick(point)}
+      onDungeonCellHover={({ point }) => setHoveredDungeonCell(point)}
     >
-      {isEditable ? (
-        <div
-          className={styles.toolPanel}
-          onPointerDown={(event) => event.stopPropagation()}
-          onWheel={(event) => event.stopPropagation()}
-        >
-          <div className={styles.toolStack}>
-            <button
-              type="button"
-              className={activeTool === "remove-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-              aria-pressed={activeTool === "remove-corridor"}
-              title="Eliminar corredor"
-              onClick={() => {
-                setPendingCorridorAnchor(null)
-                setActiveTool((current) => current === "remove-corridor" ? "none" : "remove-corridor")
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-                <path d="M9 4 4 9l3 3-3 3 5 5 3-3 3 3 5-5-3-3 3-3-5-5-3 3-3-3Z" fill="currentColor" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              className={activeTool === "create-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-              aria-pressed={activeTool === "create-corridor"}
-              title="Crear corredor"
-              onClick={() => {
-                setPendingCorridorAnchor(null)
-                setActiveTool((current) => current === "create-corridor" ? "none" : "create-corridor")
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-                <path d="M4 11h6V5h4v6h6v4h-6v6h-4v-6H4z" fill="currentColor" />
-              </svg>
-            </button>
-
-          </div>
-        </div>
-      ) : null}
-
-      <div
-        className={styles.debugPanel}
-        onPointerDown={(event) => event.stopPropagation()}
-        onWheel={(event) => event.stopPropagation()}
-      >
-        <label className={styles.debugCheckboxLabel}>
-          <input
-            type="checkbox"
-            checked={showCorridorDebug}
-            onChange={(event) => setShowCorridorDebug(event.target.checked)}
-          />
-          Debug corredores
-        </label>
-      </div>
-
-      <div className={styles.gridBackdrop} style={gridStyle} aria-hidden="true" />
-
-      <div className={styles.content} style={contentStyle}>
-        <div className={styles.frame} />
-
-        {(showCorridorDebug ? debugCorridors.flatMap((corridor) => corridor.segments.map((segment) => ({ ...segment, color: corridor.color }))) : corridorSegments).map((segment) => (
-          <div
-            key={segment.key}
-            className={styles.corridor}
-            role={isEditToolActive ? "button" : undefined}
-            tabIndex={isEditToolActive ? 0 : undefined}
-            style={{
-              left: `${(segment.left - renderOrigin.x) * BASE_CELL_SIZE}px`,
-              top: `${(segment.top - renderOrigin.y) * BASE_CELL_SIZE}px`,
-              width: `${segment.width * BASE_CELL_SIZE}px`,
-              height: `${segment.height * BASE_CELL_SIZE}px`,
-              background: "color" in segment ? segment.color : undefined,
-              cursor: isEditToolActive ? "pointer" : undefined,
-            }}
-            onPointerDown={isEditToolActive ? (event) => {
-              event.stopPropagation()
-              event.preventDefault()
-            } : undefined}
-            onClick={isEditToolActive ? (event) => {
-              event.stopPropagation()
-              if (activeTool === "remove-corridor") {
-                handleCorridorRemove(segment.corridorId)
-                return
-              }
-              handleCreateCorridorToIntersection(segment.corridorId, segment.point)
-            } : undefined}
-            onKeyDown={isEditToolActive ? (event) => {
-              if (event.key !== "Enter" && event.key !== " ") return
-              event.preventDefault()
-              event.stopPropagation()
-              if (activeTool === "remove-corridor") {
-                handleCorridorRemove(segment.corridorId)
-                return
-              }
-              handleCreateCorridorToIntersection(segment.corridorId, segment.point)
-            } : undefined}
-          />
-        ))}
-
-        {showCorridorDebug
-          ? debugCorridors.map((corridor) => (
-              <div
-                key={corridor.label.key}
-                className={styles.corridorDebugLabel}
-                style={{
-                  left: `${(corridor.label.x - renderOrigin.x + 0.5) * BASE_CELL_SIZE}px`,
-                  top: `${(corridor.label.y - renderOrigin.y + 0.5) * BASE_CELL_SIZE}px`,
-                  borderColor: corridor.color,
-                }}
-              >
-                {corridor.label.text}
-              </div>
-            ))
-          : null}
-
-        {dungeon.rooms.map((room) => (
-          <Fragment key={room.id}>
-            {room.spans.map((span, index) => (
-              <div
-                key={`${room.id}-span-${index}`}
-                className={roomClassName(room.kind)}
-                style={roomSpanStyle(span, renderOrigin)}
-                role={isEditable && activeTool === "create-corridor" ? "button" : undefined}
-                tabIndex={isEditable && activeTool === "create-corridor" ? 0 : undefined}
-                onPointerDown={isEditable && activeTool === "create-corridor" ? (event) => {
-                  event.stopPropagation()
-                } : undefined}
-                onClick={isEditable && activeTool === "create-corridor" ? (event) => {
-                  event.stopPropagation()
-                  handleCreateCorridorFromRoom(room, span, event)
-                } : undefined}
-              />
-            ))}
-
-            {room.label ? (
-              <div className={styles.roomLabelWrap} style={roomLabelStyle(room, renderOrigin)}>
-                <div className={styles.label}>{room.label}</div>
-              </div>
-            ) : null}
-          </Fragment>
-        ))}
-
-        {dungeon.doors.map((door) => {
-          const style = doorStyle(door, renderOrigin)
-          if (!style) return null
-          return (
-            <Fragment key={door.id}>
-              <div className={doorClassName(door.kind)} style={style} />
-            </Fragment>
-          )
-        })}
-
-        {isEditable && pendingCorridorAnchor ? (
-          <div
-            className={styles.pendingAnchor}
-            style={{
-              left: `${(pendingCorridorAnchor.point.x - renderOrigin.x + 0.5) * BASE_CELL_SIZE}px`,
-              top: `${(pendingCorridorAnchor.point.y - renderOrigin.y + 0.5) * BASE_CELL_SIZE}px`,
-            }}
-          />
-        ) : null}
-
-        {dungeon.markers.map((marker) => (
-          <div
-            key={marker.id}
-            className={styles.markerWrap}
-            style={{
-              left: `${(marker.x - renderOrigin.x) * BASE_CELL_SIZE}px`,
-              top: `${(marker.y - renderOrigin.y) * BASE_CELL_SIZE}px`,
-            }}
-          >
-            <div className={styles.marker} />
-            {marker.label ? <div className={styles.markerLabel}>{marker.label}</div> : null}
-          </div>
-        ))}
-      </div>
-    </div>
+      {renderEditToolPanel()}
+    </DungeonCanvas>
   )
 }

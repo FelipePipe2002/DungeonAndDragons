@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,7 +28,11 @@ public class CharacterController {
     }
 
     @GetMapping
-    public List<CharacterDto> findAll() {
+    public List<CharacterDto> findAll(@RequestParam(required = false) Boolean isPlayer) {
+        if (isPlayer != null) {
+            return characterService.findByPlayer(isPlayer);
+        }
+
         return characterService.findAll();
     }
 

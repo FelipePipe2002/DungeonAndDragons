@@ -21,6 +21,7 @@ public record BattleStateDto(
     Boolean fogEnabled,
     Integer nextFogRevealId,
     List<BattleFogRevealData> fogReveals,
+    BattleDungeonFogData dungeonFog,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     OffsetDateTime endedAt

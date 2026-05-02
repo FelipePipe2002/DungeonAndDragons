@@ -56,6 +56,11 @@ let buildingsCache: Building[] | null = null
 let buildingsPromise: Promise<Building[]> | null = null
 const buildingByIdCache = new Map<number, Building>()
 
+type FetchBuildingsOptions = {
+  forceRefresh?: boolean
+  hydrateOwnerNames?: boolean
+}
+
 function toOptionalText(value: string | null | undefined): string | undefined {
   if (typeof value !== "string") return undefined
   const trimmed = value.trim()
@@ -232,7 +237,15 @@ function writeBuildingsCache(buildings: Building[]) {
   }
 }
 
-export async function fetchBuildings(forceRefresh = false): Promise<Building[]> {
+export async function fetchBuildings(options: boolean | FetchBuildingsOptions = false): Promise<Building[]> {
+  const forceRefresh = typeof options === "boolean" ? options : options.forceRefresh === true
+  const shouldHydrateOwnerNames = typeof options === "boolean" ? true : options.hydrateOwnerNames !== false
+
+  if (!shouldHydrateOwnerNames) {
+    const response = await backendRequest<BuildingApiDto[]>("/v1/buildings")
+    return response.map(toBuilding)
+  }
+
   if (!forceRefresh && buildingsCache) {
     return buildingsCache
   }

@@ -90,4 +90,7 @@ public class LandmarkEntity extends AuditableEntity {
     @Column(name = "hidden_map_buildings", columnDefinition = "TEXT")
     private String hiddenMapBuildings;
 
+    @Column(name = "dungeon_generator_config", columnDefinition = "TEXT")
+    private String dungeonGeneratorConfig;
+
 }

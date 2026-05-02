@@ -21,7 +21,14 @@ import {
 import { buildRoomComponents } from "./graph-builder.ts"
 
 type CorridorAxis = "horizontal" | "vertical"
-type CorridorCellAxis = "horizontal" | "vertical"
+type CorridorCellAxis = CorridorAxis
+
+const CONNECTION_ROLE_PRIORITY: Record<ConnectionRole, number> = {
+  "main-path": 0,
+  branch: 1,
+  "service/dead-end": 2,
+  "optional-loop": 3,
+}
 
 type RoomExitSelection = {
   point: DungeonMapPoint
@@ -60,6 +67,7 @@ type RouteBuilderHelpers = {
     axis: CorridorAxis
     blockedRooms?: Set<string>
     blockedCorridors?: Set<string>
+    blockedDoorCells?: Set<string>
     mapWidth?: number
     mapHeight?: number
     connectionRole?: ConnectionRole
@@ -111,6 +119,32 @@ type RouteBuilderHelpers = {
 
 function corridorDistance(first: DungeonMapPoint, second: DungeonMapPoint) {
   return Math.abs(first.x - second.x) + Math.abs(first.y - second.y)
+}
+
+function comparePlannedConnectionEdges(first: PlannedConnectionEdge, second: PlannedConnectionEdge) {
+  const roleDiff = CONNECTION_ROLE_PRIORITY[first.role] - CONNECTION_ROLE_PRIORITY[second.role]
+  if (roleDiff !== 0) return roleDiff
+  if (first.distance !== second.distance) return first.distance - second.distance
+  return edgeKey(first.fromIndex, first.toIndex).localeCompare(edgeKey(second.fromIndex, second.toIndex))
+}
+
+function addDoorForRoomSideIfMissing(
+  doors: DungeonDoor[],
+  doorIdByRoomSide: Map<string, string>,
+  roomSideKey: string,
+  exit: RoomExitSelection,
+) {
+  if (doorIdByRoomSide.has(roomSideKey)) return
+
+  const doorId = `door-${doors.length + 1}`
+  doors.push({
+    id: doorId,
+    x: exit.point.x,
+    y: exit.point.y,
+    direction: exit.direction,
+    kind: "door",
+  })
+  doorIdByRoomSide.set(roomSideKey, doorId)
 }
 
 function buildCorridorOrientationMap(
@@ -216,12 +250,6 @@ export function buildGeneratedCorridorsAndDoors(
   const maxCorridorSteps = context.maxCorridorSteps
   const nodes: Array<RoomNode & { room: DungeonRoom }> = rooms.map((room, index) => ({ index, room, center: helpers.getRoomConnectionPoint(room) }))
   const blockedCells = helpers.buildRoomBlockedCells(rooms)
-  const rolePriority: Record<ConnectionRole, number> = {
-    "main-path": 0,
-    branch: 1,
-    "service/dead-end": 2,
-    "optional-loop": 3,
-  }
   const edges: PlannedConnectionEdge[] = roomConnections
     .map((connection) => {
       const fromNode = nodes[connection.fromIndex]
@@ -233,12 +261,7 @@ export function buildGeneratedCorridorsAndDoors(
         role: connection.role,
       }
     })
-    .sort((first, second) => {
-      const roleDiff = rolePriority[first.role] - rolePriority[second.role]
-      if (roleDiff !== 0) return roleDiff
-      if (first.distance !== second.distance) return first.distance - second.distance
-      return edgeKey(first.fromIndex, first.toIndex).localeCompare(edgeKey(second.fromIndex, second.toIndex))
-    })
+    .sort(comparePlannedConnectionEdges)
 
   const corridors: DungeonCorridor[] = []
   const doors: DungeonDoor[] = []
@@ -246,10 +269,13 @@ export function buildGeneratedCorridorsAndDoors(
   const doorIdByRoomSide = new Map<string, string>()
   const committedCorridors: CommittedCorridor[] = []
   const committedCorridorCells = new Set<string>()
+  const committedDoorCells = new Set<string>()
+  const reuseRoomSideExits = context.allowCorridorIntersections
 
   const attemptEdge = (edge: PlannedConnectionEdge) => {
     const orientationMap = buildCorridorOrientationMap(corridors, blockedCells, helpers)
     const committedClusters = helpers.buildCommittedCorridorClusters(committedCorridors)
+    const canMergeIntoCluster = canMergeForRole(context, edge.role)
     const fromNode = nodes[edge.fromIndex]
     const toNode = nodes[edge.toIndex]
     const centerDeltaX = Math.abs(fromNode.center.x - toNode.center.x)
@@ -258,11 +284,11 @@ export function buildGeneratedCorridorsAndDoors(
     const fromDirection = helpers.preferredDirectionForAxis(fromNode.center, toNode.center, primaryAxis)
     const fromWallKey = `${fromNode.room.id}:${fromDirection}`
     const sourceCluster = committedClusters.find((cluster) => cluster.roomSideKeys.has(fromWallKey))
-    const reusableDestinationCluster = committedClusters.find((cluster) => (
+    const reusableDestinationCluster = context.allowCorridorIntersections ? committedClusters.find((cluster) => (
       cluster.roomIds.has(toNode.room.id)
       && !cluster.roomIds.has(fromNode.room.id)
       && !cluster.roomSideKeys.has(fromWallKey)
-    ))
+    )) : undefined
 
     const centersAligned = fromNode.center.x === toNode.center.x || fromNode.center.y === toNode.center.y
     const endAxis: CorridorAxis = centersAligned ? primaryAxis : helpers.oppositeAxis(primaryAxis)
@@ -272,36 +298,42 @@ export function buildGeneratedCorridorsAndDoors(
       : undefined
     const toWallKey = reusedToWallKey ?? `${toNode.room.id}:${toDirection}`
 
-    let fromSideExit = roomSideExitByKey.get(fromWallKey)
+    let fromSideExit = reuseRoomSideExits ? roomSideExitByKey.get(fromWallKey) : undefined
     if (!fromSideExit) {
       const fromExit = helpers.pickRoomExitPoint(fromNode.room, toNode.center, {
         preferredDirection: fromDirection,
         axis: primaryAxis,
         blockedRooms: blockedCells,
         blockedCorridors: committedCorridorCells,
+        blockedDoorCells: context.allowCorridorIntersections ? undefined : committedDoorCells,
         mapWidth,
         mapHeight,
         connectionRole: edge.role,
       })
       const fromLead = helpers.buildDoorLead(fromExit.point, fromExit.direction, blockedCells, mapWidth, mapHeight, 1)
       fromSideExit = { exit: fromExit, lead: fromLead, hub: fromLead[fromLead.length - 1] }
-      roomSideExitByKey.set(fromWallKey, fromSideExit)
+      if (reuseRoomSideExits) {
+        roomSideExitByKey.set(fromWallKey, fromSideExit)
+      }
     }
 
-    let toSideExit = roomSideExitByKey.get(toWallKey)
+    let toSideExit = reuseRoomSideExits ? roomSideExitByKey.get(toWallKey) : undefined
     if (!toSideExit) {
       const toExit = helpers.pickRoomExitPoint(toNode.room, fromNode.center, {
         preferredDirection: toDirection,
         axis: endAxis,
         blockedRooms: blockedCells,
         blockedCorridors: committedCorridorCells,
+        blockedDoorCells: context.allowCorridorIntersections ? undefined : committedDoorCells,
         mapWidth,
         mapHeight,
         connectionRole: edge.role,
       })
       const toLead = helpers.buildDoorLead(toExit.point, toExit.direction, blockedCells, mapWidth, mapHeight, 1)
       toSideExit = { exit: toExit, lead: toLead, hub: toLead[toLead.length - 1] }
-      roomSideExitByKey.set(toWallKey, toSideExit)
+      if (reuseRoomSideExits) {
+        roomSideExitByKey.set(toWallKey, toSideExit)
+      }
     }
 
     const fromLead = fromSideExit.lead
@@ -321,7 +353,6 @@ export function buildGeneratedCorridorsAndDoors(
 
     const routeStart = fromHub
     const routeEnd = toHub
-    const canMergeIntoCluster = canMergeForRole(context, edge.role)
     const destinationClusters = canMergeIntoCluster
       ? committedClusters.filter((cluster) => (
         cluster.roomIds.has(toNode.room.id)
@@ -356,6 +387,12 @@ export function buildGeneratedCorridorsAndDoors(
     )
     if (!resolvedRoute.path) return false
 
+    if (!context.allowCorridorIntersections) {
+      const fromDoorKey = helpers.pointKey(fromSideExit.exit.point)
+      const toDoorKey = helpers.pointKey(toSideExit.exit.point)
+      if (committedDoorCells.has(fromDoorKey) || committedDoorCells.has(toDoorKey)) return false
+    }
+
     const points: DungeonMapPoint[] = [...fromLead]
     helpers.appendUniquePoints(points, fromJoin)
     helpers.appendUniquePoints(points, resolvedRoute.path)
@@ -384,30 +421,11 @@ export function buildGeneratedCorridorsAndDoors(
     for (const cell of corridorCells) {
       committedCorridorCells.add(helpers.pointKey(cell))
     }
+    committedDoorCells.add(helpers.pointKey(fromSideExit.exit.point))
+    committedDoorCells.add(helpers.pointKey(toSideExit.exit.point))
 
-    if (!doorIdByRoomSide.has(fromWallKey)) {
-      const doorId = `door-${doors.length + 1}`
-      doors.push({
-        id: doorId,
-        x: fromSideExit.exit.point.x,
-        y: fromSideExit.exit.point.y,
-        direction: fromSideExit.exit.direction,
-        kind: "door",
-      })
-      doorIdByRoomSide.set(fromWallKey, doorId)
-    }
-
-    if (!doorIdByRoomSide.has(toWallKey)) {
-      const doorId = `door-${doors.length + 1}`
-      doors.push({
-        id: doorId,
-        x: toSideExit.exit.point.x,
-        y: toSideExit.exit.point.y,
-        direction: toSideExit.exit.direction,
-        kind: "door",
-      })
-      doorIdByRoomSide.set(toWallKey, doorId)
-    }
+    addDoorForRoomSideIfMissing(doors, doorIdByRoomSide, fromWallKey, fromSideExit.exit)
+    addDoorForRoomSideIfMissing(doors, doorIdByRoomSide, toWallKey, toSideExit.exit)
 
     return true
   }
@@ -457,7 +475,9 @@ export function buildGeneratedCorridorsAndDoors(
     if (!connected) break
   }
 
-  helpers.trimDuplicateRoomEntries(corridors, doors, rooms, blockedCells)
+  if (context.allowCorridorIntersections) {
+    helpers.trimDuplicateRoomEntries(corridors, doors, rooms, blockedCells)
+  }
   const optimizedParallelRuns = helpers.optimizeParallelAdjacentCorridors(corridors, blockedCells, mapWidth, mapHeight)
   if (optimizedParallelRuns) {
     helpers.cleanupDoorsForCorridors(corridors, doors)

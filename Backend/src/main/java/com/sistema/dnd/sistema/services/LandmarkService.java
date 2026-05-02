@@ -147,6 +147,7 @@ public class LandmarkService {
         entity.setMapGridOffsetY(normalizeMapGridOffset(request.mapGridOffsetY()));
         entity.setOrganizationMapLinks(optionalTrimmed(request.organizationMapLinks()));
         entity.setHiddenMapBuildings(optionalTrimmed(request.hiddenMapBuildings()));
+        entity.setDungeonGeneratorConfig(optionalTrimmed(request.dungeonGeneratorConfig()));
     }
 
     private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request, MediaAssetEntity mapAsset) {

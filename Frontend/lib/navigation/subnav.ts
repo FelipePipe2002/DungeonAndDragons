@@ -52,6 +52,7 @@ export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
     defaultValue: "dm-notes",
     items: [
       { id: "dm-notes", value: "dm-notes", label: "DM", icon: BookOpen },
+      { id: "open-loops", value: "open-loops", label: "Open Loops", icon: ScrollText },
       { id: "dm-events", value: "dm-events", label: "Eventos DM", icon: CalendarDays },
       { id: "dm-relationships", value: "dm-relationships", label: "Relaciones", icon: Link2 },
       { id: "party-inventory", value: "party-inventory", label: "Party Inventory", icon: Coins },

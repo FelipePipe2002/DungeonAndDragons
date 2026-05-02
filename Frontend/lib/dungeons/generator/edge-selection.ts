@@ -29,7 +29,7 @@ export function kNearestForRole(context: GenerationContext, role: ConnectionRole
 }
 
 export function canMergeForRole(context: GenerationContext, role: ConnectionRole) {
-  return context.mergePolicyByRole[role]
+  return context.allowCorridorIntersections && context.mergePolicyByRole[role]
 }
 
 export function edgeKey(firstIndex: number, secondIndex: number) {

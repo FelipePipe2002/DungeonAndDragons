@@ -13,6 +13,7 @@ public record BattleStateUpsertRequest(
     List<BattleObstacleData> obstacles,
     Boolean fogEnabled,
     Integer nextFogRevealId,
-    List<BattleFogRevealData> fogReveals
+    List<BattleFogRevealData> fogReveals,
+    BattleDungeonFogData dungeonFog
 ) {
 }

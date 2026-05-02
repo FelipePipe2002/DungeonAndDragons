@@ -24,7 +24,6 @@ import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
-import com.sistema.dnd.sistema.repository.SubdivisionRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -55,9 +54,6 @@ class LandmarkServiceTest {
     private EstadoRepository estadoRepository;
 
     @Mock
-    private SubdivisionRepository subdivisionRepository;
-
-    @Mock
     private MediaAssetRepository mediaAssetRepository;
 
     @Mock
@@ -76,7 +72,6 @@ class LandmarkServiceTest {
             landmarkEventRepository,
             landmarkMapRefRepository,
             estadoRepository,
-            subdivisionRepository,
             taggingService,
             domainMapper,
             landmarkMapValidator
@@ -117,6 +112,7 @@ class LandmarkServiceTest {
                     landmark.getMapGridOffsetY(),
                     landmark.getOrganizationMapLinks(),
                     landmark.getHiddenMapBuildings(),
+                    null,
                     null,
                     List.of(),
                     List.of(),
@@ -251,6 +247,7 @@ class LandmarkServiceTest {
             48.0,
             0.0,
             0.0,
+            null,
             null,
             null,
             mapRequest,

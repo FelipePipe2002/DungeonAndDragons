@@ -12,6 +12,13 @@ type FinalSelectionHelpers = {
   buildRoomBlockedCells: (rooms: DungeonRoom[]) => Set<string>
 }
 
+type FinalLeafCandidate = {
+  index: number
+  distance: number
+  degree: number
+  touchesStartCluster: boolean
+}
+
 export function buildFinalLeafCandidates(
   rooms: DungeonRoom[],
   corridors: DungeonCorridor[],
@@ -19,12 +26,20 @@ export function buildFinalLeafCandidates(
 ) {
   const startIndex = rooms.findIndex((room) => room.kind === "start")
   if (startIndex < 0) {
-    return { startIndex, candidates: [] as Array<{ index: number; distance: number; degree: number; touchesStartCluster: boolean }> }
+    return { startIndex, candidates: [] as FinalLeafCandidate[] }
   }
 
   const directAdjacency = buildRoomAdjacencyByCorridors(rooms, corridors, helpers)
   const blockedRooms = helpers.buildRoomBlockedCells(rooms)
   const clusterAnalyses = helpers.buildCorridorClusterAnalyses(rooms, corridors, blockedRooms)
+  const startClusterRoomIndexes = new Set<number>()
+  for (const analysis of clusterAnalyses) {
+    if (!analysis.roomIndexes.has(startIndex)) continue
+    for (const roomIndex of analysis.roomIndexes) {
+      startClusterRoomIndexes.add(roomIndex)
+    }
+  }
+
   const distanceByRoom = new Map<number, number>([[startIndex, 0]])
   const queue = [startIndex]
 
@@ -60,12 +75,11 @@ export function buildFinalLeafCandidates(
   return {
     startIndex,
     candidates: rankedCandidates.map((candidate) => {
-      const touchingClusters = clusterAnalyses.filter((analysis) => analysis.roomIndexes.has(candidate.index))
       return {
         index: candidate.index,
         distance: candidate.distance,
         degree: candidate.degree,
-        touchesStartCluster: touchingClusters.some((analysis) => analysis.roomIndexes.has(startIndex)),
+        touchesStartCluster: startClusterRoomIndexes.has(candidate.index),
       }
     }),
   }

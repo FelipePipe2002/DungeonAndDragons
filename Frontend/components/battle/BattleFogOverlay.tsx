@@ -22,6 +22,7 @@ type BattleFogOverlayProps = {
   editorMode?: FogEditorMode
   className?: string
   overlayOpacity?: number
+  overlayVisible?: boolean
   interactionPaddingPx?: number
   onCreateReveal?: (reveal: FogRevealDraft) => void
   onCoverArea?: (reveal: FogRevealDraft) => void
@@ -137,6 +138,7 @@ export function BattleFogOverlay({
   editorMode = "idle",
   className,
   overlayOpacity = 0.98,
+  overlayVisible = true,
   interactionPaddingPx = 56,
   onCreateReveal,
   onCoverArea,
@@ -155,46 +157,48 @@ export function BattleFogOverlay({
     [fogReveals, verticalMirror],
   )
 
-  if (!fogEnabled) {
+  if (!fogEnabled && !interactive) {
     return null
   }
 
   return (
     <div ref={rootRef} className={cn("pointer-events-none absolute inset-0 z-[35]", className)}>
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          <mask id={maskId}>
-            <rect x="0" y="0" width="100" height="100" fill="#fff" />
-            {visibleReveals.map((reveal) => (
-              <rect
-                key={`fog-mask-${reveal.id}`}
-                x={reveal.x}
-                y={reveal.displayY}
-                width={reveal.width}
-                height={reveal.height}
-                fill="#000"
-              />
-            ))}
-            {draftReveal && editorMode === "reveal" ? (
-              <rect
-                x={draftReveal.x}
-                y={toDisplayY(draftReveal.y, draftReveal.height, verticalMirror)}
-                width={draftReveal.width}
-                height={draftReveal.height}
-                fill="#000"
-              />
-            ) : null}
-          </mask>
-        </defs>
-        <rect x="0" y="0" width="100" height="100" fill={`rgba(5,5,5,${overlayOpacity})`} mask={`url(#${maskId})`} />
-      </svg>
+      {overlayVisible && fogEnabled ? (
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <mask id={maskId}>
+              <rect x="0" y="0" width="100" height="100" fill="#fff" />
+              {visibleReveals.map((reveal) => (
+                <rect
+                  key={`fog-mask-${reveal.id}`}
+                  x={reveal.x}
+                  y={reveal.displayY}
+                  width={reveal.width}
+                  height={reveal.height}
+                  fill="#000"
+                />
+              ))}
+              {draftReveal && editorMode === "reveal" ? (
+                <rect
+                  x={draftReveal.x}
+                  y={toDisplayY(draftReveal.y, draftReveal.height, verticalMirror)}
+                  width={draftReveal.width}
+                  height={draftReveal.height}
+                  fill="#000"
+                />
+              ) : null}
+            </mask>
+          </defs>
+          <rect x="0" y="0" width="100" height="100" fill={`rgba(5,5,5,${overlayOpacity})`} mask={`url(#${maskId})`} />
+        </svg>
+      ) : null}
 
-      {draftReveal && editorMode === "erase" ? (
+      {overlayVisible && draftReveal && editorMode === "erase" ? (
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden="true"
@@ -207,6 +211,20 @@ export function BattleFogOverlay({
               width: `${draftReveal.width}%`,
               height: `${draftReveal.height}%`,
               backgroundColor: `rgba(5,5,5,${overlayOpacity})`,
+            }}
+          />
+        </div>
+      ) : null}
+
+      {!overlayVisible && draftReveal && editorMode !== "idle" ? (
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div
+            className="absolute border border-amber-300/80 bg-amber-200/10 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+            style={{
+              left: `${draftReveal.x}%`,
+              top: `${toDisplayY(draftReveal.y, draftReveal.height, verticalMirror)}%`,
+              width: `${draftReveal.width}%`,
+              height: `${draftReveal.height}%`,
             }}
           />
         </div>
