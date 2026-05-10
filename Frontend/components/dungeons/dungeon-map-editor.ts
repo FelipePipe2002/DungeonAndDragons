@@ -64,6 +64,27 @@ export function compressPath(points: Point[]) {
   return compressed
 }
 
+export function compressPathPreservingPoints(points: Point[], preservedPoints: Point[]) {
+  if (points.length <= 2) return points
+
+  const preservedKeys = new Set(preservedPoints.map(pointKey))
+  const compressed = [points[0]]
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = compressed[compressed.length - 1]
+    const current = points[index]
+    const next = points[index + 1]
+    const sameColumn = previous.x === current.x && current.x === next.x
+    const sameRow = previous.y === current.y && current.y === next.y
+
+    if ((sameColumn || sameRow) && !preservedKeys.has(pointKey(current))) continue
+    compressed.push(current)
+  }
+
+  compressed.push(points[points.length - 1])
+  return compressed
+}
+
 export function createNextCorridorId(corridors: NormalizedDungeonMap["corridors"]) {
   let nextNumericId = 1
   const existingIds = new Set(corridors.map((corridor) => corridor.id))
@@ -262,6 +283,20 @@ export function normalizedDungeonToDocument(dungeon: NormalizedDungeonMap): Dung
         placement: light.placement ?? undefined,
         wallMounted: light.wallMounted,
         orientation: light.orientation,
+      })),
+      props: dungeon.props.map((prop) => ({
+        id: prop.id,
+        shape: prop.shape,
+        x: prop.x,
+        y: prop.y,
+        width: prop.width,
+        height: prop.height,
+        rotation: prop.rotation,
+        color: prop.color,
+        name: prop.name ?? undefined,
+        image: prop.image ?? undefined,
+        imageAssetId: prop.imageAssetId ?? undefined,
+        hidden: prop.hidden,
       })),
     },
   }

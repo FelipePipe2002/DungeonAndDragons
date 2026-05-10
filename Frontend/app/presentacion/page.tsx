@@ -4,12 +4,10 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation"
 
 import { BattleInitiativeStrip } from "@/components/battle/BattleInitiativeStrip"
-import { BattleDungeonFogOverlay } from "@/components/battle/BattleDungeonFogOverlay"
 import { BattleFogOverlay } from "@/components/battle/BattleFogOverlay"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import { BATTLE_CONDITIONS } from "@/lib/battle/conditions"
 import {
-  calculateBattleDungeonFogVisibility,
   getBattleTokenFogVisibility,
   type BattleTokenFogVisibility,
 } from "@/lib/battle/fog"
@@ -20,8 +18,8 @@ import {
   readBattleScreenPayload,
   subscribeToBattleScreenEvents,
 } from "@/lib/battle/sync"
-import type { BattleState, BattleToken, Character } from "@/lib/types"
-import type { DungeonMapPoint, NormalizedDungeonMap } from "@/lib/dungeons/types"
+import type { BattleState, Character } from "@/lib/types"
+import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
 import { fetchActiveBattle, sanitizeBattleState } from "@/lib/services/battle-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { LandmarkMapOnlyClient } from "./LandmarkMapOnlyClient"
@@ -43,6 +41,13 @@ function matchesPresentationTarget(battle: BattleState | null, target: Presentat
       battle.sceneType === target.sceneType &&
       battle.sceneSlug === target.sceneSlug,
   )
+}
+
+function isSamePreviewPosition(
+  current: { x: number; y: number } | undefined,
+  next: { x: number; y: number } | undefined,
+) {
+  return current?.x === next?.x && current?.y === next?.y
 }
 
 function matchesPresentationTargetIdentity(
@@ -77,16 +82,6 @@ function resolvePresentationTarget(requestedTarget: PresentationScreenTarget | n
   return setPresentationScreenTarget(requestedTarget) ?? {
     ...requestedTarget,
     revision: Date.now(),
-  }
-}
-
-function tokenToDungeonCell(token: Pick<BattleToken, "x" | "y">, dungeon: NormalizedDungeonMap): DungeonMapPoint {
-  const width = Math.max(1, dungeon.bounds.width)
-  const height = Math.max(1, dungeon.bounds.height)
-
-  return {
-    x: Math.min(width - 1, Math.max(0, Math.floor((token.x / 100) * width))),
-    y: Math.min(height - 1, Math.max(0, Math.floor((token.y / 100) * height))),
   }
 }
 
@@ -470,6 +465,10 @@ function PresentationPageContent() {
             return next
           }
 
+          if (isSamePreviewPosition(current[event.preview.obstacleId], event.preview.position)) {
+            return current
+          }
+
           return {
             ...current,
             [event.preview.obstacleId]: event.preview.position,
@@ -485,13 +484,17 @@ function PresentationPageContent() {
           }
 
           const next = { ...current }
-          delete next[event.preview.tokenNumber]
-          return next
-        }
+            delete next[event.preview.tokenNumber]
+            return next
+          }
 
-        return {
-          ...current,
-          [event.preview.tokenNumber]: event.preview.position,
+          if (isSamePreviewPosition(current[event.preview.tokenNumber], event.preview.position)) {
+            return current
+          }
+
+          return {
+            ...current,
+            [event.preview.tokenNumber]: event.preview.position,
         }
       })
     })
@@ -612,6 +615,15 @@ function PresentationPageContent() {
   }, [battleState, obstaclePreviews, tokenPreviews])
 
   const visibleBattle =
+    battleState &&
+    battleState.status === "active" &&
+    presentationTarget &&
+    battleState.sceneType === presentationTarget.sceneType &&
+    battleState.sceneSlug === presentationTarget.sceneSlug
+      ? battleState
+      : null
+
+  const renderedVisibleBattle =
     renderedBattleState &&
     renderedBattleState.status === "active" &&
     presentationTarget &&
@@ -620,26 +632,9 @@ function PresentationPageContent() {
       ? renderedBattleState
       : null
 
-  const battleDungeonFogContext = useMemo(() => {
-    if (!visibleBattle?.dungeonFog.enabled || !presentationDungeon) {
-      return null
-    }
-
-    const tokenCellsByNumber = new Map(
-      visibleBattle.tokens.map((token) => [token.number, tokenToDungeonCell(token, presentationDungeon)] as const),
-    )
-
-    return {
-      visibility: calculateBattleDungeonFogVisibility({
-        dungeonFog: visibleBattle.dungeonFog,
-        bounds: {
-          width: presentationDungeon.bounds.width,
-          height: presentationDungeon.bounds.height,
-        },
-      }),
-      tokenCellsByNumber,
-    }
-  }, [presentationDungeon, visibleBattle])
+  const presentationDungeonOpenDoorIds = useMemo(() => {
+    return new Set(visibleBattle?.dungeonFog.openDoorIds ?? [])
+  }, [visibleBattle?.dungeonFog.openDoorIds])
 
   const tokenFogVisibilityByNumber = useMemo(() => {
     const visibilityByNumber = new Map<number, BattleTokenFogVisibility>()
@@ -648,32 +643,25 @@ function PresentationPageContent() {
     }
 
     for (const token of visibleBattle.tokens) {
-      if (visibleBattle.dungeonFog.enabled && !battleDungeonFogContext) {
-        visibilityByNumber.set(token.number, token.type === "enemy" ? "hidden" : "visible")
-        continue
-      }
-
       visibilityByNumber.set(
         token.number,
         getBattleTokenFogVisibility({
           battle: visibleBattle,
           token,
-          dungeonVisibility: battleDungeonFogContext?.visibility ?? null,
-          tokenCell: battleDungeonFogContext?.tokenCellsByNumber.get(token.number) ?? null,
         }),
       )
     }
 
     return visibilityByNumber
-  }, [battleDungeonFogContext, visibleBattle])
+  }, [visibleBattle])
 
   const visiblePresentationTokens = useMemo(() => {
-    if (!visibleBattle) {
+    if (!visibleBattle || !renderedVisibleBattle) {
       return []
     }
 
-    return visibleBattle.tokens.filter((token) => tokenFogVisibilityByNumber.get(token.number) !== "hidden")
-  }, [tokenFogVisibilityByNumber, visibleBattle])
+    return renderedVisibleBattle.tokens.filter((token) => tokenFogVisibilityByNumber.get(token.number) !== "hidden")
+  }, [renderedVisibleBattle, tokenFogVisibilityByNumber, visibleBattle])
   const visibleInitiativeCurrentTurnTokenNumber = useMemo(() => {
     if (!visibleBattle || typeof visibleBattle.currentTurnTokenNumber !== "number") {
       return null
@@ -700,6 +688,8 @@ function PresentationPageContent() {
           onSceneReady={handleSceneReady}
           onSceneLoadError={handleSceneLoadError}
           onDungeonMapLoad={setPresentationDungeon}
+          dungeonOpenDoorIds={presentationDungeonOpenDoorIds}
+          dungeonDoorToggleEnabled={false}
           showDungeonLighting
           flipVertical={isVerticallyMirrored}
           showBattleGrid={!isFriendlyPresentationMode}
@@ -714,33 +704,25 @@ function PresentationPageContent() {
             ) : null
           }
           overlay={
-            visibleBattle ? (
+            visibleBattle && renderedVisibleBattle ? (
               <div className="relative size-full">
                 <BattleTokenOverlay
                   tokens={visiblePresentationTokens}
                   tokenFogVisibilityByNumber={tokenFogVisibilityByNumber}
                   statusDefinitions={BATTLE_CONDITIONS}
-                  obstacles={visibleBattle.obstacles}
+                  obstacles={renderedVisibleBattle.obstacles}
                   characterById={charactersById}
                   currentTurnTokenNumber={isFriendlyPresentationMode ? null : visibleInitiativeCurrentTurnTokenNumber}
                   verticalMirror={isVerticallyMirrored}
                   hideHiddenTokens
+                  hideHiddenObstacles
                   neutralPalette={isFriendlyPresentationMode}
                 />
-                {battleDungeonFogContext ? (
-                  <BattleDungeonFogOverlay
-                    fogEnabled={visibleBattle.dungeonFog.enabled}
-                    visibilityMap={battleDungeonFogContext.visibility}
-                    overlayOpacity={1}
-                    blocksPointerEvents
-                  />
-                ) : (
-                  <BattleFogOverlay
-                    fogEnabled={visibleBattle.fogEnabled}
-                    fogReveals={visibleBattle.fogReveals}
-                    verticalMirror={isVerticallyMirrored}
-                  />
-                )}
+                <BattleFogOverlay
+                  fogEnabled={visibleBattle.fogEnabled}
+                  fogReveals={visibleBattle.fogReveals}
+                  verticalMirror={isVerticallyMirrored}
+                />
               </div>
             ) : null
           }

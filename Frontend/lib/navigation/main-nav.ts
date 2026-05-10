@@ -139,6 +139,14 @@ const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
       action: "Activar/desactivar modo Friendly en presentacion",
     },
     {
+      key: "M",
+      action: "Alternar modo Mostrar del fog",
+    },
+    {
+      key: "T",
+      action: "Alternar modo Tapar del fog",
+    },
+    {
       key: "Shift+Click y arrastrar (ficha)",
       action: "Mover ficha",
     },

@@ -9,6 +9,7 @@ import {
   type DungeonMapLayout,
   type DungeonMapMetadata,
   type DungeonMapPoint,
+  type DungeonProp,
   type DungeonLightSource,
   type DungeonMarker,
   type DungeonRoom,
@@ -17,6 +18,7 @@ import {
   type NormalizedDungeonLightSource,
   type NormalizedDungeonMap,
   type NormalizedDungeonMarker,
+  type NormalizedDungeonProp,
   type NormalizedDungeonRoom,
 } from "./types.ts"
 import { DUNGEON_MAP_SCHEMA_DEFAULTS, validateDungeonMapDocumentContract } from "./schema.ts"
@@ -59,6 +61,16 @@ function normalizeNullableString(value: unknown) {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback
+  const trimmed = value.trim()
+  return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed : fallback
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
 }
 
 function normalizePoint(value: unknown, path: string, errors: string[]): DungeonMapPoint | null {
@@ -575,6 +587,60 @@ function validateLightSource(light: unknown, index: number, errors: string[]): l
   return errors.every((error) => !error.startsWith(path))
 }
 
+function validateProp(prop: unknown, index: number, errors: string[]): prop is DungeonProp {
+  const path = `layout.props[${index}]`
+  if (!isRecord(prop)) {
+    errors.push(`${path} debe ser un objeto.`)
+    return false
+  }
+
+  if (!isFinitePositiveNumber(prop.id) || !Number.isInteger(prop.id)) {
+    errors.push(`${path}.id debe ser un entero mayor a 0.`)
+  }
+
+  if (prop.shape !== "circle" && prop.shape !== "rectangle") {
+    errors.push(`${path}.shape debe ser "circle" o "rectangle".`)
+  }
+
+  if (!isFiniteNumber(prop.x) || !isFiniteNumber(prop.y)) {
+    errors.push(`${path}.x e ${path}.y deben ser numeros finitos.`)
+  }
+
+  if (!isFinitePositiveNumber(prop.width) || !isFinitePositiveNumber(prop.height)) {
+    errors.push(`${path}.width y ${path}.height deben ser numeros finitos mayores a 0.`)
+  }
+
+  if (prop.rotation !== undefined && !isFiniteNumber(prop.rotation)) {
+    errors.push(`${path}.rotation debe ser numero si esta presente.`)
+  }
+
+  if (typeof prop.color !== "string") {
+    errors.push(`${path}.color debe ser string.`)
+  }
+
+  if (prop.name !== undefined && prop.name !== null && typeof prop.name !== "string") {
+    errors.push(`${path}.name debe ser string si esta presente.`)
+  }
+
+  if (prop.image !== undefined && prop.image !== null && typeof prop.image !== "string") {
+    errors.push(`${path}.image debe ser string si esta presente.`)
+  }
+
+  if (
+    prop.imageAssetId !== undefined &&
+    prop.imageAssetId !== null &&
+    (!isFinitePositiveNumber(prop.imageAssetId) || !Number.isInteger(prop.imageAssetId))
+  ) {
+    errors.push(`${path}.imageAssetId debe ser un entero mayor a 0 si esta presente.`)
+  }
+
+  if (prop.hidden !== undefined && typeof prop.hidden !== "boolean") {
+    errors.push(`${path}.hidden debe ser boolean si esta presente.`)
+  }
+
+  return errors.every((error) => !error.startsWith(path))
+}
+
 export function parseDungeonMapDocument(raw: string | unknown): unknown {
   if (typeof raw !== "string") {
     return raw
@@ -722,6 +788,24 @@ export function validateDungeonMapDocument(value: unknown): DungeonMapValidation
     }
   }
 
+  if (layout.props !== undefined) {
+    if (!Array.isArray(layout.props)) {
+      errors.push("layout.props debe ser un arreglo si esta presente.")
+    } else {
+      layout.props.forEach((prop, index) => {
+        validateProp(prop, index, errors)
+      })
+
+      if (errors.every((error) => !error.startsWith("layout.props["))) {
+        layout.props.forEach((prop, index) => {
+          if (prop.x < 0 || prop.y < 0 || prop.x > 100 || prop.y > 100) {
+            errors.push(`layout.props[${index}] debe usar coordenadas porcentuales entre 0 y 100.`)
+          }
+        })
+      }
+    }
+  }
+
   return errors.length === 0 ? { ok: true, value: document } : { ok: false, errors }
 }
 
@@ -786,6 +870,30 @@ export function normalizeDungeonMapDocument(document: DungeonMapDocument): Norma
       orientation: light.orientation ?? DUNGEON_MAP_SCHEMA_DEFAULTS.light.orientation,
     }),
   )
+  const props: NormalizedDungeonProp[] = (document.layout.props ?? DUNGEON_MAP_SCHEMA_DEFAULTS.layout.props).map((prop) => {
+    const shape = prop.shape === "circle" ? "circle" : "rectangle"
+    const width = clamp(prop.width, 0.5, 100)
+    const height = shape === "circle" ? width : clamp(prop.height, 0.5, 100)
+    const imageAssetId =
+      typeof prop.imageAssetId === "number" && Number.isFinite(prop.imageAssetId) && prop.imageAssetId > 0
+        ? Math.trunc(prop.imageAssetId)
+        : null
+
+    return {
+      id: Math.max(1, Math.trunc(prop.id)),
+      shape,
+      x: clamp(prop.x, 0, 100),
+      y: clamp(prop.y, 0, 100),
+      width,
+      height,
+      rotation: typeof prop.rotation === "number" && Number.isFinite(prop.rotation) ? Math.trunc(prop.rotation) : 0,
+      color: normalizeHexColor(prop.color, shape === "circle" ? "#f59e0b" : "#64748b"),
+      name: normalizeNullableString(prop.name),
+      image: imageAssetId === null ? normalizeNullableString(prop.image) : null,
+      imageAssetId,
+      hidden: prop.hidden ?? false,
+    }
+  })
 
   return {
     type: DUNGEON_MAP_DOCUMENT_TYPE,
@@ -803,6 +911,7 @@ export function normalizeDungeonMapDocument(document: DungeonMapDocument): Norma
     doors,
     markers,
     lights,
+    props,
   }
 }
 

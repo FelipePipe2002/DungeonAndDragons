@@ -415,12 +415,22 @@ public class BattleStateService {
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
+        List<String> openDoorIds = dungeonFog == null || dungeonFog.openDoorIds() == null
+            ? List.of()
+            : dungeonFog.openDoorIds().stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
         int brightRadius = clampInt(dungeonFog == null ? null : dungeonFog.playerVisionBrightRadiusCells(), 4, 0, 64);
         int dimRadius = clampInt(dungeonFog == null ? null : dungeonFog.playerVisionDimRadiusCells(), 8, brightRadius, 128);
 
         return new BattleDungeonFogData(
             dungeonFog != null && Boolean.TRUE.equals(dungeonFog.enabled()),
             exploredCellKeys,
+            openDoorIds,
             brightRadius,
             dimRadius
         );
@@ -525,6 +535,8 @@ public class BattleStateService {
         String shape = normalizeObstacleShape(obstacle.shape());
         double width = clampObstacleDimension(obstacle.width(), shape.equals("circle") ? 8 : 14);
         double height = shape.equals("circle") ? width : clampObstacleDimension(obstacle.height(), 8);
+        Integer imageAssetId = positiveOptionalInt(obstacle.imageAssetId());
+        String image = imageAssetId == null ? trimToLength(normalizedOrNull(obstacle.image()), 2000) : null;
 
         return new BattleObstacleData(
             id,
@@ -533,7 +545,12 @@ public class BattleStateService {
             clampPercent(obstacle.y(), 50),
             width,
             height,
-            normalizeHexColor(obstacle.color(), shape.equals("circle") ? "#f59e0b" : "#0f766e")
+            obstacle.rotation() == null ? 0 : obstacle.rotation(),
+            normalizeHexColor(obstacle.color(), shape.equals("circle") ? "#f59e0b" : "#0f766e"),
+            trimToLength(normalizedOrNull(obstacle.name()), 120),
+            image,
+            imageAssetId,
+            obstacle.hidden() != null && obstacle.hidden()
         );
     }
 
@@ -825,16 +842,7 @@ public class BattleStateService {
     private String defaultBattleTitle(String sceneSlug) {
         String normalizedSlug = requireSceneSlug(sceneSlug)
             .replace("/edificio/", " / ");
-        String[] parts = normalizedSlug.split("[-/]");
-        String label = java.util.Arrays.stream(parts)
-            .filter(part -> !part.isBlank())
-            .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
-            .collect(Collectors.joining(" "));
-
-        if (label.isBlank()) {
-            return "Batalla";
-        }
-
-        return "Batalla en " + label;
+        String[] parts = normalizedSlug.split("-");
+        return "Batalla en " + String.join(" ", parts);
     }
 }

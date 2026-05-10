@@ -43,8 +43,11 @@ import { OrganizationDetailDialog } from "@/components/dialog/detailed/Organizat
 import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResumeDialog"
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
+import { BattlePropLibraryPicker } from "@/components/battle/BattlePropLibraryPicker"
+import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import BuildingsMap from "@/components/buildings/BuildingsMap"
 import DungeonMap, { DEFAULT_DUNGEON_DISPLAY_STYLE, type DungeonDisplayStyle } from "@/components/dungeons/DungeonMap"
+import { normalizedDungeonToDocument } from "@/components/dungeons/dungeon-map-editor"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
@@ -52,12 +55,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { generateDungeonMapDocument, stringifyDungeonMapDocument } from "@/lib/dungeons/generator"
-import type { DungeonMapDocument } from "@/lib/dungeons/types"
+import type { BattlePropLibraryItem } from "@/lib/battle/props"
+import type { DungeonMapDocument, NormalizedDungeonMap, NormalizedDungeonProp } from "@/lib/dungeons/types"
 import { isDungeonJsonDocument, resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 import { matchesSearchQuery } from "@/lib/search/utils"
-import { buildAssetUrl, deleteAsset, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
+import { buildAssetUrl, deleteAsset, getBackendAssetIdFromUrl, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { createBattle, fetchBattleHistory } from "@/lib/services/battle-api.service"
 import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
@@ -66,6 +70,7 @@ import { fetchLandmarks, updateLandmark } from "@/lib/services/landmark-api.serv
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
 import {
   DUNGEON_MAP_JSON_TYPE,
+  type BattleObstacle,
   type BattleSummary,
    type Building,
    type Character,
@@ -84,6 +89,48 @@ const DUNGEON_INVALID_JSON_ERROR_MESSAGE = "El archivo JSON no es valido."
 const DUNGEON_JSON_MISSING_TYPE_ERROR_MESSAGE = 'El JSON de una mazmorra debe incluir type="mazmorra".'
 const DUNGEON_JSON_WRONG_TYPE_ERROR_MESSAGE = 'El JSON cargado no corresponde a una mazmorra: se esperaba type="mazmorra".'
 const DUNGEON_PRELOADED_MAP_ERROR_MESSAGE = "Las mazmorras no permiten URLs externas ni mapas precargados."
+
+function dungeonPropToBattleObstacle(prop: NormalizedDungeonProp): BattleObstacle {
+  const image = prop.imageAssetId ? buildAssetUrl(prop.imageAssetId) : prop.image ?? undefined
+
+  return {
+    id: prop.id,
+    shape: prop.shape,
+    x: prop.x,
+    y: prop.y,
+    width: prop.width,
+    height: prop.height,
+    rotation: prop.rotation,
+    color: prop.color,
+    name: prop.name ?? undefined,
+    image,
+    imageAssetId: prop.imageAssetId ?? undefined,
+    hidden: prop.hidden,
+  }
+}
+
+function battleObstacleToDungeonProp(prop: BattleObstacle): NormalizedDungeonProp {
+  return {
+    id: prop.id,
+    shape: prop.shape,
+    x: prop.x,
+    y: prop.y,
+    width: prop.width,
+    height: prop.height,
+    rotation: prop.rotation ?? 0,
+    color: prop.color,
+    name: prop.name ?? null,
+    image: prop.imageAssetId ? null : prop.image ?? null,
+    imageAssetId: prop.imageAssetId ?? null,
+    hidden: prop.hidden ?? false,
+  }
+}
+
+function getNextDungeonPropId(props: BattleObstacle[]) {
+  return props.reduce((nextId, prop) => Math.max(nextId, prop.id + 1), 1)
+}
+
+const DUNGEON_PROP_SAVE_DEBOUNCE_MS = 650
 
 const LANDMARK_TYPE_LABELS: Record<LandmarkType, string> = {
   ciudad: "Ciudad",
@@ -147,6 +194,8 @@ type DungeonEditorDraft = {
   corridorTextureUrl: string
   roomTextureUrls: string[]
   corridorTextureUrls: string[]
+  roomTextureAssetIds: Array<number | null>
+  corridorTextureAssetIds: Array<number | null>
   roomTextureRandomRotation: boolean
   corridorTextureRandomRotation: boolean
   doorColor: string
@@ -173,7 +222,12 @@ type DungeonGeneratorConfig = {
   allowIntersections: boolean
   generateTorches: boolean
   torchDensityPercent: number
-  displayStyle: DungeonDisplayStyle
+  displayStyle: DungeonGeneratorDisplayStyle
+}
+
+type DungeonGeneratorDisplayStyle = DungeonDisplayStyle & {
+  roomTextureAssetIds?: Array<number | null>
+  corridorTextureAssetIds?: Array<number | null>
 }
 
 type ReferenceIndexes = {
@@ -355,6 +409,8 @@ function toDefaultDungeonEditorDraft(name: string | undefined): DungeonEditorDra
     corridorTextureUrl: defaultCorridorTextureUrl,
     roomTextureUrls: defaultRoomTextureUrl ? [defaultRoomTextureUrl] : [],
     corridorTextureUrls: defaultCorridorTextureUrl ? [defaultCorridorTextureUrl] : [],
+    roomTextureAssetIds: defaultRoomTextureUrl ? [getBackendAssetIdFromUrl(defaultRoomTextureUrl)] : [],
+    corridorTextureAssetIds: defaultCorridorTextureUrl ? [getBackendAssetIdFromUrl(defaultCorridorTextureUrl)] : [],
     roomTextureRandomRotation: DEFAULT_DUNGEON_DISPLAY_STYLE.roomTextureRandomRotation ?? false,
     corridorTextureRandomRotation: DEFAULT_DUNGEON_DISPLAY_STYLE.corridorTextureRandomRotation ?? false,
     doorColor: DEFAULT_DUNGEON_DISPLAY_STYLE.doorColor,
@@ -363,6 +419,24 @@ function toDefaultDungeonEditorDraft(name: string | undefined): DungeonEditorDra
     corridorWallColor: DEFAULT_DUNGEON_DISPLAY_STYLE.corridorWallColor,
     roomWallColor: DEFAULT_DUNGEON_DISPLAY_STYLE.roomWallColor,
   }
+}
+
+function normalizeTextureAssetIds(rawValue: unknown, textureUrls: string[]) {
+  const rawIds = Array.isArray(rawValue) ? rawValue : []
+  return textureUrls.map((textureUrl, index) => {
+    const rawId = rawIds[index]
+    if (typeof rawId === "number" && Number.isFinite(rawId) && rawId > 0) {
+      return Math.trunc(rawId)
+    }
+    return getBackendAssetIdFromUrl(textureUrl)
+  })
+}
+
+function textureUrlsFromAssetIds(textureUrls: string[], textureAssetIds: Array<number | null>) {
+  return textureUrls.map((textureUrl, index) => {
+    const assetId = textureAssetIds[index]
+    return typeof assetId === "number" && assetId > 0 ? buildAssetUrl(assetId) : textureUrl
+  })
 }
 
 function parseDungeonGeneratorConfig(value: string | undefined): DungeonGeneratorConfig | null {
@@ -433,6 +507,17 @@ function parseDungeonGeneratorConfig(value: string | undefined): DungeonGenerato
       corridorTextureUrls.push(displayStyle.corridorTextureUrl.trim())
     }
 
+    const roomTextureAssetIds = normalizeTextureAssetIds(
+      (displayStyle as DungeonGeneratorDisplayStyle).roomTextureAssetIds,
+      roomTextureUrls,
+    )
+    const corridorTextureAssetIds = normalizeTextureAssetIds(
+      (displayStyle as DungeonGeneratorDisplayStyle).corridorTextureAssetIds,
+      corridorTextureUrls,
+    )
+    const resolvedRoomTextureUrls = textureUrlsFromAssetIds(roomTextureUrls, roomTextureAssetIds)
+    const resolvedCorridorTextureUrls = textureUrlsFromAssetIds(corridorTextureUrls, corridorTextureAssetIds)
+
     const width = parsed.width
     const height = parsed.height
     const roomCount = parsed.roomCount
@@ -475,10 +560,12 @@ function parseDungeonGeneratorConfig(value: string | undefined): DungeonGenerato
       torchDensityPercent,
       displayStyle: {
         ...displayStyle,
-        roomTextureUrl: roomTextureUrls[0] ?? "",
-        corridorTextureUrl: corridorTextureUrls[0] ?? "",
-        roomTextureUrls,
-        corridorTextureUrls,
+        roomTextureUrl: resolvedRoomTextureUrls[0] ?? "",
+        corridorTextureUrl: resolvedCorridorTextureUrls[0] ?? "",
+        roomTextureUrls: resolvedRoomTextureUrls,
+        corridorTextureUrls: resolvedCorridorTextureUrls,
+        roomTextureAssetIds,
+        corridorTextureAssetIds,
       },
     }
   } catch {
@@ -523,6 +610,8 @@ function toDungeonEditorDraftFromLandmark(landmark: Landmark | null): DungeonEdi
     corridorTextureUrl,
     roomTextureUrls: roomTextureUrls.length > 0 ? roomTextureUrls : (roomTextureUrl ? [roomTextureUrl] : []),
     corridorTextureUrls: corridorTextureUrls.length > 0 ? corridorTextureUrls : (corridorTextureUrl ? [corridorTextureUrl] : []),
+    roomTextureAssetIds: normalizeTextureAssetIds(config.displayStyle.roomTextureAssetIds, roomTextureUrls),
+    corridorTextureAssetIds: normalizeTextureAssetIds(config.displayStyle.corridorTextureAssetIds, corridorTextureUrls),
     roomTextureRandomRotation: config.displayStyle.roomTextureRandomRotation ?? false,
     corridorTextureRandomRotation: config.displayStyle.corridorTextureRandomRotation ?? false,
     doorColor: config.displayStyle.doorColor,
@@ -542,6 +631,17 @@ function readDungeonGeneratorConfigFromJson(value: string): DungeonGeneratorConf
   } catch {
     return null
   }
+}
+
+function stringifyDungeonMapDocumentWithConfig(
+  document: DungeonMapDocument,
+  generatorConfig: DungeonGeneratorConfig | null,
+) {
+  if (!generatorConfig) {
+    return stringifyDungeonMapDocument(document)
+  }
+
+  return `${JSON.stringify({ ...document, generatorConfig }, null, 2)}\n`
 }
 
 function downloadTextFile(filename: string, contents: string) {
@@ -812,6 +912,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [isSavingDungeonConfig, setIsSavingDungeonConfig] = useState(false)
   const [mapGridDraft, setMapGridDraft] = useState<MapGridDraft>(() => toMapGridDraft(null))
   const [dungeonEditorDraft, setDungeonEditorDraft] = useState<DungeonEditorDraft>(() => toDefaultDungeonEditorDraft(undefined))
+  const [loadedDungeonMap, setLoadedDungeonMap] = useState<NormalizedDungeonMap | null>(null)
+  const loadedDungeonMapRef = useRef<NormalizedDungeonMap | null>(null)
+  const dungeonPropsSaveTimerRef = useRef<number | null>(null)
+  const dungeonPropsSaveInFlightRef = useRef(false)
+  const queuedDungeonPropsSaveRef = useRef<BattleObstacle[] | null>(null)
+  const [selectedDungeonPropId, setSelectedDungeonPropId] = useState<number | null>(null)
+  const [pendingDungeonPropPlacement, setPendingDungeonPropPlacement] = useState<BattlePropLibraryItem | null>(null)
   const [activeRoomTextureIndex, setActiveRoomTextureIndex] = useState(0)
   const [activeCorridorTextureIndex, setActiveCorridorTextureIndex] = useState(0)
   const [autoDungeonSeed, setAutoDungeonSeed] = useState(() => createAutoDungeonSeed())
@@ -821,6 +928,18 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [dungeonEditorError, setDungeonEditorError] = useState<string | null>(null)
   const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
   const [selectedEstadoDetailId, setSelectedEstadoDetailId] = useState<number | null>(null)
+
+  useEffect(() => {
+    loadedDungeonMapRef.current = loadedDungeonMap
+  }, [loadedDungeonMap])
+
+  useEffect(() => {
+    return () => {
+      if (dungeonPropsSaveTimerRef.current !== null) {
+        clearTimeout(dungeonPropsSaveTimerRef.current)
+      }
+    }
+  }, [])
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
@@ -994,14 +1113,28 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     const corridorTextureUrls = dungeonEditorDraft.corridorTextureUrls
       .map((value) => value.trim())
       .filter(Boolean)
+    const roomTextureAssetIds = dungeonEditorDraft.roomTextureUrls
+      .map((value, index) => {
+        if (!value.trim()) return null
+        return dungeonEditorDraft.roomTextureAssetIds[index] ?? getBackendAssetIdFromUrl(value)
+      })
+      .filter((_, index) => Boolean(dungeonEditorDraft.roomTextureUrls[index]?.trim()))
+    const corridorTextureAssetIds = dungeonEditorDraft.corridorTextureUrls
+      .map((value, index) => {
+        if (!value.trim()) return null
+        return dungeonEditorDraft.corridorTextureAssetIds[index] ?? getBackendAssetIdFromUrl(value)
+      })
+      .filter((_, index) => Boolean(dungeonEditorDraft.corridorTextureUrls[index]?.trim()))
     const wallWidth = normalizeDungeonEditorDecimal(dungeonEditorDraft.wallWidth, DEFAULT_DUNGEON_DISPLAY_STYLE.wallWidth, 0.02, 0.48)
-    const displayStyle: DungeonDisplayStyle = {
+    const displayStyle: DungeonGeneratorDisplayStyle = {
       roomColor: dungeonEditorDraft.roomColor,
       corridorColor: dungeonEditorDraft.corridorColor,
       roomTextureUrl: roomTextureUrls[0] ?? "",
       corridorTextureUrl: corridorTextureUrls[0] ?? "",
       roomTextureUrls,
       corridorTextureUrls,
+      roomTextureAssetIds,
+      corridorTextureAssetIds,
       roomTextureRandomRotation: dungeonEditorDraft.roomTextureRandomRotation,
       corridorTextureRandomRotation: dungeonEditorDraft.corridorTextureRandomRotation,
       doorColor: dungeonEditorDraft.doorColor,
@@ -1500,7 +1633,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
           densityPercent: generatorConfig.torchDensityPercent,
         },
       })
-      const jsonToSave = stringifyDungeonMapDocument(documentToSave)
+      const jsonToSave = stringifyDungeonMapDocumentWithConfig(documentToSave, generatorConfig)
 
       if (!explicitSeed) {
         setAutoDungeonSeed(seedToUse)
@@ -1619,7 +1752,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
       downloadTextFile(
         `${landmarkNameToSlug(landmark.nombre) || "mazmorra"}.dungeon.json`,
-        JSON.stringify({ ...documentToExport, generatorConfig }, null, 2),
+        stringifyDungeonMapDocumentWithConfig(documentToExport, generatorConfig),
       )
       setDungeonEditorError(null)
     } catch (error) {
@@ -1632,7 +1765,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       return
     }
 
-    const jsonToSave = stringifyDungeonMapDocument(document)
+    const generatorConfig = parseDungeonGeneratorConfig(landmark.dungeonGeneratorConfig)
+    const jsonToSave = stringifyDungeonMapDocumentWithConfig(document, generatorConfig)
     const previousAssetId = typeof landmark.mapAssetId === "number" ? landmark.mapAssetId : null
     const previousAssetKind = landmark.mapAssetKind
     let uploadedAssetId: number | null = null
@@ -1674,6 +1808,119 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       throw new Error(getBackendErrorMessage(error, "No se pudo guardar el JSON editado de la mazmorra."))
     }
   }, [isDungeonLandmark, landmark, persistLandmark])
+
+  const persistDungeonProps = useCallback(
+    async (nextProps: BattleObstacle[]) => {
+      if (dungeonPropsSaveInFlightRef.current) {
+        queuedDungeonPropsSaveRef.current = nextProps
+        return
+      }
+
+      const currentDungeon = loadedDungeonMapRef.current
+      if (!currentDungeon) {
+        return
+      }
+
+      const nextDungeon: NormalizedDungeonMap = {
+        ...currentDungeon,
+        props: nextProps.map(battleObstacleToDungeonProp),
+      }
+
+      dungeonPropsSaveInFlightRef.current = true
+      loadedDungeonMapRef.current = nextDungeon
+      setLoadedDungeonMap(nextDungeon)
+      try {
+        await handlePersistEditedDungeonDocument(normalizedDungeonToDocument(nextDungeon))
+        setDungeonEditorError(null)
+      } catch (error) {
+        setDungeonEditorError(getBackendErrorMessage(error, "No se pudieron guardar los props de la mazmorra."))
+      } finally {
+        dungeonPropsSaveInFlightRef.current = false
+        const queuedProps = queuedDungeonPropsSaveRef.current
+        queuedDungeonPropsSaveRef.current = null
+        if (queuedProps !== null) {
+          dungeonPropsSaveTimerRef.current = window.setTimeout(() => {
+            dungeonPropsSaveTimerRef.current = null
+            void persistDungeonProps(queuedProps)
+          }, DUNGEON_PROP_SAVE_DEBOUNCE_MS)
+        }
+      }
+    },
+    [handlePersistEditedDungeonDocument],
+  )
+
+  const schedulePersistDungeonProps = useCallback(
+    (nextProps: BattleObstacle[]) => {
+      if (dungeonPropsSaveTimerRef.current !== null) {
+        clearTimeout(dungeonPropsSaveTimerRef.current)
+      }
+
+      dungeonPropsSaveTimerRef.current = window.setTimeout(() => {
+        dungeonPropsSaveTimerRef.current = null
+        void persistDungeonProps(nextProps)
+      }, DUNGEON_PROP_SAVE_DEBOUNCE_MS)
+    },
+    [persistDungeonProps],
+  )
+
+  const updateDungeonProps = useCallback(
+    (updater: (props: BattleObstacle[]) => BattleObstacle[]) => {
+      const currentDungeon = loadedDungeonMapRef.current
+      if (!currentDungeon || isSavingDungeonMap) {
+        return
+      }
+
+      const currentProps = currentDungeon.props.map(dungeonPropToBattleObstacle)
+      const nextProps = updater(currentProps)
+      const nextDungeon: NormalizedDungeonMap = {
+        ...currentDungeon,
+        props: nextProps.map(battleObstacleToDungeonProp),
+      }
+      loadedDungeonMapRef.current = nextDungeon
+      setLoadedDungeonMap(nextDungeon)
+      schedulePersistDungeonProps(nextProps)
+    },
+    [isSavingDungeonMap, schedulePersistDungeonProps],
+  )
+
+  const handleDungeonPropPlace = useCallback(
+    (position: { x: number; y: number }, keepSelected: boolean) => {
+      if (!pendingDungeonPropPlacement || !loadedDungeonMap) {
+        return
+      }
+
+      let createdPropId: number | null = null
+      updateDungeonProps((currentProps) => {
+        const propId = getNextDungeonPropId(currentProps)
+        createdPropId = propId
+        return [
+          ...currentProps,
+          {
+            id: propId,
+            shape: "rectangle",
+            x: position.x,
+            y: position.y,
+            width: 5,
+            height: 5,
+            color: "#64748b",
+            name: pendingDungeonPropPlacement.name,
+            image: pendingDungeonPropPlacement.image,
+            imageAssetId: pendingDungeonPropPlacement.imageAssetId ?? undefined,
+            hidden: false,
+          },
+        ]
+      })
+
+      if (createdPropId !== null) {
+        setSelectedDungeonPropId(createdPropId)
+      }
+
+      if (!keepSelected) {
+        setPendingDungeonPropPlacement(null)
+      }
+    },
+    [loadedDungeonMap, pendingDungeonPropPlacement, updateDungeonProps],
+  )
 
   const handleDungeonEditorIntegerChange = useCallback(
     (field: keyof Pick<
@@ -1737,11 +1984,13 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     }))
   }, [])
 
-  const setRoomTextureAtIndex = useCallback((index: number, value: string) => {
+  const setRoomTextureAtIndex = useCallback((index: number, value: string, assetId?: number | null) => {
     setDungeonEditorDraft((current) => {
       const next = [...current.roomTextureUrls]
+      const nextAssetIds = [...current.roomTextureAssetIds]
       if (next.length === 0) {
         next.push("")
+        nextAssetIds.push(null)
       }
       if (index < 0 || index >= next.length) {
         return current
@@ -1752,27 +2001,33 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
       if (!normalizedValue && hadImage) {
         next.splice(index, 1)
+        nextAssetIds.splice(index, 1)
       } else {
         next[index] = normalizedValue
+        nextAssetIds[index] = assetId ?? getBackendAssetIdFromUrl(normalizedValue)
       }
 
       if (next.length === 0) {
         next.push("")
+        nextAssetIds.push(null)
       }
 
       return {
         ...current,
         roomTextureUrls: next,
+        roomTextureAssetIds: nextAssetIds,
         roomTextureUrl: next[0] ?? "",
       }
     })
   }, [])
 
-  const setCorridorTextureAtIndex = useCallback((index: number, value: string) => {
+  const setCorridorTextureAtIndex = useCallback((index: number, value: string, assetId?: number | null) => {
     setDungeonEditorDraft((current) => {
       const next = [...current.corridorTextureUrls]
+      const nextAssetIds = [...current.corridorTextureAssetIds]
       if (next.length === 0) {
         next.push("")
+        nextAssetIds.push(null)
       }
       if (index < 0 || index >= next.length) {
         return current
@@ -1783,17 +2038,21 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
       if (!normalizedValue && hadImage) {
         next.splice(index, 1)
+        nextAssetIds.splice(index, 1)
       } else {
         next[index] = normalizedValue
+        nextAssetIds[index] = assetId ?? getBackendAssetIdFromUrl(normalizedValue)
       }
 
       if (next.length === 0) {
         next.push("")
+        nextAssetIds.push(null)
       }
 
       return {
         ...current,
         corridorTextureUrls: next,
+        corridorTextureAssetIds: nextAssetIds,
         corridorTextureUrl: next[0] ?? "",
       }
     })
@@ -1805,6 +2064,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       return {
         ...current,
         roomTextureUrls: next,
+        roomTextureAssetIds: [...current.roomTextureAssetIds, null],
         roomTextureUrl: next[0] ?? "",
       }
     })
@@ -1817,6 +2077,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       return {
         ...current,
         corridorTextureUrls: next,
+        corridorTextureAssetIds: [...current.corridorTextureAssetIds, null],
         corridorTextureUrl: next[0] ?? "",
       }
     })
@@ -1836,11 +2097,15 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       next.push("")
     }
 
-    setDungeonEditorDraft((current) => ({
-      ...current,
-      roomTextureUrls: next,
-      roomTextureUrl: next[0] ?? "",
-    }))
+    setDungeonEditorDraft((current) => {
+      const nextAssetIds = current.roomTextureAssetIds.filter((_, slotIndex) => slotIndex !== index)
+      return {
+        ...current,
+        roomTextureUrls: next,
+        roomTextureAssetIds: nextAssetIds.length > 0 ? nextAssetIds : [null],
+        roomTextureUrl: next[0] ?? "",
+      }
+    })
     setActiveRoomTextureIndex(Math.min(activeRoomTextureIndex, next.length - 1))
   }, [activeRoomTextureIndex, dungeonEditorDraft.roomTextureUrls])
 
@@ -1857,11 +2122,15 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
       next.push("")
     }
 
-    setDungeonEditorDraft((current) => ({
-      ...current,
-      corridorTextureUrls: next,
-      corridorTextureUrl: next[0] ?? "",
-    }))
+    setDungeonEditorDraft((current) => {
+      const nextAssetIds = current.corridorTextureAssetIds.filter((_, slotIndex) => slotIndex !== index)
+      return {
+        ...current,
+        corridorTextureUrls: next,
+        corridorTextureAssetIds: nextAssetIds.length > 0 ? nextAssetIds : [null],
+        corridorTextureUrl: next[0] ?? "",
+      }
+    })
     setActiveCorridorTextureIndex(Math.min(activeCorridorTextureIndex, next.length - 1))
   }, [activeCorridorTextureIndex, dungeonEditorDraft.corridorTextureUrls])
 
@@ -2567,6 +2836,56 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  const dungeonPropsOverlay = useMemo(() => {
+    if (!loadedDungeonMap || !isDungeonLandmark) {
+      return null
+    }
+
+    const dungeonProps = loadedDungeonMap.props.map(dungeonPropToBattleObstacle)
+
+    return (
+      <BattleTokenOverlay
+        tokens={[]}
+        obstacles={dungeonProps}
+        interactive={!isSavingDungeonMap}
+        neutralPalette
+        selectedObstacleId={selectedDungeonPropId}
+        pendingPropPlacement={pendingDungeonPropPlacement}
+        onSelectObstacle={(propId) => setSelectedDungeonPropId(propId)}
+        onMoveObstacle={(propId, nextPosition) => {
+          updateDungeonProps((currentProps) => currentProps.map((prop) => prop.id === propId ? { ...prop, ...nextPosition } : prop))
+        }}
+        onResizeObstacle={(propId, nextSize) => {
+          updateDungeonProps((currentProps) => currentProps.map((prop) => prop.id === propId ? { ...prop, ...nextSize } : prop))
+        }}
+        onRemoveObstacle={(propId) => {
+          updateDungeonProps((currentProps) => currentProps.filter((prop) => prop.id !== propId))
+          setSelectedDungeonPropId((current) => (current === propId ? null : current))
+        }}
+        onPlaceProp={handleDungeonPropPlace}
+        onToggleObstacleHidden={(propId) => {
+          updateDungeonProps((currentProps) => currentProps.map((prop) => prop.id === propId ? { ...prop, hidden: !prop.hidden } : prop))
+        }}
+      />
+    )
+  }, [handleDungeonPropPlace, isDungeonLandmark, isSavingDungeonMap, loadedDungeonMap, pendingDungeonPropPlacement, selectedDungeonPropId, updateDungeonProps])
+
+  const dungeonToolPanelAddon = useMemo(() => {
+    if (!isDungeonLandmark) {
+      return null
+    }
+
+    return (
+      <BattlePropLibraryPicker
+        pendingPropPlacement={pendingDungeonPropPlacement}
+        onPendingPropPlacementChange={setPendingDungeonPropPlacement}
+        disabled={!loadedDungeonMap || isSavingDungeonMap}
+        side="top"
+        align="start"
+      />
+    )
+  }, [isDungeonLandmark, isSavingDungeonMap, loadedDungeonMap, pendingDungeonPropPlacement])
+
   if (!landmark && !hasResolvedLoad) {
     return (
       <div className="mx-auto px-6 py-8 text-sm text-muted-foreground">
@@ -2812,8 +3131,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             <DungeonMap
               dataUrl={effectiveMapUrl}
               onLoadError={setBuildingsMapError}
+              onDungeonLoad={setLoadedDungeonMap}
               onDocumentChange={handlePersistEditedDungeonDocument}
               displayStyle={dungeonEditorConfig.displayStyle}
+              mapOverlay={dungeonPropsOverlay}
+              toolPanelAddon={dungeonToolPanelAddon}
             />
             {buildingsMapError ? (
               <div className={styles.mapErrorPrompt}>
@@ -3796,6 +4118,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                           >
                             <ImageEmbeddingPicker
                               value={activeRoomTextureUrl}
+                              assetId={dungeonEditorDraft.roomTextureAssetIds[activeRoomTextureIndex] ?? null}
                               usage="generic"
                               label="Textura de habitaciones"
                               placeholder="/textures/stone-floor.png"
@@ -3815,7 +4138,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                                   aria-label="Rotacion aleatoria de textura de habitaciones"
                                 />
                               )}
-                              onChange={(value) => setRoomTextureAtIndex(activeRoomTextureIndex, value)}
+                              onChange={(value, assetId) => setRoomTextureAtIndex(activeRoomTextureIndex, value, assetId)}
                             />
                             <div className={styles.dungeonEditorTextureNav}>
                               <button
@@ -3857,6 +4180,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                           >
                             <ImageEmbeddingPicker
                               value={activeCorridorTextureUrl}
+                              assetId={dungeonEditorDraft.corridorTextureAssetIds[activeCorridorTextureIndex] ?? null}
                               usage="generic"
                               label="Textura de pasillos"
                               placeholder="/textures/dirt-floor.png"
@@ -3876,7 +4200,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                                   aria-label="Rotacion aleatoria de textura de pasillos"
                                 />
                               )}
-                              onChange={(value) => setCorridorTextureAtIndex(activeCorridorTextureIndex, value)}
+                              onChange={(value, assetId) => setCorridorTextureAtIndex(activeCorridorTextureIndex, value, assetId)}
                             />
                             <div className={styles.dungeonEditorTextureNav}>
                               <button
@@ -3966,6 +4290,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                             onChange={(event) => setDungeonEditorDraft((current) => ({ ...current, roomWallColor: event.target.value }))}
                           />
                         </label>
+
                       </div>
                     </div>
 

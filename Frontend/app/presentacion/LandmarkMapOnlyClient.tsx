@@ -40,6 +40,10 @@ type Point = {
   y: number
 }
 
+export type MapFocusPoint = Point & {
+  requestId: number
+}
+
 type Size = {
   width: number
   height: number
@@ -77,8 +81,12 @@ interface LandmarkMapOnlyClientProps {
   topRightControls?: ReactNode
   topOverlay?: ReactNode
   overlay?: ReactNode
+  focusPoint?: MapFocusPoint | null
   onDungeonMapLoad?: (dungeon: NormalizedDungeonMap | null) => void
+  dungeonOpenDoorIds?: ReadonlySet<string>
+  onDungeonOpenDoorIdsChange?: (openDoorIds: Set<string>) => void
   showDungeonLighting?: boolean
+  dungeonDoorToggleEnabled?: boolean
   fitParentHeight?: boolean
 }
 
@@ -204,11 +212,21 @@ function parseDungeonDisplayStyle(configText: string | undefined): Partial<Dunge
     if (typeof displayStyleRecord.corridorTextureUrl === "string") style.corridorTextureUrl = displayStyleRecord.corridorTextureUrl
     if (Array.isArray(displayStyleRecord.roomTextureUrls)) {
       const normalized = displayStyleRecord.roomTextureUrls.filter((value): value is string => typeof value === "string")
-      style.roomTextureUrls = normalized
+      const assetIds = Array.isArray(displayStyleRecord.roomTextureAssetIds) ? displayStyleRecord.roomTextureAssetIds : []
+      style.roomTextureUrls = normalized.map((value, index) => {
+        const assetId = assetIds[index]
+        return typeof assetId === "number" && Number.isFinite(assetId) && assetId > 0 ? buildAssetUrl(assetId) : value
+      })
+      style.roomTextureUrl = style.roomTextureUrls[0] ?? style.roomTextureUrl
     }
     if (Array.isArray(displayStyleRecord.corridorTextureUrls)) {
       const normalized = displayStyleRecord.corridorTextureUrls.filter((value): value is string => typeof value === "string")
-      style.corridorTextureUrls = normalized
+      const assetIds = Array.isArray(displayStyleRecord.corridorTextureAssetIds) ? displayStyleRecord.corridorTextureAssetIds : []
+      style.corridorTextureUrls = normalized.map((value, index) => {
+        const assetId = assetIds[index]
+        return typeof assetId === "number" && Number.isFinite(assetId) && assetId > 0 ? buildAssetUrl(assetId) : value
+      })
+      style.corridorTextureUrl = style.corridorTextureUrls[0] ?? style.corridorTextureUrl
     }
     if (typeof displayStyleRecord.roomTextureRandomRotation === "boolean") style.roomTextureRandomRotation = displayStyleRecord.roomTextureRandomRotation
     if (typeof displayStyleRecord.corridorTextureRandomRotation === "boolean") style.corridorTextureRandomRotation = displayStyleRecord.corridorTextureRandomRotation
@@ -252,8 +270,12 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   topRightControls,
   topOverlay,
   overlay,
+  focusPoint,
   onDungeonMapLoad,
+  dungeonOpenDoorIds,
+  onDungeonOpenDoorIdsChange,
   showDungeonLighting = false,
+  dungeonDoorToggleEnabled = true,
   fitParentHeight = false,
 }: LandmarkMapOnlyClientProps) {
   const slugSource = sceneSlug ?? nombreLandmark ?? ""
@@ -563,8 +585,9 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   useEffect(() => {
     if (!shouldUseDungeonMapPlaceholder) {
       onDungeonMapLoad?.(null)
+      onDungeonOpenDoorIdsChange?.(new Set())
     }
-  }, [onDungeonMapLoad, shouldUseDungeonMapPlaceholder])
+  }, [onDungeonMapLoad, onDungeonOpenDoorIdsChange, shouldUseDungeonMapPlaceholder])
 
   const notifySceneReady = useCallback(() => {
     setIsSceneReady(true)
@@ -753,6 +776,11 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
         return
       }
 
+      if (event.shiftKey) {
+        event.preventDefault()
+        return
+      }
+
       event.preventDefault()
 
       const rect = viewport.getBoundingClientRect()
@@ -850,6 +878,36 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
     setScale(INITIAL_SCALE)
     setOffset(nextOffset)
   }, [applyCanvasTransform])
+
+  useEffect(() => {
+    if (!focusPoint || !shouldUseImageMap || !viewportRef.current || !rotatedMapRenderSize) {
+      return
+    }
+
+    const viewport = viewportRef.current
+    const viewportWidth = viewport.clientWidth
+    const viewportHeight = viewport.clientHeight
+    if (viewportWidth <= 0 || viewportHeight <= 0) return
+
+    const centerX = viewportWidth / 2
+    const centerY = viewportHeight / 2
+    const imageX = (focusPoint.x / 100) * rotatedMapRenderSize.imageWidth - rotatedMapRenderSize.imageWidth / 2
+    const imageY = (focusPoint.y / 100) * rotatedMapRenderSize.imageHeight - rotatedMapRenderSize.imageHeight / 2
+    const radians = (mapRotationDegrees * Math.PI) / 180
+    const rotatedX = imageX * Math.cos(radians) - imageY * Math.sin(radians)
+    const rotatedY = imageX * Math.sin(radians) + imageY * Math.cos(radians)
+    const targetX = centerX + rotatedX
+    const targetY = centerY + rotatedY
+    const currentScale = scaleRef.current
+    const nextOffset = {
+      x: (centerX - targetX) * currentScale,
+      y: (centerY - targetY) * currentScale,
+    }
+
+    offsetRef.current = nextOffset
+    applyCanvasTransform(currentScale, nextOffset)
+    setOffset(nextOffset)
+  }, [applyCanvasTransform, focusPoint, mapRotationDegrees, rotatedMapRenderSize, shouldUseImageMap])
 
   const handleRotateMap = useCallback(async () => {
     if ((!landmark && !building) || !effectiveMapUrl || !shouldUseImageMap || isRotatingMap) {
@@ -963,11 +1021,15 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
             onLoadError={setBuildingsMapError}
             onLoadComplete={notifySceneReady}
             onDungeonLoad={onDungeonMapLoad}
+            openDoorIds={dungeonOpenDoorIds}
+            onOpenDoorIdsChange={onDungeonOpenDoorIdsChange}
+            doorToggleEnabled={dungeonDoorToggleEnabled}
             displayStyle={dungeonDisplayStyle}
             lightingOverlayEnabled={showDungeonLighting}
             lightingOverlayShowRadiusRings={false}
+            mapOverlay={overlay}
+            focusPoint={focusPoint}
           />
-          {overlay ? <div className={styles.dungeonMapOverlayLayer}>{overlay}</div> : null}
           {buildingsMapError && !emptyFallbackImageSrc ? <div className={styles.stateOverlay}>{buildingsMapError}</div> : null}
         </div>
       </section>

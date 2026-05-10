@@ -2,16 +2,18 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from "react"
 
 import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
+import { buildDungeonLightingVisibility } from "@/lib/dungeons/visibility"
 
 import {
   clamp,
@@ -45,6 +47,8 @@ type DungeonCanvasProps = {
   lightingPreviewEnabled?: boolean
   lightingRadiusRingsEnabled?: boolean
   pendingCorridorAnchorPoint?: CanvasPoint | null
+  pendingCorridorPathPoints?: CanvasPoint[]
+  pendingCorridorWaypointPoints?: CanvasPoint[]
   openDoorIds?: Set<string>
   onRoomSpanClick?: (payload: {
     room: NormalizedDungeonMap["rooms"][number]
@@ -57,7 +61,15 @@ type DungeonCanvasProps = {
   }) => void
   onDungeonCellClick?: (payload: { point: CanvasPoint }) => void
   onDungeonCellHover?: (payload: { point: CanvasPoint | null }) => void
+  onEmptyDungeonCellClick?: (payload: { point: CanvasPoint }) => void
+  onUndoPendingCorridorWaypoint?: () => void
   onDoorClick?: (doorId: string) => void
+  mapOverlay?: ReactNode
+  focusPoint?: {
+    x: number
+    y: number
+    requestId: number
+  } | null
   children?: ReactNode
 }
 
@@ -92,12 +104,18 @@ export default function DungeonCanvas({
   lightingPreviewEnabled = false,
   lightingRadiusRingsEnabled = true,
   pendingCorridorAnchorPoint = null,
+  pendingCorridorPathPoints = [],
+  pendingCorridorWaypointPoints = [],
   openDoorIds,
   onRoomSpanClick,
   onCorridorSegmentClick,
   onDungeonCellClick,
   onDungeonCellHover,
+  onEmptyDungeonCellClick,
+  onUndoPendingCorridorWaypoint,
   onDoorClick,
+  mapOverlay,
+  focusPoint,
   children,
 }: DungeonCanvasProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -254,33 +272,33 @@ export default function DungeonCanvas({
     },
   }), [cameraState.offsetX, cameraState.offsetY, cameraState.scale])
 
-  const handleWheel = (event: ReactWheelEvent<HTMLCanvasElement>) => {
-    if (viewportSize.width <= 0 || viewportSize.height <= 0) return
-    if (!rootRef.current) return
+  const mapOverlayStyle = useMemo<CSSProperties>(() => ({
+    width: `${Math.max(1, dungeon.bounds.width) * BASE_CELL_SIZE}px`,
+    height: `${Math.max(1, dungeon.bounds.height) * BASE_CELL_SIZE}px`,
+    transform: `translate3d(${camera.offset.x}px, ${camera.offset.y}px, 0) scale(${camera.scale})`,
+    transformOrigin: "0 0",
+    "--map-canvas-scale": camera.scale,
+    "--battle-grid-cell-size": `${BASE_CELL_SIZE}px`,
+    "--battle-grid-offset-x": "0px",
+    "--battle-grid-offset-y": "0px",
+  } as CSSProperties), [camera.offset.x, camera.offset.y, camera.scale, dungeon.bounds.height, dungeon.bounds.width])
 
-    event.preventDefault()
-    const rect = rootRef.current.getBoundingClientRect()
-    const pointer = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
+  useEffect(() => {
+    if (!focusPoint || viewportSize.width <= 0 || viewportSize.height <= 0) return
 
     setCameraState((current) => {
-      const currentCamera = {
-        scale: current.scale,
-        offset: { x: current.offsetX, y: current.offsetY },
+      const scale = current.scale
+      const target = {
+        x: (focusPoint.x / 100) * Math.max(1, dungeon.bounds.width),
+        y: (focusPoint.y / 100) * Math.max(1, dungeon.bounds.height),
       }
-
-      const worldBeforeZoom = screenToWorld(pointer, renderOrigin, currentCamera)
-      const nextScale = clamp(current.scale * Math.exp(-event.deltaY * ZOOM_SENSITIVITY), MIN_SCALE, MAX_SCALE)
       const nextCamera = {
-        scale: nextScale,
-        offset: { x: 0, y: 0 },
+        scale,
+        offset: {
+          x: viewportSize.width / 2 - target.x * BASE_CELL_SIZE * scale,
+          y: viewportSize.height / 2 - target.y * BASE_CELL_SIZE * scale,
+        },
       }
-      const screenAtZeroOffset = worldToScreen(worldBeforeZoom, renderOrigin, nextCamera)
-      nextCamera.offset.x = pointer.x - screenAtZeroOffset.x
-      nextCamera.offset.y = pointer.y - screenAtZeroOffset.y
-
       const clamped = clampCameraOffset(nextCamera, dungeon, viewportSize)
       return {
         scale: clamped.scale,
@@ -288,7 +306,65 @@ export default function DungeonCanvas({
         offsetY: clamped.offset.y,
       }
     })
-  }
+  }, [dungeon, focusPoint, viewportSize.height, viewportSize.width])
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const handleWheel = (event: WheelEvent) => {
+      if (viewportSize.width <= 0 || viewportSize.height <= 0) return
+
+      if (event.shiftKey) {
+        event.preventDefault()
+        return
+      }
+
+      event.preventDefault()
+      const rect = root.getBoundingClientRect()
+      const pointer = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      }
+
+      setCameraState((current) => {
+        const currentCamera = {
+          scale: current.scale,
+          offset: { x: current.offsetX, y: current.offsetY },
+        }
+
+        const worldBeforeZoom = screenToWorld(pointer, renderOrigin, currentCamera)
+        const nextScale = clamp(current.scale * Math.exp(-event.deltaY * ZOOM_SENSITIVITY), MIN_SCALE, MAX_SCALE)
+        const nextCamera = {
+          scale: nextScale,
+          offset: { x: 0, y: 0 },
+        }
+        const screenAtZeroOffset = worldToScreen(worldBeforeZoom, renderOrigin, nextCamera)
+        nextCamera.offset.x = pointer.x - screenAtZeroOffset.x
+        nextCamera.offset.y = pointer.y - screenAtZeroOffset.y
+
+        const clamped = clampCameraOffset(nextCamera, dungeon, viewportSize)
+        return {
+          scale: clamped.scale,
+          offsetX: clamped.offset.x,
+          offsetY: clamped.offset.y,
+        }
+      })
+    }
+
+    root.addEventListener("wheel", handleWheel, { passive: false })
+    return () => root.removeEventListener("wheel", handleWheel)
+  }, [dungeon, renderOrigin, viewportSize])
+
+  const lightingVisibility = useMemo(() => {
+    if (!lightingPreviewEnabled) return undefined
+    if (dungeon.lights.length === 0) return undefined
+
+    return buildDungeonLightingVisibility({
+      dungeon,
+      openDoorIds,
+    })
+  }, [dungeon, lightingPreviewEnabled, openDoorIds])
 
   const finishPan = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current
@@ -324,6 +400,12 @@ export default function DungeonCanvas({
     if (event.button === 1) {
       event.preventDefault()
     }
+  }
+
+  const handleContextMenu = (event: ReactMouseEvent<HTMLCanvasElement>) => {
+    if (!isEditable || activeTool !== "create-corridor") return
+    event.preventDefault()
+    onUndoPendingCorridorWaypoint?.()
   }
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -423,7 +505,9 @@ export default function DungeonCanvas({
           corridorId: corridorHit.corridorId,
           point: corridorHit.point,
         })
+        return
       }
+      onEmptyDungeonCellClick?.({ point: worldCell })
       return
     }
 
@@ -438,7 +522,7 @@ export default function DungeonCanvas({
     }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || viewportSize.width <= 0 || viewportSize.height <= 0) return
     const ctx = canvas.getContext("2d")
@@ -469,22 +553,23 @@ export default function DungeonCanvas({
       renderOrigin,
       openDoorIds,
       pendingAnchorPoint: pendingCorridorAnchorPoint,
+      pendingPathPoints: pendingCorridorPathPoints,
+      pendingWaypointPoints: pendingCorridorWaypointPoints,
       textures,
     }
 
-    const frameId = requestAnimationFrame(() => {
-      ctx.imageSmoothingEnabled = displayStyle.imageSmoothingEnabled
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, cssWidth, cssHeight)
-      drawDungeon(ctx, scene)
-      if (lightingPreviewEnabled) {
-        drawDungeonLightingOverlay(ctx, scene, { showRadiusRings: lightingRadiusRingsEnabled })
-        drawDungeonGrid(ctx, scene)
-      }
-    })
-
-    return () => cancelAnimationFrame(frameId)
-  }, [camera, displayStyle, dungeon, lightingPreviewEnabled, lightingRadiusRingsEnabled, openDoorIds, pendingCorridorAnchorPoint, renderOrigin, textures, viewportSize.height, viewportSize.width])
+    ctx.imageSmoothingEnabled = displayStyle.imageSmoothingEnabled
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, cssWidth, cssHeight)
+    drawDungeon(ctx, scene)
+    if (lightingPreviewEnabled) {
+      drawDungeonLightingOverlay(ctx, scene, {
+        showRadiusRings: lightingRadiusRingsEnabled,
+        precomputedVisibility: lightingVisibility,
+      })
+      drawDungeonGrid(ctx, scene)
+    }
+  }, [camera, displayStyle, dungeon, lightingPreviewEnabled, lightingRadiusRingsEnabled, lightingVisibility, openDoorIds, pendingCorridorAnchorPoint, pendingCorridorPathPoints, pendingCorridorWaypointPoints, renderOrigin, textures, viewportSize.height, viewportSize.width])
 
   return (
     <div ref={rootRef} className={isDragging ? `${styles.root} ${styles.rootDragging}` : styles.root}>
@@ -492,7 +577,6 @@ export default function DungeonCanvas({
         ref={canvasRef}
         className={styles.canvasSurface}
         aria-label="Mapa de mazmorra en canvas"
-        onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPan}
@@ -500,7 +584,13 @@ export default function DungeonCanvas({
         onPointerLeave={() => onDungeonCellHover?.({ point: null })}
         onClick={handleCanvasClick}
         onAuxClick={handleAuxClick}
+        onContextMenu={handleContextMenu}
       />
+      {mapOverlay ? (
+        <div className={styles.mapOverlay} style={mapOverlayStyle}>
+          {mapOverlay}
+        </div>
+      ) : null}
       {children}
     </div>
   )

@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
@@ -77,14 +78,14 @@ class LandmarkServiceTest {
             landmarkMapValidator
         );
 
-        when(landmarkRepository.save(any(LandmarkEntity.class))).thenAnswer(invocation -> {
+        lenient().when(landmarkRepository.save(any(LandmarkEntity.class))).thenAnswer(invocation -> {
             LandmarkEntity landmark = invocation.getArgument(0);
             if (landmark.getId() == null) {
                 landmark.setId(1L);
             }
             return landmark;
         });
-        when(domainMapper.toLandmarkDto(any(LandmarkEntity.class), anyBoolean(), anyBoolean(), anyBoolean()))
+        lenient().when(domainMapper.toLandmarkDto(any(LandmarkEntity.class), anyBoolean(), anyBoolean(), anyBoolean()))
             .thenAnswer(invocation -> {
                 LandmarkEntity landmark = invocation.getArgument(0);
                 return new LandmarkDto(

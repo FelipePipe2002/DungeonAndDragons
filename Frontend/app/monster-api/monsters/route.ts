@@ -53,7 +53,7 @@ function buildMonsterRequestContext(request: Request) {
 
   const publicApiBaseUrl = appMode === "production"
     ? `${resolveSiteOrigin()}/api`
-    : `${requestUrl.origin}/api`
+    : backendApiBaseUrl
 
   return {
     cookie,

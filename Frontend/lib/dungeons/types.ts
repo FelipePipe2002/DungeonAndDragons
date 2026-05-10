@@ -106,6 +106,23 @@ export type DungeonLightSource = {
   orientation?: DungeonLightOrientation
 }
 
+export type DungeonPropShape = "circle" | "rectangle"
+
+export type DungeonProp = {
+  id: number
+  shape: DungeonPropShape
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation?: number
+  color: string
+  name?: string
+  image?: string
+  imageAssetId?: number
+  hidden?: boolean
+}
+
 export type DungeonMapLayout = {
   width: number
   height: number
@@ -116,6 +133,7 @@ export type DungeonMapLayout = {
   doors?: DungeonDoor[]
   markers?: DungeonMarker[]
   lights?: DungeonLightSource[]
+  props?: DungeonProp[]
 }
 
 export type DungeonMapDocument = {
@@ -183,6 +201,21 @@ export type NormalizedDungeonLightSource = {
   orientation: DungeonLightOrientation
 }
 
+export type NormalizedDungeonProp = {
+  id: number
+  shape: DungeonPropShape
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  color: string
+  name: string | null
+  image: string | null
+  imageAssetId: number | null
+  hidden: boolean
+}
+
 export type NormalizedDungeonMap = {
   type: typeof DUNGEON_MAP_DOCUMENT_TYPE
   version: typeof DUNGEON_MAP_DOCUMENT_VERSION
@@ -199,4 +232,5 @@ export type NormalizedDungeonMap = {
   doors: NormalizedDungeonDoor[]
   markers: NormalizedDungeonMarker[]
   lights: NormalizedDungeonLightSource[]
+  props: NormalizedDungeonProp[]
 }

@@ -1,19 +1,44 @@
 TODO - Bugs:
 
 TODO-Priority-High:
-    Change images from .png to .webp (since they are smaller so the will load up faster)
     Add .json of the classes
     Poder crear reinos, barones, condes y podes asignar areas y ciudades a esos paises, para agregar mas profundidad
     Terminar implementacion de dungeons (minimo que tenga texturas para el piso y paredes, que pueda poner fichas y poder crear trampas)
+        [Marcadores D&D] : Sistema para colocar monstruos, NPCs, trampas, tesoros, puertas secretas, puzzles, entrada y boss room. Cada marcador podría tener nombre, descripción, icono, estado y datos útiles como daño, DC, recompensa o vínculo a ficha.
+        [Encuentros por habitación] : Asociar criaturas a una sala y mostrar información del combate, como enemigos presentes, XP total, CR estimado y estado del encuentro: oculto, activo o derrotado. Esto conecta directamente la dungeon con las batallas.
+        [Fog of war manual] : Permitir ocultar y revelar zonas del mapa durante la sesión. El DM podría revelar una habitación completa con click o pintar áreas visibles/ocultas manualmente. Muy útil para exploración y combate en vivo.
+        [Puertas mejoradas] : Agregar estados persistentes a las puertas: abierta, cerrada, bloqueada, secreta o rota. Esto puede afectar movimiento, visibilidad, exploración y decisiones tácticas durante la batalla.
+        [Notas secretas por habitación] : Click en una sala para guardar información privada del DM, como trampas ocultas, enemigos escondidos, checks necesarios o pistas. Solo aparecería en modo editor/DM, no en la vista de jugadores.
+        [Trampas y checks] : Marcadores específicos para trampas con DC, tipo de save, daño, condición de activación y forma de desactivarlas. Ejemplo: “Pit trap, DC 14 DEX save, 2d6 bludgeoning”.
+        [Tesoros y loot] : Cofres o recompensas colocables en el mapa, con contenido editable y estado de saqueado/no saqueado. Sirve para que la dungeon tenga objetivos y recompensas claras.
+        [Iniciar batalla desde una sala] : Click en una habitación con encuentro para crear directamente un combate. Podría integrarse con BattlePageClient.tsx y cargar enemigos, posición inicial y datos del encuentro.
+        [Capas de overlay] : Toggles para mostrar u ocultar grid, números de sala, nombres, secretos, luces, encuentros, trampas y tesoros. Ayuda a separar vista DM, vista jugador y vista de combate.
+        [Medición de distancia] : Herramienta tipo regla para medir celdas o pies dentro del mapa. Muy útil para movimiento, ataques a distancia, hechizos y áreas de efecto durante combate.
+        [Room tags] : Tags para clasificar habitaciones como boss, treasure, trap, puzzle, rest, entrance o ambush. Se podrían mostrar con iconos o colores y ayudarían a entender rápido la estructura de la dungeon.
+        [Editor de salas] : Crear, borrar, mover o redimensionar habitaciones manualmente. Es muy potente, pero más complejo porque puede afectar generación, colisiones, corredores y pathfinding.
+        [Pintar celdas] : Herramienta tipo pincel para editar piso, pared, vacío, agua, lava, escombros u otros terrenos. Aporta mucho para customizar mapas y crear zonas tácticas para combate.
+        [Terrenos especiales] : Agregar tipos de terreno con efecto jugable, como agua difícil de cruzar, lava que hace daño, escombros como terreno difícil o niebla que reduce visión. Esto hace las batallas más dinámicas.
+        [Decoraciones tácticas] : Colocar columnas, mesas, estatuas, altares, barricadas, charcos o escombros. Al principio pueden ser visuales, pero después podrían funcionar como cobertura, obstáculos o terreno difícil.
+        [Herramienta de puertas] : Agregar, quitar o cambiar puertas manualmente entre salas y corredores. También permitir convertirlas en secretas, bloqueadas o especiales.
+        [Undo/redo] : Sistema para deshacer y rehacer cambios del editor. Se vuelve importante cuando haya edición de salas, celdas, puertas, luces, marcadores y fog of war.
+        [Presets de dungeon] : Presets como cripta, cueva, fortaleza, alcantarilla, templo o laberinto. Cada uno ajustaría salas, corredores, densidad, puertas, estilo visual y tipo de contenido.
+        [Contenido generado] : Generar automáticamente entrada, boss room, tesoros, trampas y encuentros básicos usando la seed. Ahorra preparación y hace que cada dungeon venga más “jugable” desde el inicio.
+        [Control de dificultad] : Configurar tamaño de dungeon, cantidad de encuentros, densidad de trampas, cantidad de tesoro y dificultad general. Sirve para preparar aventuras rápidas según nivel o duración esperada.
+        [Temas visuales] : Estilos como cueva, cripta, templo, hielo, infernal, fortaleza o alcantarilla. Como ya tenés displayStyle, encaja bien y mejora la identidad visual del mapa.
+        [Biomas o zonas internas] : Dividir una dungeon en sectores, por ejemplo catacumbas, templo profanado y cámara del boss. Ayuda a que el mapa no se sienta uniforme.
+        [Numeración automática de salas] : Mostrar Room 1, Room 2, etc. Útil para organizar notas del DM, encuentros y exportación.
+        [Exportar imagen PNG] : Exportar versión DM con secretos y versión jugador sin secretos. Sirve para compartir, imprimir o usar fuera de la app.
+        [Exportar dungeon notes] : Generar Markdown o PDF con habitaciones, encuentros, trampas, loot y notas del DM. Puede servir para guardar una mini aventura, pero no es prioridad para combate.
+        [Importar JSON enriquecido] : Permitir importar mapas con marcadores, notas, luces, encuentros, fog of war y puertas. Útil más adelante para compartir dungeons o guardar contenido avanzado.
+        [Editar corredores con puntos] : Permitir mover vértices o agregar segmentos a los corredores. Puede servir para pulir layouts, pero aporta menos al combate que salas, puertas, marcadores o fog of war.
+        [Duplicar/regenerar sala] : Seleccionar una habitación y regenerar tamaño, forma o contenido manteniendo la seed/config. Es útil para edición avanzada, pero no es tan prioritaria para gameplay directo.
 
 TODO-Priority-Medium:
-    Agregar tracker de quests 
     Agregar rutas o caminos entre landmarks con tiempo de viaje, peligro y notas de encuentro
     Agregar un buscador global (por preciono alt + f me abre un panel grande con un buscado arriba y espacio vacio abajo, cuando escribo que busque todo, personajes, characters, edificios, buildings, informacion, mosntruos, landmarks, descripcion de cada uno, contenido de los spells, etc todo lo que exista, por ej busco Sugges y si hay un character que se llama Sugges y esta el spell Suggestion que me aparezcan los 2, y si le doy click a uno que me abra en el mismo panel de buscador el contenido, por ej clickeo en el personaje Sugges entonces que me salta el characterDetailedDialog, pero si le doy click a Suggestion el spell que me habra un panel con la info de ese spell, y asi, esto capaz como ia podes primero planificarlo simple, dividir esta tarea en subtareas por ej que primero ande con characters, despues buildins, desp organization, desp landmark, y asi con cada cosa que haya)
 
-Ideas:
+TODO-Priority-Very-Low:
     Integrar IA
-    Mejorar herramientas para conectar mazmorras o salas con notas y encuentros
 
 
 Dar items a los npcs 

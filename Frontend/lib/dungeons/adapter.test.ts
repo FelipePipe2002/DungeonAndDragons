@@ -71,6 +71,34 @@ test("valida documento completo con rooms corridors doors markers y lights", () 
   assert.equal(result.ok, true)
 })
 
+test("acepta props con campos opcionales null para recuperar documentos guardados", () => {
+  const dungeon = readDungeonMapDocument({
+    ...buildMinimalDocument(),
+    layout: {
+      ...buildMinimalDocument().layout,
+      props: [
+        {
+          id: 1,
+          shape: "rectangle",
+          x: 50,
+          y: 50,
+          width: 5,
+          height: 5,
+          color: "#64748b",
+          name: null,
+          image: null,
+          imageAssetId: null,
+          hidden: false,
+        },
+      ],
+    },
+  })
+
+  assert.equal(dungeon.props.length, 1)
+  assert.equal(dungeon.props[0].image, null)
+  assert.equal(dungeon.props[0].imageAssetId, null)
+})
+
 test("rechaza contrato invalido con type incorrecto", () => {
   assert.throws(
     () => readDungeonMapDocument({ ...buildMinimalDocument(), type: "ciudad" }),

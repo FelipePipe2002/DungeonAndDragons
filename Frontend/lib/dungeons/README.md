@@ -17,6 +17,8 @@ Contrato base versionado para mapas de mazmorra.
 - `layout.corridors`
 - `layout.doors`
 - `layout.markers`
+- `layout.lights`
+- `layout.props`
 - campos opcionales de room, corridor, door y marker definidos en `types.ts`
 
 ## Defaults reservados para normalizacion futura
@@ -25,8 +27,18 @@ Contrato base versionado para mapas de mazmorra.
 - `layout.corridors = []`
 - `layout.doors = []`
 - `layout.markers = []`
+- `layout.lights = []`
+- `layout.props = []`
 - `room.kind = "room"`
 - `door.kind = "door"`
+
+## Props decorativos
+- `layout.props` guarda objetos decorativos persistentes de la dungeon.
+- Cada prop usa coordenadas porcentuales `x`/`y` sobre el mapa (`0..100`) para compartir el mismo overlay que batalla.
+- Shape soportado: `"rectangle" | "circle"`.
+- Campos base: `id`, `shape`, `x`, `y`, `width`, `height`, `color`.
+- Campos opcionales: `rotation`, `name`, `image`, `imageAssetId`, `hidden`.
+- Batalla puede editar estos props cuando muestra una dungeon JSON; el cambio se re-suben al asset JSON del landmark.
 
 ## Rechazado por contrato minimo
 - `type` faltante o distinto de `"mazmorra"`

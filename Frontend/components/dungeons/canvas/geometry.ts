@@ -5,11 +5,14 @@ import {
   CORRIDOR_WALL_THICKNESS,
   DOOR_VISUAL_THICKNESS,
   ROOM_SPAN_OVERLAP_PX,
+  type CanvasPoint,
   type CorridorRenderSegment,
   type RenderOrigin,
 } from "./render-types"
 
 type CellRect = { x: number; y: number; width: number; height: number }
+
+export type CellDirection = "north" | "south" | "west" | "east"
 
 export function roomLabelPixelPosition(
   room: NormalizedDungeonMap["rooms"][number],
@@ -170,4 +173,47 @@ export function buildCorridorSegments(
   }
 
   return segments
+}
+
+export function oppositeCellDirection(direction: CellDirection): CellDirection {
+  if (direction === "north") return "south"
+  if (direction === "south") return "north"
+  if (direction === "west") return "east"
+  return "west"
+}
+
+export function directionBetweenCells(from: CanvasPoint, to: CanvasPoint): CellDirection | null {
+  if (to.x === from.x && to.y === from.y - 1) return "north"
+  if (to.x === from.x && to.y === from.y + 1) return "south"
+  if (to.x === from.x - 1 && to.y === from.y) return "west"
+  if (to.x === from.x + 1 && to.y === from.y) return "east"
+  return null
+}
+
+export function corridorPathCells(points: CanvasPoint[]) {
+  const cells: CanvasPoint[] = []
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1]
+    const current = points[index]
+
+    if (previous.x === current.x) {
+      const step = previous.y <= current.y ? 1 : -1
+      for (let y = previous.y; y !== current.y + step; y += step) {
+        if (index > 1 && y === previous.y) continue
+        cells.push({ x: previous.x, y })
+      }
+      continue
+    }
+
+    if (previous.y === current.y) {
+      const step = previous.x <= current.x ? 1 : -1
+      for (let x = previous.x; x !== current.x + step; x += step) {
+        if (index > 1 && x === previous.x) continue
+        cells.push({ x, y: previous.y })
+      }
+    }
+  }
+
+  return cells
 }

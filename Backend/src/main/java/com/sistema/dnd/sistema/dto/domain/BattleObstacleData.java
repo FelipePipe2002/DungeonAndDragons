@@ -1,5 +1,8 @@
 package com.sistema.dnd.sistema.dto.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record BattleObstacleData(
     Integer id,
     String shape,
@@ -7,6 +10,11 @@ public record BattleObstacleData(
     Double y,
     Double width,
     Double height,
-    String color
+    Integer rotation,
+    String color,
+    String name,
+    String image,
+    Integer imageAssetId,
+    Boolean hidden
 ) {
 }

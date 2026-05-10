@@ -10,8 +10,11 @@ The dungeon feature lets a `mazmorra` landmark use a JSON dungeon map instead of
 - Upload generated dungeon JSON as a map asset.
 - Render dungeon JSON on a canvas with pan, zoom, doors, markers, walls, labels, colors, and optional textures.
 - Edit saved dungeon maps in-place by creating or removing corridors.
+- Place/remove torch light sources and preview dungeon lighting/fog-of-war visibility.
+- Place decorative props in the landmark dungeon and persist them in the dungeon JSON.
 - Re-upload edited dungeon JSON and update the landmark's map asset reference.
 - Render the same dungeon map in the presentation/map-only view without edit tools.
+- Share controlled door-open state, overlays, and focus requests with battle/presentation views.
 
 ## Quick File Map
 
@@ -39,13 +42,17 @@ The dungeon feature lets a `mazmorra` landmark use a JSON dungeon map instead of
 - `Frontend/lib/dungeons/generator/*`
   - Generator internals. Prefer editing these for generation behavior, not the UI.
 - `Frontend/components/dungeons/DungeonMap.tsx`
-  - Client component that loads JSON, stores normalized dungeon state, handles edit tools, persists edits, and delegates drawing to `DungeonCanvas`.
+  - Client component that loads JSON, stores normalized dungeon state, handles edit tools, manages door/light state, persists edits, and delegates drawing to `DungeonCanvas`.
 - `Frontend/components/dungeons/DungeonCanvas.tsx`
-  - Canvas host. Handles viewport sizing, texture loading, camera state, pan/zoom, click hit-testing, and calls `drawDungeon`.
+  - Canvas host. Handles viewport sizing, texture loading, camera state, pan/zoom, focus requests, overlay positioning, click hit-testing, and calls `drawDungeon`.
 - `Frontend/components/dungeons/canvas/*`
   - Pure-ish render helpers for camera math, geometry, hit-testing, render types, constants, and draw order.
 - `Frontend/components/dungeons/dungeon-map-editor.ts`
   - Pure editing helpers: corridor IDs, pathfinding, path compression, door rebuilds, normalized-to-document conversion.
+- `Frontend/lib/dungeons/lights.ts`
+  - Pure light-source normalization and ID helpers used by manual torch editing.
+- `Frontend/lib/dungeons/visibility.ts`
+  - Lighting visibility calculation used by canvas lighting overlays.
 - `Frontend/components/dungeons/DungeonMap.module.css`
   - Canvas container and edit-tool styling.
 - `Frontend/lib/dungeons/README.md`
@@ -69,6 +76,8 @@ The persisted file is a `DungeonMapDocument`:
     corridors?: DungeonCorridor[],
     doors?: DungeonDoor[],
     markers?: DungeonMarker[],
+    lights?: DungeonLightSource[],
+    props?: DungeonProp[],
   }
 }
 ```
@@ -80,6 +89,8 @@ The renderer does not draw this raw shape directly. `readDungeonMapDocument(raw)
 - `corridors`: IDs, orthogonal point paths, normalized width.
 - `doors`: IDs, cell position, direction, kind.
 - `markers`: IDs, cell position, kind, optional label.
+- `lights`: IDs, cell position, kind, enabled flag, bright/dim radius, mode, placement, wall-mount flag, and orientation.
+- `props`: percentage-positioned decorative objects shared with the battle overlay.
 
 Supported room shapes in raw JSON:
 
@@ -148,6 +159,7 @@ Key helpers:
 - `handleSaveDungeonGeneratorConfig()` saves style/generator settings without regenerating the map JSON.
 - `handleExportDungeonJson()` downloads `{ ...documentToExport, generatorConfig }` for manual export/import workflows.
 - `handlePersistEditedDungeonDocument(document)` uploads an edited document produced by `<DungeonMap onDocumentChange />` and updates the landmark map asset.
+- Dungeon decorative props are edited via `BattleTokenOverlay` mounted as `<DungeonMap mapOverlay />`; prop changes update `layout.props` and are uploaded through the same JSON persistence path.
 
 Render routing in the detail page:
 
@@ -180,15 +192,25 @@ Props:
 - `dataUrl: string`: required URL/data URL for dungeon JSON.
 - `onLoadError?: (message: string | null) => void`: receives load or persist errors; `null` clears prior errors.
 - `onLoadComplete?: () => void`: called after successful load.
+- `onDungeonLoad?: (dungeon: NormalizedDungeonMap) => void`: exposes the normalized map after load for parent state such as battle fog.
+- `openDoorIds?: ReadonlySet<string>` and `onOpenDoorIdsChange?: (openDoorIds: Set<string>) => void`: optional controlled door-open state.
+- `doorToggleEnabled?: boolean`: disables door click toggles when false; defaults to true.
 - `onDocumentChange?: (document: DungeonMapDocument) => Promise<void> | void`: enables editing and persists edited documents.
 - `displayStyle?: Partial<DungeonDisplayStyle>`: merged over `DEFAULT_DUNGEON_DISPLAY_STYLE`.
+- `lightingOverlayEnabled?: boolean`: forces the lighting overlay on even when the editor preview toggle is off.
+- `lightingOverlayShowRadiusRings?: boolean`: draws light radius rings in the overlay when enabled.
+- `mapOverlay?: ReactNode`: positions an overlay over the same canvas viewport, used by presentation/battle UI.
+- `focusPoint?: { x: number; y: number; requestId: number } | null`: recenters the canvas camera. Coordinates are percentages of dungeon bounds, not raw cells.
 
 Runtime state:
 
 - `dungeon`: current `NormalizedDungeonMap`.
 - `error`: load or save error shown as the component state.
 - `openDoorIds`: local-only set of toggled/open doors.
-- `activeTool`: `none`, `remove-corridor`, or `create-corridor`.
+- `activeTool`: `none`, `remove-corridor`, `create-corridor`, `place-light`, or `remove-light`.
+- `lightingPreviewEnabled`: local editor toggle for drawing light visibility.
+- `newLightBrightRadiusCells`, `newLightDimRadiusCells`, `newLightWallMounted`, `newLightOrientation`, `newLightManualOrientation`: pending torch placement settings.
+- `hoveredDungeonCell`: current cell used for light placement preview/rotation behavior.
 - `pendingCorridorAnchor`: selected room-side start anchor for corridor creation.
 - `pendingCorridorPoint`: selected existing corridor intersection start point.
 - `isPersistingEdit`: blocks overlapping edits while upload/persist is running.
@@ -216,11 +238,15 @@ Responsibilities:
 
 - Track root size with `ResizeObserver`.
 - Load room/corridor texture images from `displayStyle.roomTextureUrls`, `roomTextureUrl`, `corridorTextureUrls`, and `corridorTextureUrl`.
+- Load `/torch.png` for wall-mounted/manual torch rendering.
 - Fit camera to map bounds on initial load or bounds/viewport changes.
+- Recenter camera when `focusPoint.requestId` changes. `focusPoint.x` and `focusPoint.y` are percentages of map bounds.
 - Pan with pointer drag when no edit tool is active.
 - Zoom around the mouse pointer with wheel input.
 - Convert click positions from screen pixels to world grid cells.
 - Hit-test doors, room spans, and corridor segments.
+- Compute lighting visibility with `buildDungeonLightingVisibility` when preview/overlay is enabled.
+- Position `mapOverlay` in sync with the current camera transform.
 - Schedule drawing through `requestAnimationFrame` and account for device pixel ratio.
 
 Important render helpers:
@@ -230,8 +256,9 @@ Important render helpers:
 - `canvas/geometry.ts`: room label positioning, door rectangles, and corridor segment expansion.
 - `canvas/hit-test.ts`: room, corridor, and door hit tests.
 - `canvas/draw.ts`: actual draw order and style/texture behavior.
+- `lib/dungeons/visibility.ts`: line-of-sight/radius visibility calculation for light overlays.
 
-Draw order in `drawDungeon`:
+Base draw order in `drawDungeon`:
 
 1. Black background.
 2. Camera-transformed rooms.
@@ -243,6 +270,8 @@ Draw order in `drawDungeon`:
 8. Pending corridor anchor.
 9. Screen-space grid overlay.
 
+When lighting preview/overlay is enabled, `DungeonCanvas` calls `drawDungeonLightingOverlay` after `drawDungeon`, then redraws the screen-space grid over the overlay. Light icons are drawn by the overlay pass.
+
 ## Editing Model
 
 Edit mode is active only when `DungeonMap` receives `onDocumentChange`.
@@ -251,6 +280,9 @@ Tools:
 
 - `remove-corridor`: click a corridor segment to remove the whole corridor.
 - `create-corridor`: click a room cell or existing corridor segment/intersection to set a start, then click another valid room/corridor target to create a routed corridor.
+- `place-light`: click a floor cell to place a torch. Existing lights and door cells are rejected.
+- `remove-light`: click a lit floor cell to remove that light.
+- Lighting preview toggle: shows the visibility overlay without changing persisted JSON.
 
 Corridor creation from room to room:
 
@@ -273,7 +305,16 @@ Corridor removal:
 
 - Filters the selected corridor out of `dungeon.corridors`.
 - Calls `rebuildDoorsFromCorridors` so stale doors disappear.
+- Removes manual lights that were only on cells belonging to the deleted corridor.
 - Persists the updated document.
+
+Light editing:
+
+- Manual lights are persisted in `layout.lights` through `normalizedDungeonToDocument`.
+- New lights are normalized with `normalizeDungeonLightSource` and assigned IDs by `createNextDungeonLightId`.
+- Bright radius is clamped to `0..64`; dim radius is clamped to at least bright radius and at most `128`.
+- Wall-mounted lights require an adjacent non-floor/out-of-bounds side unless the user disables wall mounting.
+- Press `R` while placing lights to rotate the pending light orientation; pressing `R` over an existing light rotates that persisted light and marks it wall-mounted.
 
 Pathfinding notes:
 
@@ -287,6 +328,13 @@ Door rebuild notes:
 - Doors are derived from corridor endpoints touching rooms.
 - Door IDs are regenerated as `door-1`, `door-2`, etc. Do not rely on stable door IDs across corridor edits.
 - Door open/closed UI state is local to `DungeonMap` and is not persisted.
+- Battle/presentation can control door state through `openDoorIds`/`onOpenDoorIdsChange`; this is separate from the dungeon JSON document.
+
+Lighting notes:
+
+- Lights support `kind: "torch" | "magic" | "ambient"`, `mode: "radius" | "line-of-sight"`, `placement: "generated" | "manual"`, and `orientation: "north" | "east" | "south" | "west"`.
+- Current manual editor placement creates torch lights with `mode: "radius"` and `placement: "manual"`.
+- Visibility calculations should stay pure in `lib/dungeons/visibility.ts`; rendering belongs in `components/dungeons/canvas/draw.ts`.
 
 ## Display Style
 
@@ -327,11 +375,13 @@ Upload validation in the landmark detail page checks that imported dungeon JSON 
 - Change graph/connectivity rules: edit `generator/topology.ts`, `generator/graph-builder.ts`, or related topology options in `generator/core.ts`.
 - Change corridor routing generated by the generator: edit `generator/corridor-routing.ts`, `generator/route-builder.ts`, or `generator/corridor-cleanup.ts`.
 - Change manual corridor editing: edit `components/dungeons/dungeon-map-editor.ts` and the handlers in `DungeonMap.tsx`.
+- Change manual light editing: edit `components/dungeons/DungeonMap.tsx`, `lib/dungeons/lights.ts`, and `lib/dungeons/visibility.ts` as needed.
 - Change canvas pan/zoom behavior: edit `DungeonCanvas.tsx` and `canvas/camera.ts`.
 - Change hit areas: edit `canvas/hit-test.ts` and possibly `canvas/geometry.ts`.
-- Change drawing, colors, wall visuals, labels, markers, or textures: edit `canvas/draw.ts` and `canvas/render-types.ts`.
+- Change drawing, colors, wall visuals, labels, markers, lighting overlay, or textures: edit `canvas/draw.ts` and `canvas/render-types.ts`.
 - Change editor inputs/sidebar behavior: edit dungeon-specific sections of `app/landmarks/[nombreLandmark]/page.tsx`.
 - Change presentation-only behavior: edit `app/presentacion/LandmarkMapOnlyClient.tsx`.
+- Change battle fog/door integration: edit `app/batalla/BattlePageClient.tsx` and related backend battle dungeon migrations/API fields.
 - Change whether a landmark uses dungeon rendering: edit `lib/landmarks/map-policy.ts`.
 
 ## Pitfalls And Invariants
@@ -344,6 +394,11 @@ Upload validation in the landmark detail page checks that imported dungeon JSON 
 - `room.cells` is the source of truth for occupied room cells after normalization.
 - Edit tools are disabled while `isPersistingEdit` is true.
 - Door IDs are not stable after corridor edits.
+- Light IDs should be unique in `layout.lights`; use `createNextDungeonLightId` for manual additions.
+- Removing a corridor can also remove lights that were placed on corridor-only cells.
+- `focusPoint` uses percentages of dungeon bounds. Do not pass raw grid coordinates unless converting first.
+- `mapOverlay` is camera-transformed by `DungeonCanvas`; do not independently pan/zoom it in callers.
+- The lighting overlay is visual state. Door-open state can affect visibility, but open doors are not persisted to dungeon JSON.
 - `dungeonGeneratorConfig` stores display style separately from the dungeon JSON. Saving config alone can change future rendering style without changing the uploaded map JSON.
 - Presentation mode intentionally does not pass `onDocumentChange`, so edit tools should not appear there.
 - Existing JSON assets are deleted only best-effort after a replacement upload succeeds; failure to delete should not block map saving.
@@ -365,4 +420,7 @@ Manual smoke checks:
 - Change only display style and save config; confirm presentation/detail rendering uses the new style.
 - Use create-corridor between two rooms, then reload and confirm the edited map persisted.
 - Use remove-corridor, then reload and confirm stale doors are gone.
+- Place a wall-mounted torch, press `R` to rotate, reload, and confirm the light persisted.
+- Remove a corridor containing a manual torch and confirm corridor-only lights are removed.
+- Toggle the lighting preview/overlay and confirm doors affect visible cells as expected.
 - Open presentation/map-only view and confirm it renders read-only without edit tools.

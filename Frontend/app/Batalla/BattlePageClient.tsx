@@ -6,12 +6,13 @@ import {
   ArrowRight,
   ArrowUpDown,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   Eye,
   FolderOpen,
   EyeOff,
   Flag,
-  ImagePlus,
   Keyboard,
   Layers3,
   LoaderCircle,
@@ -26,7 +27,8 @@ import {
   UserRound,
 } from "lucide-react"
 
-import { LandmarkMapOnlyClient } from "@/app/presentacion/LandmarkMapOnlyClient"
+import { LandmarkMapOnlyClient, type MapFocusPoint } from "@/app/presentacion/LandmarkMapOnlyClient"
+import { BattlePropLibraryPicker } from "@/components/battle/BattlePropLibraryPicker"
 import { BattleStatusBanner } from "@/components/battle/BattleStatusBanner"
 import { CharacterImageCropDialog } from "@/components/battle/CharacterImageCropDialog"
 import { BattleFogOverlay } from "@/components/battle/BattleFogOverlay"
@@ -46,10 +48,11 @@ import {
   findBattleConditionByName,
   normalizeBattleConditionStatus,
 } from "@/lib/battle/conditions"
-import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
+import type { BattlePropLibraryItem } from "@/lib/battle/props"
+import { getBattleTokenFogVisibility } from "@/lib/battle/fog"
 import type { MonsterListItem, MonsterRecord } from "@/lib/monster/types"
 import { extractMonsterInitiativeModifier, resolveMonsterImage } from "@/lib/monster/utils"
-import { getOrderedInitiativeTokens, normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
+import { getNextTurnTokenNumber, getOrderedInitiativeTokens, normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
 import { getBattleTokenImagePresentationStyle, normalizeBattleTokenImageCrop } from "@/lib/battle/token-image"
 import {
   broadcastBattleTurn,
@@ -71,6 +74,7 @@ import {
   fetchActiveBattle,
   fetchBattleById,
   fetchBattleCenterHistory,
+  fetchCurrentBattle,
   finishBattle,
   reopenBattle,
   sanitizeBattleState,
@@ -79,10 +83,13 @@ import {
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchCharacters, updateCharacter } from "@/lib/services/character-api.service"
+import { buildAssetUrl, deleteAsset, fetchJsonAsset, getBackendAssetIdFromUrl, uploadJsonAsset } from "@/lib/services/asset-api.service"
 import { fetchMonsterByExactName, searchMonsters } from "@/lib/services/monster-api.service"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { serviceMessage } from "@/lib/service-message"
-import { fetchLandmarks } from "@/lib/services/landmark-api.service"
+import { fetchLandmarks, updateLandmark } from "@/lib/services/landmark-api.service"
+import { readDungeonMapDocument } from "@/lib/dungeons/adapter"
+import type { DungeonProp, NormalizedDungeonProp } from "@/lib/dungeons/types"
 import type {
   BattleCenterHistory,
   BattleFogReveal,
@@ -127,6 +134,52 @@ function parseLifeModifierInput(value: string) {
     hasExplicitSign,
   }
 }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function dungeonPropToBattleObstacle(prop: NormalizedDungeonProp): BattleObstacle {
+  const image = prop.imageAssetId ? buildAssetUrl(prop.imageAssetId) : prop.image ?? undefined
+
+  return {
+    id: prop.id,
+    shape: prop.shape,
+    x: prop.x,
+    y: prop.y,
+    width: prop.width,
+    height: prop.height,
+    rotation: prop.rotation,
+    color: prop.color,
+    name: prop.name ?? undefined,
+    image,
+    imageAssetId: prop.imageAssetId ?? undefined,
+    hidden: prop.hidden,
+  }
+}
+
+function battleObstacleToDungeonProp(obstacle: BattleObstacle): DungeonProp {
+  return {
+    id: obstacle.id,
+    shape: obstacle.shape,
+    x: obstacle.x,
+    y: obstacle.y,
+    width: obstacle.width,
+    height: obstacle.height,
+    rotation: obstacle.rotation ?? 0,
+    color: obstacle.color,
+    name: obstacle.name,
+    image: obstacle.imageAssetId ? undefined : obstacle.image,
+    imageAssetId: obstacle.imageAssetId,
+    hidden: obstacle.hidden ?? false,
+  }
+}
+
+function getNextDungeonPropId(props: BattleObstacle[]) {
+  return props.reduce((nextId, prop) => Math.max(nextId, prop.id + 1), 1)
+}
+
+const DUNGEON_PROP_SAVE_DEBOUNCE_MS = 650
 
 const DEFAULT_CONDITION_DURATION_TURNS = "1"
 
@@ -182,6 +235,7 @@ type MonsterSortState = {
 
 const MONSTER_LIBRARY_PAGE_SIZE = 80
 const MONSTER_LIBRARY_SCROLL_THRESHOLD_PX = 240
+const FOG_TOKEN_PANEL_PAGE_SIZE = 6
 
 type TokenLibraryEntry =
   | {
@@ -400,7 +454,35 @@ function sortBattleState(battle: BattleState): BattleState {
     dungeonFog: {
       ...normalizedBattle.dungeonFog,
       exploredCellKeys: [...normalizedBattle.dungeonFog.exploredCellKeys].sort((left, right) => left.localeCompare(right)),
+      openDoorIds: [...normalizedBattle.dungeonFog.openDoorIds].sort((left, right) => left.localeCompare(right)),
     },
+  }
+}
+
+function isBattleTokenVisibleForTurns(battle: BattleState, token: BattleToken) {
+  return getBattleTokenFogVisibility({ battle, token }) !== "hidden"
+}
+
+function decrementExpiredStatusForToken(token: BattleToken): BattleToken {
+  if (typeof token.statusDurationTurns !== "number" || !Number.isFinite(token.statusDurationTurns)) {
+    return token
+  }
+
+  if (token.statusDurationTurns === 0 || !token.status.trim()) {
+    return token
+  }
+
+  if (token.statusDurationTurns <= 1) {
+    return {
+      ...token,
+      status: "",
+      statusDurationTurns: undefined,
+    }
+  }
+
+  return {
+    ...token,
+    statusDurationTurns: token.statusDurationTurns - 1,
   }
 }
 
@@ -420,32 +502,6 @@ function getLandmarkFogMode(landmark: Landmark | null): "legacy-image" | "dungeo
   if (mapMode === "dungeon-json") return "dungeon-json"
   if (mapMode === "image") return "legacy-image"
   return "unsupported"
-}
-
-function dungeonCellKeysForPercentArea(area: Omit<BattleFogReveal, "id">, dungeon: NormalizedDungeonMap) {
-  const width = Math.max(1, dungeon.bounds.width)
-  const height = Math.max(1, dungeon.bounds.height)
-  const left = Math.min(area.x, area.x + area.width)
-  const right = Math.max(area.x, area.x + area.width)
-  const top = Math.min(area.y, area.y + area.height)
-  const bottom = Math.max(area.y, area.y + area.height)
-  const keys: string[] = []
-
-  for (let y = 0; y < height; y++) {
-    const centerY = ((y + 0.5) / height) * 100
-    if (centerY < top || centerY > bottom) {
-      continue
-    }
-
-    for (let x = 0; x < width; x++) {
-      const centerX = ((x + 0.5) / width) * 100
-      if (centerX >= left && centerX <= right) {
-        keys.push(`${x},${y}`)
-      }
-    }
-  }
-
-  return keys
 }
 
 function isBuildingFogSupported(building: Building | null) {
@@ -668,9 +724,9 @@ export function BattlePageClient() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [buildings, setBuildings] = useState<Building[]>([])
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
+  const landmarksRef = useRef<Landmark[]>([])
   const [activeBattle, setActiveBattle] = useState<BattleState | null>(null)
   const [selectedBattle, setSelectedBattle] = useState<BattleState | null>(null)
-  const [displayedDungeon, setDisplayedDungeon] = useState<NormalizedDungeonMap | null>(null)
   const [selectedSceneKey, setSelectedSceneKey] = useState<string | null>(null)
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [isBattleLoading, setIsBattleLoading] = useState(false)
@@ -680,6 +736,15 @@ export function BattlePageClient() {
   const [, setPresentationSyncStatus] = useState<"idle" | "broadcast" | "storage">("idle")
   const [selectedTokenNumber, setSelectedTokenNumber] = useState<number | null>(null)
   const [selectedObstacleId, setSelectedObstacleId] = useState<number | null>(null)
+  const [fogTokenPage, setFogTokenPage] = useState(0)
+  const [tokenFocusPoint, setTokenFocusPoint] = useState<MapFocusPoint | null>(null)
+  const [pendingPropPlacement, setPendingPropPlacement] = useState<BattlePropLibraryItem | null>(null)
+  const [dungeonPropsByLandmarkId, setDungeonPropsByLandmarkId] = useState<Record<number, BattleObstacle[]>>({})
+  const dungeonPropsByLandmarkIdRef = useRef<Record<number, BattleObstacle[]>>({})
+  const dungeonPropsSaveTimersRef = useRef<Record<number, number>>({})
+  const dungeonPropsSaveInFlightRef = useRef<Record<number, boolean>>({})
+  const queuedDungeonPropsSaveRef = useRef<Record<number, BattleObstacle[] | undefined>>({})
+  const dungeonDocumentByLandmarkIdRef = useRef<Record<number, unknown>>({})
   const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false)
   const [isCharacterLibraryOpen, setIsCharacterLibraryOpen] = useState(false)
   const [isTokenLibraryDialogContentReady, setIsTokenLibraryDialogContentReady] = useState(false)
@@ -755,6 +820,7 @@ export function BattlePageClient() {
   const [isMonsterPanelLoading, setIsMonsterPanelLoading] = useState(false)
   const [isFogEditorOpen, setIsFogEditorOpen] = useState(false)
   const [fogEditorMode, setFogEditorMode] = useState<"idle" | "reveal" | "erase">("idle")
+  const [isShiftPressed, setIsShiftPressed] = useState(false)
   const [haveResolvedBuildings, setHaveResolvedBuildings] = useState(false)
   const battleCenterDialogRef = useRef<HTMLDivElement | null>(null)
 
@@ -770,6 +836,7 @@ export function BattlePageClient() {
   const battleLoadRequestRef = useRef(0)
   const battleHistoryRequestRef = useRef(0)
   const monsterSearchRequestRef = useRef(0)
+  const tokenFocusRequestIdRef = useRef(0)
   const selectedBattleRef = useRef<BattleState | null>(null)
   const handledBattleNavigationRequestRef = useRef<string | null>(null)
   const battleEditHistoryRef = useRef<{
@@ -779,8 +846,24 @@ export function BattlePageClient() {
     past: [],
     future: [],
   })
+
   const selectedTokenNumberRef = useRef<number | null>(null)
   const selectedObstacleIdRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    landmarksRef.current = landmarks
+  }, [landmarks])
+
+  useEffect(() => {
+    dungeonPropsByLandmarkIdRef.current = dungeonPropsByLandmarkId
+  }, [dungeonPropsByLandmarkId])
+
+  useEffect(() => {
+    return () => {
+      Object.values(dungeonPropsSaveTimersRef.current).forEach((timerId) => clearTimeout(timerId))
+      dungeonPropsSaveTimersRef.current = {}
+    }
+  }, [])
 
   useEffect(() => {
     if (tokenLibraryDialogFrameRef.current !== null) {
@@ -906,6 +989,31 @@ export function BattlePageClient() {
   }, [selectedBattle])
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setIsShiftPressed(true)
+      }
+    }
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setIsShiftPressed(false)
+      }
+    }
+    const handleBlur = () => {
+      setIsShiftPressed(false)
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleBlur)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleBlur)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!isFogEditorOpen) {
       return
     }
@@ -966,13 +1074,15 @@ export function BattlePageClient() {
     setLoadError(null)
 
     try {
+      const currentBattle = await fetchCurrentBattle()
       if (requestId !== battleLoadRequestRef.current) {
         return
       }
 
-      setActiveBattle(null)
-      applySelectedBattle(null)
-      lastSyncedSnapshotRef.current = null
+      const normalizedBattle = currentBattle ? sortBattleState(currentBattle) : null
+      setActiveBattle(normalizedBattle)
+      applySelectedBattle(normalizedBattle)
+      lastSyncedSnapshotRef.current = normalizedBattle ? JSON.stringify(normalizedBattle) : null
     } catch (error) {
       if (requestId !== battleLoadRequestRef.current) {
         return
@@ -1182,8 +1292,12 @@ export function BattlePageClient() {
   }, [eligibleBattleScenes, selectedSceneKey])
 
   useEffect(() => {
+    if (requestedBattleId || requestedReopenBattleId || handledBattleNavigationRequestRef.current) {
+      return
+    }
+
     void loadCurrentBattle(true)
-  }, [loadCurrentBattle])
+  }, [loadCurrentBattle, requestedBattleId, requestedReopenBattleId])
 
   const loadBattleCenterHistory = useCallback(async (page: number) => {
     const requestId = ++battleHistoryRequestRef.current
@@ -1719,6 +1833,48 @@ export function BattlePageClient() {
     [displayedSceneLandmark],
   )
   const isDungeonJsonFogMode = displayedSceneTarget?.sceneType === "landmark" && landmarkFogMode === "dungeon-json"
+
+  useEffect(() => {
+    if (!displayedSceneLandmark || !isDungeonJsonFogMode || typeof displayedSceneLandmark.mapAssetId !== "number") {
+      return
+    }
+
+    const targetLandmark = displayedSceneLandmark
+    let isCancelled = false
+
+    async function loadDungeonProps() {
+      try {
+        const rawDocument = await fetchJsonAsset<unknown>(buildAssetUrl(targetLandmark.mapAssetId as number))
+        const dungeon = readDungeonMapDocument(rawDocument)
+
+        if (isCancelled) {
+          return
+        }
+
+        dungeonDocumentByLandmarkIdRef.current[targetLandmark.id] = rawDocument
+        const nextProps = dungeon.props.map(dungeonPropToBattleObstacle)
+        dungeonPropsByLandmarkIdRef.current = {
+          ...dungeonPropsByLandmarkIdRef.current,
+          [targetLandmark.id]: nextProps,
+        }
+        setDungeonPropsByLandmarkId((current) => ({
+          ...current,
+          [targetLandmark.id]: nextProps,
+        }))
+      } catch (error) {
+        if (!isCancelled) {
+          setSaveError(getBackendErrorMessage(error, "No se pudieron cargar los props de la mazmorra."))
+        }
+      }
+    }
+
+    void loadDungeonProps()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [displayedSceneLandmark, isDungeonJsonFogMode])
+
   const isFogOfWarSupported = useMemo(() => {
     if (!displayedSceneTarget) {
       return false
@@ -1734,10 +1890,6 @@ export function BattlePageClient() {
 
     return isLandmarkFogSupported(displayedSceneLandmark)
   }, [displayedSceneBuilding, displayedSceneLandmark, displayedSceneTarget, haveResolvedBuildings])
-
-  useEffect(() => {
-    setDisplayedDungeon(null)
-  }, [displayedSceneTarget?.sceneSlug, displayedSceneTarget?.sceneType])
 
   const openSceneInPresentation = useCallback((target: PresentationScreenTarget) => {
     openPresentationScreen(target)
@@ -1842,6 +1994,16 @@ export function BattlePageClient() {
     setSelectedObstacleId(null)
   }, [])
 
+  const handleFocusTokenOnMap = useCallback((token: BattleToken) => {
+    handleSelectToken(token.number)
+    tokenFocusRequestIdRef.current += 1
+    setTokenFocusPoint({
+      x: token.x,
+      y: token.y,
+      requestId: tokenFocusRequestIdRef.current,
+    })
+  }, [handleSelectToken])
+
   const handleSelectObstacle = useCallback((obstacleId: number) => {
     setSelectedObstacleId(obstacleId)
     setSelectedTokenNumber(null)
@@ -1878,17 +2040,27 @@ export function BattlePageClient() {
         return current
       }
 
-      const orderedTokens = getOrderedInitiativeTokens(current.tokens)
+      const turnEligibleTokens = current.tokens.filter((token) => isBattleTokenVisibleForTurns(current, token))
+      const orderedTokens = getOrderedInitiativeTokens(turnEligibleTokens)
       const normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(
-        current.tokens,
+        turnEligibleTokens,
         current.currentTurnTokenNumber ?? null,
       )
       const currentTurnIndex = orderedTokens.findIndex((token) => token.number === normalizedCurrentTurnTokenNumber)
-      const nextTurnTokenNumber =
-        currentTurnIndex >= 0
-          ? orderedTokens[(currentTurnIndex + 1) % orderedTokens.length]?.number ?? null
-          : orderedTokens[0]?.number ?? null
-      if ((current.currentTurnTokenNumber ?? null) === nextTurnTokenNumber) {
+      const nextTurnTokenNumber = getNextTurnTokenNumber(turnEligibleTokens, current.currentTurnTokenNumber ?? null)
+      const tokenNumberEndingTurn =
+        (current.currentTurnTokenNumber ?? null) === normalizedCurrentTurnTokenNumber ? normalizedCurrentTurnTokenNumber : null
+      const nextTokens =
+        tokenNumberEndingTurn === null
+          ? current.tokens
+          : current.tokens.map((token) =>
+              token.number === tokenNumberEndingTurn && isBattleTokenVisibleForTurns(current, token)
+                ? decrementExpiredStatusForToken(token)
+                : token,
+            )
+      const didUpdateStatusDuration = nextTokens !== current.tokens && JSON.stringify(nextTokens) !== JSON.stringify(current.tokens)
+
+      if ((current.currentTurnTokenNumber ?? null) === nextTurnTokenNumber && !didUpdateStatusDuration) {
         selectedBattleRef.current = current
         return current
       }
@@ -1904,6 +2076,7 @@ export function BattlePageClient() {
         ...current,
         roundNumber: wrappedRound ? current.roundNumber + 1 : current.roundNumber,
         currentTurnTokenNumber: nextTurnTokenNumber,
+        tokens: nextTokens,
       }
       selectedBattleRef.current = nextBattle
 
@@ -1948,6 +2121,10 @@ export function BattlePageClient() {
       }
 
       if (!event.ctrlKey && !event.metaKey && !event.altKey && event.shiftKey && event.key.toLowerCase() === "r") {
+        if (selectedObstacleIdRef.current !== null) {
+          // Si hay un prop seleccionado, ignoramos el reset para que el mapa pueda rotarlo.
+          return
+        }
         event.preventDefault()
         handleResetBattleInitiatives()
         return
@@ -2294,12 +2471,13 @@ export function BattlePageClient() {
 
           const resolvedMonster = linkedMonsterRecord
           const resolvedImage = resolvedMonster ? (resolveMonsterImage(resolvedMonster) ?? "").trim() : ""
+          const resolvedImageAssetId = getBackendAssetIdFromUrl(resolvedImage)
 
           if (!tokenDialogDraft.image.trim() && resolvedImage) {
             nextDraft = {
               ...tokenDialogDraft,
               image: resolvedImage,
-              imageAssetId: null,
+              imageAssetId: resolvedImageAssetId,
               ...(tokenDialogDraft.image.trim() !== resolvedImage.trim()
                 ? {
                     imageFocusX: 50,
@@ -2346,6 +2524,7 @@ export function BattlePageClient() {
     void fetchMonsterByExactName(monsterNameExact, { withTokenImage: true })
       .then((resolvedMonster) => {
         const resolvedImage = resolvedMonster ? (resolveMonsterImage(resolvedMonster) ?? "").trim() : ""
+        const resolvedImageAssetId = getBackendAssetIdFromUrl(resolvedImage)
 
         if (!resolvedImage) {
           return
@@ -2371,7 +2550,7 @@ export function BattlePageClient() {
           return {
             ...current,
             image: resolvedImage,
-            imageAssetId: null,
+            imageAssetId: resolvedImageAssetId,
             ...(current.image.trim() !== resolvedImage
               ? {
                   imageFocusX: 50,
@@ -2401,14 +2580,15 @@ export function BattlePageClient() {
   }, [scheduleTokenLibraryDialogCloseCleanup])
 
   const handleSelectMonsterForTokenDialog = useCallback((monster: MonsterListItem) => {
+    const monsterImage = monster.image ?? ""
     setTokenDialogDraft((current) => ({
       ...current,
       nombre: monster.name,
       characterId: null,
       sourceType: "monster",
       sourceRef: monster.nameExact,
-      image: monster.image ?? "",
-      imageAssetId: null,
+      image: monsterImage,
+      imageAssetId: getBackendAssetIdFromUrl(monsterImage),
       imageFocusX: 50,
       imageFocusY: 50,
       imageZoom: 1,
@@ -2727,9 +2907,172 @@ export function BattlePageClient() {
     [updateSelectedBattle],
   )
 
+  const persistDungeonPropsForLandmark = useCallback(async (targetLandmark: Landmark, nextProps: BattleObstacle[]) => {
+    const currentTargetLandmark = landmarksRef.current.find((item) => item.id === targetLandmark.id) ?? targetLandmark
+    if (typeof currentTargetLandmark.mapAssetId !== "number") {
+      return
+    }
+
+    if (dungeonPropsSaveInFlightRef.current[currentTargetLandmark.id]) {
+      queuedDungeonPropsSaveRef.current[currentTargetLandmark.id] = nextProps
+      return
+    }
+
+    dungeonPropsSaveInFlightRef.current[currentTargetLandmark.id] = true
+    const previousAssetId = currentTargetLandmark.mapAssetKind === "json" ? currentTargetLandmark.mapAssetId : null
+    let uploadedAssetId: number | null = null
+
+    try {
+      const currentRawDocument = dungeonDocumentByLandmarkIdRef.current[currentTargetLandmark.id]
+        ?? await fetchJsonAsset<unknown>(buildAssetUrl(currentTargetLandmark.mapAssetId))
+      const currentDocument = isRecord(currentRawDocument) ? currentRawDocument : {}
+      const currentLayout = isRecord(currentDocument.layout) ? currentDocument.layout : {}
+      const nextRawDocument = {
+        ...currentDocument,
+        layout: {
+          ...currentLayout,
+          props: nextProps.map(battleObstacleToDungeonProp),
+        },
+      }
+
+      readDungeonMapDocument(nextRawDocument)
+
+      const uploaded = await uploadJsonAsset(
+        JSON.stringify(nextRawDocument, null, 2),
+        `${landmarkNameToSlug(currentTargetLandmark.nombre) || "mazmorra"}.dungeon.json`,
+      )
+      uploadedAssetId = uploaded.id
+
+      const { id: _landmarkId, ...landmarkInput } = {
+        ...currentTargetLandmark,
+        mapAssetId: uploaded.id,
+        mapAssetKind: uploaded.kind,
+        mapa: undefined,
+      }
+      const updatedLandmark = await updateLandmark(currentTargetLandmark.id, landmarkInput)
+
+      dungeonDocumentByLandmarkIdRef.current[currentTargetLandmark.id] = nextRawDocument
+      setLandmarks((current) => {
+        const nextLandmarks = current.map((item) => (item.id === updatedLandmark.id ? updatedLandmark : item))
+        landmarksRef.current = nextLandmarks
+        return nextLandmarks
+      })
+      setSaveError(null)
+
+      if (previousAssetId !== null && previousAssetId !== uploaded.id) {
+        try {
+          await deleteAsset(previousAssetId)
+        } catch {
+          // Avoid blocking battle edits if backend cleanup fails.
+        }
+      }
+    } catch (error) {
+      if (uploadedAssetId !== null) {
+        try {
+          await deleteAsset(uploadedAssetId)
+        } catch {
+          // Ignore cleanup failures after a save error.
+        }
+      }
+
+      setSaveError(getBackendErrorMessage(error, "No se pudieron guardar los props de la mazmorra."))
+    } finally {
+      dungeonPropsSaveInFlightRef.current[currentTargetLandmark.id] = false
+      const queuedProps = queuedDungeonPropsSaveRef.current[currentTargetLandmark.id]
+      queuedDungeonPropsSaveRef.current[currentTargetLandmark.id] = undefined
+      if (queuedProps !== undefined) {
+        const existingTimerId = dungeonPropsSaveTimersRef.current[currentTargetLandmark.id]
+        if (existingTimerId !== undefined) {
+          clearTimeout(existingTimerId)
+        }
+
+        dungeonPropsSaveTimersRef.current[currentTargetLandmark.id] = window.setTimeout(() => {
+          delete dungeonPropsSaveTimersRef.current[currentTargetLandmark.id]
+          const latestTargetLandmark = landmarksRef.current.find((item) => item.id === currentTargetLandmark.id) ?? currentTargetLandmark
+          void persistDungeonPropsForLandmark(latestTargetLandmark, queuedProps)
+        }, DUNGEON_PROP_SAVE_DEBOUNCE_MS)
+      }
+    }
+  }, [])
+
+  const schedulePersistDungeonPropsForLandmark = useCallback(
+    (targetLandmark: Landmark, nextProps: BattleObstacle[]) => {
+      const existingTimerId = dungeonPropsSaveTimersRef.current[targetLandmark.id]
+      if (existingTimerId !== undefined) {
+        clearTimeout(existingTimerId)
+      }
+
+      dungeonPropsSaveTimersRef.current[targetLandmark.id] = window.setTimeout(() => {
+        delete dungeonPropsSaveTimersRef.current[targetLandmark.id]
+        const latestTargetLandmark = landmarksRef.current.find((item) => item.id === targetLandmark.id) ?? targetLandmark
+        void persistDungeonPropsForLandmark(latestTargetLandmark, nextProps)
+      }, DUNGEON_PROP_SAVE_DEBOUNCE_MS)
+    },
+    [persistDungeonPropsForLandmark],
+  )
+
+  const updateDisplayedDungeonProps = useCallback(
+    (updater: (props: BattleObstacle[]) => BattleObstacle[]) => {
+      if (!displayedSceneLandmark || !isDungeonJsonFogMode || !isSelectedBattleEditable) {
+        return
+      }
+
+      const currentProps = dungeonPropsByLandmarkIdRef.current[displayedSceneLandmark.id] ?? []
+      const nextProps = updater(currentProps)
+      dungeonPropsByLandmarkIdRef.current = {
+        ...dungeonPropsByLandmarkIdRef.current,
+        [displayedSceneLandmark.id]: nextProps,
+      }
+      setDungeonPropsByLandmarkId((current) => {
+        return {
+          ...current,
+          [displayedSceneLandmark.id]: nextProps,
+        }
+      })
+
+      schedulePersistDungeonPropsForLandmark(displayedSceneLandmark, nextProps)
+    },
+    [displayedSceneLandmark, isDungeonJsonFogMode, isSelectedBattleEditable, schedulePersistDungeonPropsForLandmark],
+  )
+
+  const updateDisplayedDungeonProp = useCallback(
+    (propId: number, updater: (prop: BattleObstacle) => BattleObstacle) => {
+      updateDisplayedDungeonProps((props) => props.map((prop) => (prop.id === propId ? updater(prop) : prop)))
+    },
+    [updateDisplayedDungeonProps],
+  )
+
   const createObstacle = useCallback(
     (shape: BattleObstacleShape) => {
       if (!isSelectedBattleEditable) {
+        return
+      }
+
+      if (displayedSceneLandmark && isDungeonJsonFogMode) {
+        let createdPropId: number | null = null
+
+        updateDisplayedDungeonProps((currentProps) => {
+          const propId = getNextDungeonPropId(currentProps)
+          createdPropId = propId
+          const diameter = 8
+          const nextProp: BattleObstacle = {
+            id: propId,
+            shape,
+            x: 50,
+            y: 50,
+            width: shape === "circle" ? diameter : 14,
+            height: shape === "circle" ? diameter : 8,
+            color: shape === "circle" ? "#f59e0b" : "#0f766e",
+          }
+
+          return [...currentProps, nextProp]
+        })
+
+        if (createdPropId !== null) {
+          setSelectedObstacleId(createdPropId)
+          setSelectedTokenNumber(null)
+        }
+
         return
       }
 
@@ -2761,12 +3104,104 @@ export function BattlePageClient() {
         setSelectedTokenNumber(null)
       }
     },
-    [isSelectedBattleEditable, updateSelectedBattle],
+    [displayedSceneLandmark, isDungeonJsonFogMode, isSelectedBattleEditable, updateDisplayedDungeonProps, updateSelectedBattle],
+  )
+
+  const createPropObstacle = useCallback(
+    (position: { x: number; y: number }, keepSelected: boolean) => {
+      if (!isSelectedBattleEditable || !pendingPropPlacement) {
+        return
+      }
+
+      if (displayedSceneLandmark && isDungeonJsonFogMode) {
+        let createdPropId: number | null = null
+
+        updateDisplayedDungeonProps((currentProps) => {
+          const propId = getNextDungeonPropId(currentProps)
+          createdPropId = propId
+          const nextProp: BattleObstacle = {
+            id: propId,
+            shape: "rectangle",
+            x: position.x,
+            y: position.y,
+            width: 5,
+            height: 5,
+            color: "#64748b",
+            name: pendingPropPlacement.name,
+            image: pendingPropPlacement.image,
+            imageAssetId: pendingPropPlacement.imageAssetId ?? undefined,
+            hidden: false,
+          }
+
+          return [...currentProps, nextProp]
+        })
+
+        if (createdPropId !== null) {
+          setSelectedObstacleId(createdPropId)
+          setSelectedTokenNumber(null)
+        }
+
+        if (!keepSelected) {
+          setPendingPropPlacement(null)
+        }
+
+        return
+      }
+
+      let createdObstacleId: number | null = null
+
+      updateSelectedBattle((current) => {
+        const obstacleId = current.nextObstacleId
+        createdObstacleId = obstacleId
+        const nextObstacle: BattleObstacle = {
+          id: obstacleId,
+          shape: "rectangle",
+          x: position.x,
+          y: position.y,
+          width: 5,
+          height: 5,
+          color: "#64748b",
+          name: pendingPropPlacement.name,
+          image: pendingPropPlacement.image,
+          imageAssetId: pendingPropPlacement.imageAssetId ?? undefined,
+          hidden: false,
+        }
+
+        return {
+          ...current,
+          nextObstacleId: obstacleId + 1,
+          obstacles: [...current.obstacles, nextObstacle],
+        }
+      })
+
+      if (createdObstacleId !== null) {
+        setSelectedObstacleId(createdObstacleId)
+        setSelectedTokenNumber(null)
+      }
+
+      if (!keepSelected) {
+        setPendingPropPlacement(null)
+      }
+    },
+    [
+      displayedSceneLandmark,
+      isDungeonJsonFogMode,
+      isSelectedBattleEditable,
+      pendingPropPlacement,
+      updateDisplayedDungeonProps,
+      updateSelectedBattle,
+    ],
   )
 
   const removeObstacle = useCallback(
     (obstacleId: number) => {
       if (!isSelectedBattleEditable) {
+        return
+      }
+
+      if (displayedSceneLandmark && isDungeonJsonFogMode) {
+        updateDisplayedDungeonProps((currentProps) => currentProps.filter((prop) => prop.id !== obstacleId))
+        setSelectedObstacleId((current) => (current === obstacleId ? null : current))
         return
       }
 
@@ -2776,35 +3211,12 @@ export function BattlePageClient() {
       }))
       setSelectedObstacleId((current) => (current === obstacleId ? null : current))
     },
-    [isSelectedBattleEditable, updateSelectedBattle],
+    [displayedSceneLandmark, isDungeonJsonFogMode, isSelectedBattleEditable, updateDisplayedDungeonProps, updateSelectedBattle],
   )
 
   const createFogReveal = useCallback(
     (draftReveal: Omit<BattleFogReveal, "id">) => {
       if (!isSelectedBattleEditable || !isFogOfWarSupported) {
-        return
-      }
-
-      if (isDungeonJsonFogMode) {
-        if (!displayedDungeon) {
-          return
-        }
-
-        const revealedCellKeys = dungeonCellKeysForPercentArea(draftReveal, displayedDungeon)
-        if (revealedCellKeys.length === 0) {
-          return
-        }
-
-        updateSelectedBattle((current) => ({
-          ...current,
-          dungeonFog: {
-            ...current.dungeonFog,
-            enabled: true,
-            exploredCellKeys: Array.from(new Set([...current.dungeonFog.exploredCellKeys, ...revealedCellKeys])).sort((left, right) =>
-              left.localeCompare(right),
-            ),
-          },
-        }))
         return
       }
 
@@ -2825,33 +3237,12 @@ export function BattlePageClient() {
         }
       })
     },
-    [displayedDungeon, isDungeonJsonFogMode, isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const coverFogArea = useCallback(
     (coveredArea: Omit<BattleFogReveal, "id">) => {
       if (!isSelectedBattleEditable) {
-        return
-      }
-
-      if (isDungeonJsonFogMode) {
-        if (!displayedDungeon) {
-          return
-        }
-
-        const coveredCellKeys = new Set(dungeonCellKeysForPercentArea(coveredArea, displayedDungeon))
-        if (coveredCellKeys.size === 0) {
-          return
-        }
-
-        updateSelectedBattle((current) => ({
-          ...current,
-          dungeonFog: {
-            ...current.dungeonFog,
-            enabled: true,
-            exploredCellKeys: current.dungeonFog.exploredCellKeys.filter((key) => !coveredCellKeys.has(key)),
-          },
-        }))
         return
       }
 
@@ -2880,7 +3271,7 @@ export function BattlePageClient() {
         }
       })
     },
-    [displayedDungeon, isDungeonJsonFogMode, isSelectedBattleEditable, updateSelectedBattle],
+    [isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const setFogEnabled = useCallback(
@@ -2899,12 +3290,10 @@ export function BattlePageClient() {
 
       updateSelectedBattle((current) => ({
         ...current,
-        ...(isDungeonJsonFogMode
-          ? { dungeonFog: { ...current.dungeonFog, enabled: nextEnabled } }
-          : { fogEnabled: nextEnabled }),
+        fogEnabled: nextEnabled,
       }))
     },
-    [isDungeonJsonFogMode, isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
+    [isFogOfWarSupported, isSelectedBattleEditable, updateSelectedBattle],
   )
 
   const clearFogReveals = useCallback(() => {
@@ -2914,11 +3303,49 @@ export function BattlePageClient() {
 
     updateSelectedBattle((current) => ({
       ...current,
-      ...(isDungeonJsonFogMode
-        ? { dungeonFog: { ...current.dungeonFog, enabled: true, exploredCellKeys: [] } }
-        : { fogEnabled: true, fogReveals: [] }),
+      fogEnabled: true,
+      fogReveals: [],
     }))
-  }, [isDungeonJsonFogMode, isSelectedBattleEditable, updateSelectedBattle])
+  }, [isSelectedBattleEditable, updateSelectedBattle])
+
+  useEffect(() => {
+    const handleFogModeShortcut = (event: KeyboardEvent) => {
+      if (shouldIgnoreShortcutTarget(event.target) || event.repeat) {
+        return
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+        return
+      }
+
+      const normalizedKey = event.key.toLowerCase()
+      if (normalizedKey !== "m" && normalizedKey !== "t") {
+        return
+      }
+
+      if (!selectedBattle || !isSelectedBattleEditable || !isFogOfWarSupported) {
+        return
+      }
+
+      event.preventDefault()
+      setIsFogEditorOpen(true)
+      setFogEnabled(true)
+
+      if (normalizedKey === "m") {
+        setFogEditorMode((current) => (current === "reveal" ? "idle" : "reveal"))
+        return
+      }
+
+      if (selectedBattle.fogReveals.length > 0) {
+        setFogEditorMode((current) => (current === "erase" ? "idle" : "erase"))
+      }
+    }
+
+    window.addEventListener("keydown", handleFogModeShortcut)
+    return () => {
+      window.removeEventListener("keydown", handleFogModeShortcut)
+    }
+  }, [isFogOfWarSupported, isSelectedBattleEditable, selectedBattle, setFogEnabled])
 
   const handleApplyLifeModifier = useCallback(() => {
     if (!isSelectedBattleEditable) {
@@ -3102,10 +3529,7 @@ export function BattlePageClient() {
       const battleWithSceneDefaults: BattleState = selectedSceneUsesDungeonJson
         ? {
             ...createdBattle,
-            dungeonFog: {
-              ...createdBattle.dungeonFog,
-              enabled: true,
-            },
+            fogEnabled: true,
           }
         : createdBattle
 
@@ -3280,26 +3704,47 @@ export function BattlePageClient() {
     }
   }, [applySelectedBattle, battleHistoryPage, loadBattleCenterHistory, loadCurrentBattle, selectedBattle, selectedScene])
 
+  const selectedBattleDungeonOpenDoorIds = useMemo(() => {
+    return new Set(selectedBattle?.dungeonFog.openDoorIds ?? [])
+  }, [selectedBattle?.dungeonFog.openDoorIds])
+
+  const handleDungeonOpenDoorIdsChange = useCallback((openDoorIds: Set<string>) => {
+    const sortedOpenDoorIds = Array.from(openDoorIds).sort((left, right) => left.localeCompare(right))
+    updateSelectedBattle((current) => ({
+      ...current,
+      dungeonFog: {
+        ...current.dungeonFog,
+        openDoorIds: sortedOpenDoorIds,
+      },
+    }))
+  }, [updateSelectedBattle])
+
+  const displayedDungeonProps = displayedSceneLandmark ? dungeonPropsByLandmarkId[displayedSceneLandmark.id] ?? [] : []
+
   const battleOverlay = useMemo(() => {
     if (!selectedBattle) {
       return null
     }
+
+    const overlayObstacles = isDungeonJsonFogMode ? displayedDungeonProps : selectedBattle.obstacles
 
     return (
       <div className="relative size-full">
         <BattleTokenOverlay
           tokens={selectedBattle.tokens}
           statusDefinitions={BATTLE_CONDITIONS}
-          obstacles={selectedBattle.obstacles}
+          obstacles={overlayObstacles}
           characterById={charactersById}
           currentTurnTokenNumber={selectedBattle.currentTurnTokenNumber ?? null}
-          interactive={isSelectedBattleEditable && !isFogEditorOpen}
+          interactive={isSelectedBattleEditable && (!isFogEditorOpen || isShiftPressed)}
           enableTokenInspector={!isFogEditorOpen}
           suppressInspectorOnTokenClick={isLifeModifierDialogOpen || isStatusLoaderDialogOpen}
           tokenInspectorEditable={isSelectedBattleEditable}
           ghostHiddenTokens
+          showTokenLifeBadge
           selectedTokenNumber={selectedTokenNumber}
           selectedObstacleId={selectedObstacleId}
+          pendingPropPlacement={pendingPropPlacement}
           onSelectToken={handleSelectToken}
           onTokenClick={handleTokenPanelPick}
           onUpdateTokenDetails={(tokenNumber, nextValues) => {
@@ -3347,7 +3792,7 @@ export function BattlePageClient() {
             })
           }}
           onPreviewObstacleMove={(obstacleId, nextPosition) => {
-            if (!selectedBattle.id) {
+            if (!selectedBattle.id || isDungeonJsonFogMode) {
               return
             }
 
@@ -3366,20 +3811,40 @@ export function BattlePageClient() {
             updateToken(tokenNumber, (token) => ({ ...token, size: nextSize }))
           }}
           onMoveObstacle={(obstacleId, nextPosition) => {
+            if (isDungeonJsonFogMode) {
+              updateDisplayedDungeonProp(obstacleId, (prop) => ({ ...prop, ...nextPosition }))
+              return
+            }
+
             updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextPosition }))
           }}
           onResizeObstacle={(obstacleId, nextSize) => {
+            if (isDungeonJsonFogMode) {
+              updateDisplayedDungeonProp(obstacleId, (prop) => ({ ...prop, ...nextSize }))
+              return
+            }
+
             updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, ...nextSize }))
           }}
           onRemoveObstacle={removeObstacle}
+          onPlaceProp={createPropObstacle}
+          onToggleObstacleHidden={(obstacleId) => {
+            if (isDungeonJsonFogMode) {
+              updateDisplayedDungeonProp(obstacleId, (prop) => ({ ...prop, hidden: !prop.hidden }))
+              return
+            }
+
+            updateObstacle(obstacleId, (obstacle) => ({ ...obstacle, hidden: !obstacle.hidden }))
+          }}
         />
         <BattleFogOverlay
-          fogEnabled={isDungeonJsonFogMode ? selectedBattle.dungeonFog.enabled : selectedBattle.fogEnabled}
-          fogReveals={isDungeonJsonFogMode ? [] : selectedBattle.fogReveals}
-          interactive={isSelectedBattleEditable && isFogEditorOpen && isFogOfWarSupported && fogEditorMode !== "idle"}
+          fogEnabled={selectedBattle.fogEnabled}
+          fogReveals={selectedBattle.fogReveals}
+          interactive={
+            isSelectedBattleEditable && isFogEditorOpen && !isShiftPressed && isFogOfWarSupported && fogEditorMode !== "idle"
+          }
           editorMode={fogEditorMode}
           overlayOpacity={isFogEditorOpen ? 0.56 : 0.68}
-          overlayVisible={!isDungeonJsonFogMode}
           interactionPaddingPx={72}
           onCreateReveal={createFogReveal}
           onCoverArea={coverFogArea}
@@ -3390,15 +3855,17 @@ export function BattlePageClient() {
     charactersById,
     createFogReveal,
     coverFogArea,
+    displayedDungeonProps,
     fogEditorMode,
-    isSelectedBattleEditable,
+    createPropObstacle,
     isDungeonJsonFogMode,
+    isSelectedBattleEditable,
     isFogEditorOpen,
     isFogOfWarSupported,
+    isShiftPressed,
     isLifeModifierDialogOpen,
     isStatusLoaderDialogOpen,
     selectedBattle?.id,
-    selectedBattle?.dungeonFog,
     selectedBattle?.fogEnabled,
     selectedBattle?.fogReveals,
     selectedBattle?.sceneSlug,
@@ -3416,6 +3883,8 @@ export function BattlePageClient() {
     duplicateToken,
     selectedObstacleId,
     selectedTokenNumber,
+    pendingPropPlacement,
+    updateDisplayedDungeonProp,
     updateObstacle,
     updateToken,
   ])
@@ -3427,14 +3896,28 @@ export function BattlePageClient() {
     () => [...(selectedBattle?.tokens ?? [])].filter((token) => token.hidden).sort((left, right) => left.number - right.number),
     [selectedBattle?.tokens],
   )
-  const selectedBattleFogEnabled = isDungeonJsonFogMode
-    ? selectedBattle?.dungeonFog.enabled
-    : selectedBattle?.fogEnabled
+  const fogBattleTokens = useMemo(
+    () => {
+      if (!selectedBattle?.fogEnabled) return []
+      return selectedBattle.tokens
+        .filter((token) => !token.hidden && getBattleTokenFogVisibility({ battle: selectedBattle, token }) === "hidden")
+        .sort((left, right) => left.number - right.number)
+    },
+    [selectedBattle],
+  )
+  const fogTokenPageCount = Math.max(1, Math.ceil(fogBattleTokens.length / FOG_TOKEN_PANEL_PAGE_SIZE))
+  const visibleFogBattleTokens = useMemo(
+    () => fogBattleTokens.slice(fogTokenPage * FOG_TOKEN_PANEL_PAGE_SIZE, (fogTokenPage + 1) * FOG_TOKEN_PANEL_PAGE_SIZE),
+    [fogBattleTokens, fogTokenPage],
+  )
+  const selectedBattleFogEnabled = selectedBattle?.fogEnabled
   const selectedBattleFogStatusLabel = selectedBattleFogEnabled
-    ? isDungeonJsonFogMode
-      ? `${selectedBattle?.dungeonFog.exploredCellKeys.length ?? 0} exploradas`
-      : `${selectedBattle?.fogReveals.length ?? 0} visibles`
+    ? `${selectedBattle?.fogReveals.length ?? 0} visibles`
     : "apagada"
+
+  useEffect(() => {
+    setFogTokenPage((current) => Math.min(current, fogTokenPageCount - 1))
+  }, [fogTokenPageCount])
 
   const handleClearMapSelection = useCallback(() => {
     setSelectedTokenNumber(null)
@@ -3528,9 +4011,7 @@ export function BattlePageClient() {
                       ? "border-cyan-200/65 bg-cyan-300/18 text-white"
                       : "border-cyan-500/10 bg-white/5 text-cyan-50 hover:border-cyan-300/40 hover:bg-cyan-300/10"
                   }`}
-                  onClick={() => {
-                    handleSelectToken(token.number)
-                  }}
+                  onClick={() => handleFocusTokenOnMap(token)}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{token.nombre}</span>
@@ -3542,16 +4023,75 @@ export function BattlePageClient() {
             </div>
           </div>
         ) : null}
+        {fogBattleTokens.length > 0 ? (
+          <div className="w-[min(14rem,calc(100vw-1.5rem))] rounded-2xl border border-violet-400/25 bg-stone-950/78 p-2 text-violet-50 shadow-[0_1rem_2rem_rgba(49,46,129,0.28)] backdrop-blur">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-200/90">Fichas fog</p>
+              <span className="rounded-full border border-violet-300/25 bg-violet-400/10 px-2 py-0.5 text-[11px] font-semibold text-violet-100">
+                {fogBattleTokens.length}
+              </span>
+            </div>
+            <div className="space-y-1 pr-1">
+              {visibleFogBattleTokens.map((token) => (
+                <button
+                  key={`fog-token-${token.number}`}
+                  type="button"
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-left text-xs transition ${
+                    selectedTokenNumber === token.number
+                      ? "border-violet-200/65 bg-violet-300/18 text-white"
+                      : "border-violet-500/10 bg-white/5 text-violet-50 hover:border-violet-300/40 hover:bg-violet-300/10"
+                  }`}
+                  onClick={() => handleFocusTokenOnMap(token)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{token.nombre}</span>
+                    <span className="block text-[11px] text-violet-100/70">#{token.number}</span>
+                  </span>
+                  <Eye className="size-3.5 shrink-0 text-violet-200/85" />
+                </button>
+              ))}
+            </div>
+            {fogTokenPageCount > 1 ? (
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-violet-300/10 pt-2 text-[11px] text-violet-100/75">
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-full border border-violet-300/15 bg-white/5 transition hover:border-violet-200/40 hover:bg-violet-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setFogTokenPage((current) => Math.max(0, current - 1))}
+                  disabled={fogTokenPage <= 0}
+                  aria-label="Página anterior de fichas en fog"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+                <span>
+                  {fogTokenPage + 1}/{fogTokenPageCount}
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-full border border-violet-300/15 bg-white/5 transition hover:border-violet-200/40 hover:bg-violet-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setFogTokenPage((current) => Math.min(fogTokenPageCount - 1, current + 1))}
+                  disabled={fogTokenPage >= fogTokenPageCount - 1}
+                  aria-label="Página siguiente de fichas en fog"
+                >
+                  <ChevronRight className="size-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     ),
     [
+      fogBattleTokens,
+      fogTokenPage,
+      fogTokenPageCount,
       handleAdvanceTurn,
-      handleSelectToken,
+      handleFocusTokenOnMap,
       hiddenBattleTokens,
       isBattleLoading,
       isSelectedBattleEditable,
       selectedTokenNumber,
       selectedBattle?.status,
+      visibleFogBattleTokens,
     ],
   )
 
@@ -3661,55 +4201,67 @@ export function BattlePageClient() {
 
   const battleLeftControls = useMemo(
     () => (
-      <div className="flex items-center gap-2 rounded-2xl border border-stone-900/10 bg-white/90 p-2 shadow-lg backdrop-blur">
-        <DelayedControlTooltip label="Agregar enemigo" side="top">
-          <Button
-            size="icon-sm"
-            variant="outline"
-            aria-label="Agregar enemigo"
-            onClick={() => openTokenDialog("enemy")}
+      <>
+        <div className="flex items-center gap-2 rounded-2xl border border-stone-900/10 bg-white/90 p-2 shadow-lg backdrop-blur">
+          <DelayedControlTooltip label="Agregar enemigo" side="top">
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label="Agregar enemigo"
+              onClick={() => openTokenDialog("enemy")}
+              disabled={!isSelectedBattleEditable}
+            >
+              <Swords className="size-4" />
+            </Button>
+          </DelayedControlTooltip>
+          <DelayedControlTooltip label="Agregar jugador" side="top">
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label="Agregar jugador"
+              onClick={() => openTokenDialog("player")}
+              disabled={!isSelectedBattleEditable}
+            >
+              <UserRound className="size-4" />
+            </Button>
+          </DelayedControlTooltip>
+          <div className="h-6 w-px bg-stone-200" aria-hidden="true" />
+          <DelayedControlTooltip label="Agregar esfera" side="top">
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label="Agregar esfera"
+              onClick={() => createObstacle("circle")}
+              disabled={!isSelectedBattleEditable}
+            >
+              <Circle className="size-4" />
+            </Button>
+          </DelayedControlTooltip>
+          <DelayedControlTooltip label="Agregar rectángulo" side="top">
+            <Button
+              size="icon-sm"
+              variant="outline"
+              aria-label="Agregar rectángulo"
+              onClick={() => createObstacle("rectangle")}
+              disabled={!isSelectedBattleEditable}
+            >
+              <Square className="size-4" />
+            </Button>
+          </DelayedControlTooltip>
+          <BattlePropLibraryPicker
+            pendingPropPlacement={pendingPropPlacement}
+            onPendingPropPlacementChange={setPendingPropPlacement}
             disabled={!isSelectedBattleEditable}
-          >
-            <Swords className="size-4" />
-          </Button>
-        </DelayedControlTooltip>
-        <DelayedControlTooltip label="Agregar jugador" side="top">
-          <Button
-            size="icon-sm"
-            variant="outline"
-            aria-label="Agregar jugador"
-            onClick={() => openTokenDialog("player")}
-            disabled={!isSelectedBattleEditable}
-          >
-            <UserRound className="size-4" />
-          </Button>
-        </DelayedControlTooltip>
-        <div className="h-6 w-px bg-stone-200" aria-hidden="true" />
-        <DelayedControlTooltip label="Agregar esfera" side="top">
-          <Button
-            size="icon-sm"
-            variant="outline"
-            aria-label="Agregar esfera"
-            onClick={() => createObstacle("circle")}
-            disabled={!isSelectedBattleEditable}
-          >
-            <Circle className="size-4" />
-          </Button>
-        </DelayedControlTooltip>
-        <DelayedControlTooltip label="Agregar rectángulo" side="top">
-          <Button
-            size="icon-sm"
-            variant="outline"
-            aria-label="Agregar rectángulo"
-            onClick={() => createObstacle("rectangle")}
-            disabled={!isSelectedBattleEditable}
-          >
-            <Square className="size-4" />
-          </Button>
-        </DelayedControlTooltip>
-      </div>
+          />
+        </div>
+      </>
     ),
-    [createObstacle, isSelectedBattleEditable, openTokenDialog],
+    [
+      createObstacle,
+      isSelectedBattleEditable,
+      openTokenDialog,
+      pendingPropPlacement,
+    ],
   )
 
   const battleMiddleLeftControls = useMemo(
@@ -3800,12 +4352,7 @@ export function BattlePageClient() {
                   variant={fogEditorMode === "erase" ? "default" : "outline"}
                   className="rounded-xl"
                   onClick={() => setFogEditorMode((current) => (current === "erase" ? "idle" : "erase"))}
-                  disabled={
-                    !selectedBattleFogEnabled ||
-                    (isDungeonJsonFogMode
-                      ? (selectedBattle?.dungeonFog.exploredCellKeys.length ?? 0) === 0
-                      : selectedBattle?.fogReveals.length === 0)
-                  }
+                  disabled={!selectedBattleFogEnabled || selectedBattle?.fogReveals.length === 0}
                 >
                   Tapar
                 </Button>
@@ -3813,13 +4360,7 @@ export function BattlePageClient() {
 
               <p className="rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2 text-[11px] leading-relaxed text-stone-600">
                 {selectedBattleFogEnabled
-                  ? isDungeonJsonFogMode
-                    ? fogEditorMode === "reveal"
-                      ? "Arrastrá sobre la mazmorra para marcar celdas exploradas en presentación."
-                      : fogEditorMode === "erase"
-                        ? "Arrastrá sobre la mazmorra para volver a tapar celdas exploradas."
-                        : "Elegí Mostrar o Tapar para editar la niebla por celdas de la mazmorra."
-                    : fogEditorMode === "reveal"
+                  ? fogEditorMode === "reveal"
                     ? "Arrastrá sobre el mapa. Ya podés empezar el drag un poco fuera de la imagen para revelar esquinas."
                     : fogEditorMode === "erase"
                       ? "Arrastrá el rectángulo a tapar. Con Alt, las esquinas se pegan a la grilla."
@@ -4022,7 +4563,6 @@ export function BattlePageClient() {
       handleTokenSelectionPopoverInteractOutside,
       isFogEditorOpen,
       isFogOfWarSupported,
-      isDungeonJsonFogMode,
       isLifeModifierDialogOpen,
       isSelectedBattleEditable,
       isStatusLoaderDialogOpen,
@@ -4032,8 +4572,6 @@ export function BattlePageClient() {
       scheduleInputFocus,
       selectedBattleFogEnabled,
       selectedBattleFogStatusLabel,
-      selectedBattle?.dungeonFog.enabled,
-      selectedBattle?.dungeonFog.exploredCellKeys.length,
       selectedBattle?.fogEnabled,
       selectedBattle?.fogReveals.length,
       statusLoaderError,
@@ -4067,9 +4605,12 @@ export function BattlePageClient() {
             topRightControls={battleTopRightControls}
             bottomRightControls={battleBottomRightControls}
             overlay={battleOverlay}
+            focusPoint={tokenFocusPoint}
             leftControls={battleLeftControls}
             middleLeftControls={battleMiddleLeftControls}
-            onDungeonMapLoad={setDisplayedDungeon}
+            dungeonOpenDoorIds={selectedBattleDungeonOpenDoorIds}
+            onDungeonOpenDoorIdsChange={handleDungeonOpenDoorIdsChange}
+            showDungeonLighting={isDungeonJsonFogMode}
           />
         ) : (
           <>
@@ -4470,11 +5011,9 @@ export function BattlePageClient() {
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                          {isDungeonJsonFogMode ? "Celdas exploradas" : "Zonas reveladas"}
+                          Zonas reveladas
                         </p>
-                        <p className="mt-1 text-sm text-stone-900">
-                          {isDungeonJsonFogMode ? selectedBattle.dungeonFog.exploredCellKeys.length : selectedBattle.fogReveals.length}
-                        </p>
+                        <p className="mt-1 text-sm text-stone-900">{selectedBattle.fogReveals.length}</p>
                       </div>
                     </div>
                   </div>

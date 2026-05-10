@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react"
 
-import { getCharacterImagePresentationStyle, type CharacterImageCropKind } from "@/lib/character-image"
+import { getCharacterImageCrop, getCharacterImagePresentationStyle, type CharacterImageCropKind } from "@/lib/character-image"
 import type { BattleToken, Character } from "@/lib/types"
 
 export type BattleTokenImageCrop = {
@@ -58,6 +58,7 @@ type ResolveBattleTokenImagePresentationInput = {
 
 type BattleTokenImagePresentation = {
   image: string | null
+  crop?: BattleTokenImageCrop
   style?: CSSProperties
   isCustomTokenImage: boolean
 }
@@ -79,15 +80,21 @@ export function resolveBattleTokenImagePresentation({
   }
 
   if (customTokenImage) {
+    const crop = normalizeBattleTokenImageCrop(token)
+
     return {
       image: customTokenImage,
+      crop,
       style: getBattleTokenImagePresentationStyle(token),
       isCustomTokenImage: true,
     }
   }
 
+  const crop = linkedCharacter ? getCharacterImageCrop(linkedCharacter, kind) : undefined
+
   return {
     image: characterImage,
+    crop,
     style: linkedCharacter ? getCharacterImagePresentationStyle(linkedCharacter, kind) : undefined,
     isCustomTokenImage: false,
   }

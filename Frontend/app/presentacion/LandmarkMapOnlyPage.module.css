@@ -287,13 +287,6 @@
   pointer-events: none;
 }
 
-.dungeonMapOverlayLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  pointer-events: none;
-}
-
 @media (max-width: 720px) {
   .mapControls {
     gap: 0.4rem;

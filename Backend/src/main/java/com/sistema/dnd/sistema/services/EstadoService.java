@@ -21,7 +21,7 @@ import com.sistema.dnd.sistema.repository.EstadoMemberRepository;
 import com.sistema.dnd.sistema.repository.EstadoSubdivisionNameRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +61,7 @@ public class EstadoService {
         this.mediaAssetRepository = mediaAssetRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<EstadoDto> findAll() {
         return estadoRepository.findAll(Sort.by(Sort.Direction.ASC, "nombre"))
             .stream()
@@ -68,6 +69,7 @@ public class EstadoService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
     public EstadoDto findById(Long id) {
         EstadoEntity entity = estadoRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Estado no encontrado"));

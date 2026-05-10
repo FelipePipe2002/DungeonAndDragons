@@ -7,7 +7,7 @@
     "build": "next build",
     "build:assets": "npm run build && node scripts/collect-static-assets.mjs",
     "assets": "node scripts/collect-static-assets.mjs",
-    "deploy:static": "deploy-static.bat",
+    "deploy:static": "..\\deploy-static.bat",
     "start": "next start",
     "lint": "eslint .",
     "test:dungeons": "node --test lib/dungeons/*.test.ts"

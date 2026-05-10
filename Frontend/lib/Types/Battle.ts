@@ -22,7 +22,7 @@ export interface BattleToken {
   life?: number
   size: number
   status: string
-   statusDurationTurns?: number
+  statusDurationTurns?: number
   hidden?: boolean
 }
 
@@ -33,7 +33,12 @@ export interface BattleObstacle {
   y: number
   width: number
   height: number
+  rotation?: number
   color: string
+  name?: string
+  image?: string
+  imageAssetId?: number
+  hidden?: boolean
 }
 
 export interface BattleFogReveal {
@@ -47,6 +52,7 @@ export interface BattleFogReveal {
 export interface BattleDungeonFogState {
   enabled: boolean
   exploredCellKeys: string[]
+  openDoorIds: string[]
   playerVisionBrightRadiusCells?: number
   playerVisionDimRadiusCells?: number
 }

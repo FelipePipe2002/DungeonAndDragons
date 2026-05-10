@@ -1,7 +1,15 @@
-import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
-import { calculateDungeonVisibility } from "@/lib/dungeons/visibility"
+import type { NormalizedDungeonLightSource, NormalizedDungeonMap } from "@/lib/dungeons/types"
+import { buildDungeonLightingVisibility, type DungeonVisibilityMap } from "@/lib/dungeons/visibility"
 
-import { buildCorridorSegments, doorDrawPixelRect, roomLabelPixelPosition } from "./geometry"
+import {
+  buildCorridorSegments,
+  corridorPathCells,
+  directionBetweenCells,
+  doorDrawPixelRect,
+  oppositeCellDirection,
+  roomLabelPixelPosition,
+  type CellDirection,
+} from "./geometry"
 import {
   BASE_CELL_SIZE,
   CORRIDOR_WALL_THICKNESS,
@@ -26,6 +34,8 @@ export type DungeonCanvasScene = {
   renderOrigin: RenderOrigin
   openDoorIds?: Set<string>
   pendingAnchorPoint?: CanvasPoint | null
+  pendingPathPoints?: CanvasPoint[]
+  pendingWaypointPoints?: CanvasPoint[]
   textures?: {
     room?: CanvasImageSource[]
     corridor?: CanvasImageSource[]
@@ -35,6 +45,7 @@ export type DungeonCanvasScene = {
 
 export type DungeonLightingOverlayOptions = {
   showRadiusRings?: boolean
+  precomputedVisibility?: DungeonVisibilityMap
 }
 
 function buildRoomOccupiedCellSet(rooms: NormalizedDungeonMap["rooms"]) {
@@ -45,6 +56,30 @@ function buildRoomOccupiedCellSet(rooms: NormalizedDungeonMap["rooms"]) {
     }
   }
   return occupied
+}
+
+type CorridorCellRenderData = {
+  x: number
+  y: number
+  left: number
+  top: number
+  width: number
+  height: number
+  connections: Set<CellDirection>
+}
+
+function addCorridorPathConnections(corridorCells: Map<string, CorridorCellRenderData>, points: CanvasPoint[]) {
+  const pathCells = corridorPathCells(points)
+
+  for (let index = 1; index < pathCells.length; index += 1) {
+    const previous = pathCells[index - 1]
+    const current = pathCells[index]
+    const direction = directionBetweenCells(previous, current)
+    if (!direction) continue
+
+    corridorCells.get(`${previous.x},${previous.y}`)?.connections.add(direction)
+    corridorCells.get(`${current.x},${current.y}`)?.connections.add(oppositeCellDirection(direction))
+  }
 }
 
 function withCameraTransform(ctx: CanvasRenderingContext2D, camera: DungeonCamera, draw: () => void) {
@@ -249,21 +284,25 @@ function drawCorridors(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene)
   const occupied = buildRoomOccupiedCellSet(dungeon.rooms)
   const dungeonSeed = seedHash(dungeon.metadata.seed)
   const wallThicknessPx = resolveWallThicknessPx(displayStyle)
-  const corridorCells = new Map<string, { x: number; y: number; left: number; top: number; width: number; height: number }>()
+  const corridorCells = new Map<string, CorridorCellRenderData>()
   const wallSuppressedByDoor = new Set<string>()
 
   for (const corridor of dungeon.corridors) {
     const segments = buildCorridorSegments(corridor.points, corridor.width ?? 1, occupied)
     for (const segment of segments) {
-      corridorCells.set(`${segment.left},${segment.top}`, {
+      const key = `${segment.left},${segment.top}`
+      const existing = corridorCells.get(key)
+      corridorCells.set(key, {
         x: segment.left,
         y: segment.top,
         left: (segment.left - renderOrigin.x) * BASE_CELL_SIZE,
         top: (segment.top - renderOrigin.y) * BASE_CELL_SIZE,
         width: segment.width * BASE_CELL_SIZE,
         height: segment.height * BASE_CELL_SIZE,
+        connections: existing?.connections ?? new Set(),
       })
     }
+    addCorridorPathConnections(corridorCells, corridor.points)
   }
 
   ctx.fillStyle = displayStyle.corridorColor
@@ -317,11 +356,12 @@ function drawCorridors(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene)
 
   for (const key of corridorCells.keys()) {
     const [leftCell, topCell] = key.split(",").map(Number)
+    const cell = corridorCells.get(key)
     wallOpenByCell.set(key, {
-      north: !corridorCells.has(`${leftCell},${topCell - 1}`),
-      south: !corridorCells.has(`${leftCell},${topCell + 1}`),
-      west: !corridorCells.has(`${leftCell - 1},${topCell}`),
-      east: !corridorCells.has(`${leftCell + 1},${topCell}`),
+      north: !cell?.connections.has("north"),
+      south: !cell?.connections.has("south"),
+      west: !cell?.connections.has("west"),
+      east: !cell?.connections.has("east"),
     })
   }
 
@@ -459,6 +499,7 @@ function drawLightIcons(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene
 
   for (const light of dungeon.lights) {
     if (!light.enabled) continue
+
     const pixel = worldPixelPoint(light, renderOrigin)
     const imageSize = BASE_CELL_SIZE * 0.9
     const center = wallMountedCenter(light, pixel, imageSize)
@@ -508,23 +549,19 @@ export function drawDungeonLightingOverlay(
   scene: DungeonCanvasScene,
   options: DungeonLightingOverlayOptions = {},
 ) {
-  if (scene.dungeon.lights.length === 0) return
+  if (!options.precomputedVisibility && scene.dungeon.lights.length === 0) return
 
   withCameraTransform(ctx, scene.camera, () => {
     const { dungeon, renderOrigin } = scene
-    const localLights = dungeon.lights.map((light) => ({
-      ...light,
-      x: light.x - dungeon.bounds.originX,
-      y: light.y - dungeon.bounds.originY,
-    }))
-    const visibility = calculateDungeonVisibility({
-      bounds: { width: dungeon.bounds.width, height: dungeon.bounds.height },
-      lights: localLights,
+    const visibility = options.precomputedVisibility ?? buildDungeonLightingVisibility({
+      dungeon,
+      openDoorIds: scene.openDoorIds,
     })
 
     for (let y = dungeon.bounds.originY; y < dungeon.bounds.originY + dungeon.bounds.height; y += 1) {
       for (let x = dungeon.bounds.originX; x < dungeon.bounds.originX + dungeon.bounds.width; x += 1) {
-        const tier = visibility.getTier({ x: x - dungeon.bounds.originX, y: y - dungeon.bounds.originY })
+        const localCell = { x: x - dungeon.bounds.originX, y: y - dungeon.bounds.originY }
+        const tier = visibility.getTier(localCell)
         if (tier === "bright") continue
 
         ctx.fillStyle = tier === "dim"
@@ -586,17 +623,68 @@ function drawLabels(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene) {
 }
 
 function drawPendingAnchor(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene) {
-  if (!scene.pendingAnchorPoint) return
+  const pendingPoints = scene.pendingPathPoints?.length
+    ? scene.pendingPathPoints
+    : scene.pendingAnchorPoint
+      ? [scene.pendingAnchorPoint]
+      : []
+  if (pendingPoints.length === 0) return
 
-  const pixel = worldPixelPoint(scene.pendingAnchorPoint, scene.renderOrigin)
-  const radius = BASE_CELL_SIZE * 0.22
-  ctx.beginPath()
-  ctx.arc(pixel.x + BASE_CELL_SIZE * 0.5, pixel.y + BASE_CELL_SIZE * 0.5, radius, 0, Math.PI * 2)
-  ctx.fillStyle = "rgba(255, 233, 226, 0.9)"
-  ctx.fill()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = "rgba(217, 106, 86, 0.98)"
-  ctx.stroke()
+  if (pendingPoints.length > 1) {
+    ctx.beginPath()
+    for (let index = 0; index < pendingPoints.length; index += 1) {
+      const pixel = worldPixelPoint(pendingPoints[index], scene.renderOrigin)
+      const centerX = pixel.x + BASE_CELL_SIZE * 0.5
+      const centerY = pixel.y + BASE_CELL_SIZE * 0.5
+      if (index === 0) {
+        ctx.moveTo(centerX, centerY)
+      } else {
+        ctx.lineTo(centerX, centerY)
+      }
+    }
+    ctx.lineWidth = BASE_CELL_SIZE * 0.42
+    ctx.lineCap = "round"
+    ctx.lineJoin = "round"
+    ctx.strokeStyle = "rgba(255, 233, 226, 0.26)"
+    ctx.stroke()
+
+    ctx.lineWidth = 3
+    ctx.setLineDash([BASE_CELL_SIZE * 0.3, BASE_CELL_SIZE * 0.18])
+    ctx.strokeStyle = "rgba(217, 106, 86, 0.94)"
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
+
+  const waypointKeys = new Set((scene.pendingWaypointPoints ?? []).map((point) => `${point.x},${point.y}`))
+  const markerPoints = [
+    scene.pendingAnchorPoint,
+    ...(scene.pendingWaypointPoints ?? []),
+  ].filter((point): point is CanvasPoint => Boolean(point))
+
+  for (const point of markerPoints) {
+    const pixel = worldPixelPoint(point, scene.renderOrigin)
+    const centerX = pixel.x + BASE_CELL_SIZE * 0.5
+    const centerY = pixel.y + BASE_CELL_SIZE * 0.5
+    const radius = BASE_CELL_SIZE * 0.22
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+    ctx.fillStyle = "rgba(255, 233, 226, 0.9)"
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = "rgba(217, 106, 86, 0.98)"
+    ctx.stroke()
+
+    if (!waypointKeys.has(`${point.x},${point.y}`)) continue
+
+    ctx.beginPath()
+    ctx.moveTo(centerX - radius * 0.55, centerY)
+    ctx.lineTo(centerX + radius * 0.55, centerY)
+    ctx.moveTo(centerX, centerY - radius * 0.55)
+    ctx.lineTo(centerX, centerY + radius * 0.55)
+    ctx.lineWidth = 2
+    ctx.strokeStyle = "rgba(12, 74, 110, 0.95)"
+    ctx.stroke()
+  }
 }
 
 export function drawDungeon(ctx: CanvasRenderingContext2D, scene: DungeonCanvasScene) {

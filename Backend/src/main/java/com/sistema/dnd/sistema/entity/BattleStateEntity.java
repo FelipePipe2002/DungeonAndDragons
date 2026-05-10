@@ -76,5 +76,5 @@ public class BattleStateEntity extends AuditableEntity {
     private String fogRevealsJson = "[]";
 
     @Column(name = "dungeon_fog_json", nullable = false, columnDefinition = "TEXT")
-    private String dungeonFogJson = "{\"enabled\":false,\"exploredCellKeys\":[],\"playerVisionBrightRadiusCells\":4,\"playerVisionDimRadiusCells\":8}";
+    private String dungeonFogJson = "{\"enabled\":false,\"exploredCellKeys\":[],\"openDoorIds\":[],\"playerVisionBrightRadiusCells\":4,\"playerVisionDimRadiusCells\":8}";
 }

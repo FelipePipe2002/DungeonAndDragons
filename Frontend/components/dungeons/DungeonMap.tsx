@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react"
 
 import { readDungeonMapDocument } from "@/lib/dungeons/adapter"
@@ -21,6 +22,7 @@ import type {
 import { fetchJsonAsset } from "@/lib/services/asset-api.service"
 import {
   buildEditedDungeonWithCorridors,
+  compressPathPreservingPoints,
   createNextCorridorId,
   corridorCells,
   corridorCellKeySet,
@@ -30,7 +32,6 @@ import {
   pickRoomSideAnchorFromPoint,
   pointKey,
   rebuildDoorsFromCorridors,
-  compressPath,
   type Point,
   type RoomSideAnchor,
 } from "./dungeon-map-editor"
@@ -44,15 +45,27 @@ import styles from "./DungeonMap.module.css"
 export { DEFAULT_DUNGEON_DISPLAY_STYLE }
 export type { DungeonDisplayStyle }
 
+type MapFocusPoint = {
+  x: number
+  y: number
+  requestId: number
+}
+
 type DungeonMapProps = {
   dataUrl: string
   onLoadError?: (message: string | null) => void
   onLoadComplete?: () => void
   onDungeonLoad?: (dungeon: NormalizedDungeonMap) => void
+  openDoorIds?: ReadonlySet<string>
+  onOpenDoorIdsChange?: (openDoorIds: Set<string>) => void
+  doorToggleEnabled?: boolean
   onDocumentChange?: (document: DungeonMapDocument) => Promise<void> | void
   displayStyle?: Partial<DungeonDisplayStyle>
   lightingOverlayEnabled?: boolean
   lightingOverlayShowRadiusRings?: boolean
+  mapOverlay?: ReactNode
+  toolPanelAddon?: ReactNode
+  focusPoint?: MapFocusPoint | null
 }
 
 type ActiveTool = "none" | "remove-corridor" | "create-corridor" | "place-light" | "remove-light"
@@ -69,15 +82,21 @@ export default function DungeonMap({
   onLoadError,
   onLoadComplete,
   onDungeonLoad,
+  openDoorIds: controlledOpenDoorIds,
+  onOpenDoorIdsChange,
+  doorToggleEnabled = true,
   onDocumentChange,
   displayStyle,
   lightingOverlayEnabled = false,
   lightingOverlayShowRadiusRings = false,
+  mapOverlay,
+  toolPanelAddon,
+  focusPoint,
 }: DungeonMapProps) {
   const isEditable = typeof onDocumentChange === "function"
   const [dungeon, setDungeon] = useState<NormalizedDungeonMap | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [openDoorIds, setOpenDoorIds] = useState<Set<string>>(() => new Set())
+  const [uncontrolledOpenDoorIds, setUncontrolledOpenDoorIds] = useState<Set<string>>(() => new Set())
   const [activeTool, setActiveTool] = useState<ActiveTool>("none")
   const [lightingPreviewEnabled, setLightingPreviewEnabled] = useState(false)
   const [newLightBrightRadiusCells, setNewLightBrightRadiusCells] = useState(4)
@@ -88,6 +107,7 @@ export default function DungeonMap({
   const [hoveredDungeonCell, setHoveredDungeonCell] = useState<Point | null>(null)
   const [pendingCorridorAnchor, setPendingCorridorAnchor] = useState<RoomSideAnchor | null>(null)
   const [pendingCorridorPoint, setPendingCorridorPoint] = useState<Point | null>(null)
+  const [pendingCorridorWaypoints, setPendingCorridorWaypoints] = useState<Point[]>([])
   const [isPersistingEdit, setIsPersistingEdit] = useState(false)
   const onLoadErrorRef = useRef(onLoadError)
   const onLoadCompleteRef = useRef(onLoadComplete)
@@ -104,6 +124,17 @@ export default function DungeonMap({
   useEffect(() => {
     onDungeonLoadRef.current = onDungeonLoad
   }, [onDungeonLoad])
+
+  useEffect(() => {
+    if (!controlledOpenDoorIds) {
+      onOpenDoorIdsChange?.(new Set(uncontrolledOpenDoorIds))
+    }
+  }, [controlledOpenDoorIds, onOpenDoorIdsChange, uncontrolledOpenDoorIds])
+
+  const openDoorIds = useMemo(() => new Set(controlledOpenDoorIds ?? uncontrolledOpenDoorIds), [
+    controlledOpenDoorIds,
+    uncontrolledOpenDoorIds,
+  ])
 
   const effectiveDisplayStyle = useMemo<DungeonDisplayStyle>(() => ({
     ...DEFAULT_DUNGEON_DISPLAY_STYLE,
@@ -170,6 +201,10 @@ export default function DungeonMap({
   useEffect(() => {
     let isActive = true
     setError(null)
+    setUncontrolledOpenDoorIds(new Set())
+    setPendingCorridorAnchor(null)
+    setPendingCorridorPoint(null)
+    setPendingCorridorWaypoints([])
     onLoadErrorRef.current?.(null)
 
     void fetchJsonAsset<unknown>(dataUrl)
@@ -193,15 +228,19 @@ export default function DungeonMap({
   }, [dataUrl])
 
   const handleDoorToggle = (doorId: string) => {
-    setOpenDoorIds((current) => {
-      const next = new Set(current)
-      if (next.has(doorId)) {
-        next.delete(doorId)
-      } else {
-        next.add(doorId)
-      }
-      return next
-    })
+    const next = new Set(openDoorIds)
+    if (next.has(doorId)) {
+      next.delete(doorId)
+    } else {
+      next.add(doorId)
+    }
+
+    if (controlledOpenDoorIds) {
+      onOpenDoorIdsChange?.(next)
+      return
+    }
+
+    setUncontrolledOpenDoorIds(next)
   }
 
   const persistDungeonChange = async (
@@ -265,6 +304,83 @@ export default function DungeonMap({
   const isFloorCell = (point: Point) => floorCellKeys.has(pointKey(point))
   const isDoorCell = (point: Point) => dungeon?.doors.some((door) => door.x === point.x && door.y === point.y) ?? false
 
+  const isSamePoint = (first: Point | null | undefined, second: Point | null | undefined) => (
+    Boolean(first && second && first.x === second.x && first.y === second.y)
+  )
+
+  const clearPendingCorridor = () => {
+    setPendingCorridorAnchor(null)
+    setPendingCorridorPoint(null)
+    setPendingCorridorWaypoints([])
+  }
+
+  const routeCorridorThroughTargets = (
+    start: Point,
+    targets: Point[],
+    blockedRoomCells: Set<string>,
+  ) => {
+    if (!dungeon) return null
+
+    const route: Point[] = []
+    const usedRouteCells = new Set<string>()
+    let current = start
+
+    for (const target of targets) {
+      const blockedCells = new Set([...blockedRoomCells, ...usedRouteCells])
+      blockedCells.delete(pointKey(current))
+      blockedCells.delete(pointKey(target))
+
+      const segment = findGridPath(current, target, dungeon.bounds, blockedCells, corridorCellKeys)
+      if (!segment) return null
+      route.push(...(route.length === 0 ? segment : segment.slice(1)))
+
+      for (const point of segment) {
+        usedRouteCells.add(pointKey(point))
+      }
+
+      current = target
+    }
+
+    return route
+  }
+
+  const finishPendingCorridor = (target: Point, endRoomPoint?: Point) => {
+    if (!dungeon) return
+
+    const startHub = pendingCorridorAnchor
+      ? movePoint(pendingCorridorAnchor.point, pendingCorridorAnchor.direction)
+      : pendingCorridorPoint
+    if (!startHub) return
+
+    const blockedRoomCells = new Set<string>(roomOccupiedCells)
+    if (pendingCorridorAnchor) {
+      blockedRoomCells.delete(pointKey(pendingCorridorAnchor.point))
+    }
+    if (endRoomPoint) {
+      blockedRoomCells.delete(pointKey(endRoomPoint))
+    }
+
+    const route = routeCorridorThroughTargets(startHub, [...pendingCorridorWaypoints, target], blockedRoomCells)
+    if (!route) return
+
+    const nextCorridor: DungeonCorridor = {
+      id: createNextCorridorId(dungeon.corridors),
+      points: compressPathPreservingPoints(
+        [
+          ...(pendingCorridorAnchor ? [pendingCorridorAnchor.point] : []),
+          ...route,
+          ...(endRoomPoint ? [endRoomPoint] : []),
+        ],
+        pendingCorridorWaypoints,
+      ),
+      width: 1,
+    }
+    const nextDungeon = buildEditedDungeonWithCorridors(dungeon, [...dungeon.corridors, nextCorridor])
+
+    clearPendingCorridor()
+    void persistDungeonChange(nextDungeon, dungeon)
+  }
+
   const adjacentWallDirections = (point: Point): DungeonLightOrientation[] => {
     if (!isFloorCell(point)) return []
     const candidates: Array<{ direction: DungeonLightOrientation; point: Point }> = [
@@ -326,35 +442,20 @@ export default function DungeonMap({
   ) => {
     if (!isEditable || !dungeon || activeTool !== "create-corridor" || isPersistingEdit) return
 
-    if (!pendingCorridorAnchor) {
+    if (!pendingCorridorAnchor && !pendingCorridorPoint) {
       setPendingCorridorPoint(null)
+      setPendingCorridorWaypoints([])
       setPendingCorridorAnchor(anchor)
       return
     }
 
-    if (pendingCorridorAnchor.roomId === anchor.roomId && pendingCorridorAnchor.point.x === anchor.point.x && pendingCorridorAnchor.point.y === anchor.point.y) {
+    if (pendingCorridorAnchor && pendingCorridorAnchor.roomId === anchor.roomId && pendingCorridorAnchor.point.x === anchor.point.x && pendingCorridorAnchor.point.y === anchor.point.y) {
       setPendingCorridorAnchor(anchor)
       return
     }
 
-    const startHub = movePoint(pendingCorridorAnchor.point, pendingCorridorAnchor.direction)
     const endHub = movePoint(anchor.point, anchor.direction)
-    const blockedRoomCells = new Set<string>(roomOccupiedCells)
-    blockedRoomCells.delete(pointKey(pendingCorridorAnchor.point))
-    blockedRoomCells.delete(pointKey(anchor.point))
-    const route = findGridPath(startHub, endHub, dungeon.bounds, blockedRoomCells, corridorCellKeys)
-    if (!route) return
-
-    const nextCorridor: DungeonCorridor = {
-      id: createNextCorridorId(dungeon.corridors),
-      points: compressPath([pendingCorridorAnchor.point, ...route, anchor.point]),
-      width: 1,
-    }
-    const nextDungeon = buildEditedDungeonWithCorridors(dungeon, [...dungeon.corridors, nextCorridor])
-
-    setPendingCorridorAnchor(null)
-    setPendingCorridorPoint(null)
-    void persistDungeonChange(nextDungeon, dungeon)
+    finishPendingCorridor(endHub, anchor.point)
   }
 
   const handleCreateCorridorFromCanvas = (
@@ -374,82 +475,87 @@ export default function DungeonMap({
         onPointerDown={(event) => event.stopPropagation()}
         onWheel={(event) => event.stopPropagation()}
       >
+        <div className={styles.toolPanelTitle}>Editar dungeon</div>
         <div className={styles.toolStack}>
-          <button
-            type="button"
-            className={activeTool === "remove-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-            aria-pressed={activeTool === "remove-corridor"}
-            title="Eliminar corredor"
-            onClick={() => {
-              setPendingCorridorAnchor(null)
-              setPendingCorridorPoint(null)
-              setActiveTool((current) => current === "remove-corridor" ? "none" : "remove-corridor")
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-              <path d="M9 4 4 9l3 3-3 3 5 5 3-3 3 3 5-5-3-3 3-3-5-5-3 3-3-3Z" fill="currentColor" />
-            </svg>
-          </button>
+          <div className={styles.toolGroup}>
+            <button
+              type="button"
+              className={activeTool === "create-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+              aria-pressed={activeTool === "create-corridor"}
+              title="Crear corredor"
+              onClick={() => {
+                clearPendingCorridor()
+                setActiveTool((current) => current === "create-corridor" ? "none" : "create-corridor")
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+                <path d="M4 11h6V5h4v6h6v4h-6v6h-4v-6H4z" fill="currentColor" />
+              </svg>
+            </button>
 
-          <button
-            type="button"
-            className={activeTool === "create-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-            aria-pressed={activeTool === "create-corridor"}
-            title="Crear corredor"
-            onClick={() => {
-              setPendingCorridorAnchor(null)
-              setPendingCorridorPoint(null)
-              setActiveTool((current) => current === "create-corridor" ? "none" : "create-corridor")
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-              <path d="M4 11h6V5h4v6h6v4h-6v6h-4v-6H4z" fill="currentColor" />
-            </svg>
-          </button>
+            <button
+              type="button"
+              className={activeTool === "remove-corridor" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+              aria-pressed={activeTool === "remove-corridor"}
+              title="Eliminar corredor"
+              onClick={() => {
+                clearPendingCorridor()
+                setActiveTool((current) => current === "remove-corridor" ? "none" : "remove-corridor")
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+                <path d="M9 4 4 9l3 3-3 3 5 5 3-3 3 3 5-5-3-3 3-3-5-5-3 3-3-3Z" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            className={lightingPreviewEnabled ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-            aria-pressed={lightingPreviewEnabled}
-            title="Vista previa de iluminación"
-            onClick={() => setLightingPreviewEnabled((current) => !current)}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-              <path d="M12 2 9.6 8.2 3 9l5 4.2L6.6 20 12 16.4 17.4 20 16 13.2 21 9l-6.6-.8L12 2Z" fill="currentColor" />
-            </svg>
-          </button>
+          <div className={styles.toolDivider} />
 
-          <button
-            type="button"
-            className={activeTool === "place-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-            aria-pressed={activeTool === "place-light"}
-            title="Colocar antorcha"
-            onClick={() => {
-              setPendingCorridorAnchor(null)
-              setPendingCorridorPoint(null)
-              setActiveTool((current) => current === "place-light" ? "none" : "place-light")
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-              <path d="M9 2h6l-2 6h3l-4 6-4-6h3L9 2Zm1 13h4v7h-4v-7Z" fill="currentColor" />
-            </svg>
-          </button>
+          <div className={styles.toolGroup}>
+            <button
+              type="button"
+              className={lightingPreviewEnabled ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+              aria-pressed={lightingPreviewEnabled}
+              title="Vista previa de iluminación"
+              onClick={() => setLightingPreviewEnabled((current) => !current)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+                <path d="M12 2 9.6 8.2 3 9l5 4.2L6.6 20 12 16.4 17.4 20 16 13.2 21 9l-6.6-.8L12 2Z" fill="currentColor" />
+              </svg>
+            </button>
 
-          <button
-            type="button"
-            className={activeTool === "remove-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
-            aria-pressed={activeTool === "remove-light"}
-            title="Eliminar antorcha"
-            onClick={() => {
-              setPendingCorridorAnchor(null)
-              setPendingCorridorPoint(null)
-              setActiveTool((current) => current === "remove-light" ? "none" : "remove-light")
-            }}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
-              <path d="M7 4h10v2H7V4Zm2 4h6l-1 12h-4L9 8Zm-5 3 2-2 14 14-2 2L4 11Z" fill="currentColor" />
-            </svg>
-          </button>
+            <button
+              type="button"
+              className={activeTool === "place-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+              aria-pressed={activeTool === "place-light"}
+              title="Colocar antorcha"
+              onClick={() => {
+                clearPendingCorridor()
+                setActiveTool((current) => current === "place-light" ? "none" : "place-light")
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+                <path d="M9 2h6l-2 6h3l-4 6-4-6h3L9 2Zm1 13h4v7h-4v-7Z" fill="currentColor" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              className={activeTool === "remove-light" ? `${styles.toolButton} ${styles.toolButtonActive}` : styles.toolButton}
+              aria-pressed={activeTool === "remove-light"}
+              title="Eliminar antorcha"
+              onClick={() => {
+                clearPendingCorridor()
+                setActiveTool((current) => current === "remove-light" ? "none" : "remove-light")
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.toolIcon}>
+                <path d="M7 4h10v2H7V4Zm2 4h6l-1 12h-4L9 8Zm-5 3 2-2 14 14-2 2L4 11Z" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
+
+          {toolPanelAddon ? <div className={styles.toolPanelAddon}>{toolPanelAddon}</div> : null}
 
           <div className={styles.lightConfig}>
             <label className={styles.lightConfigLabel}>
@@ -500,6 +606,7 @@ export default function DungeonMap({
     if (!isEditable || !dungeon || activeTool !== "create-corridor" || isPersistingEdit) return
 
     if (!pendingCorridorAnchor && !pendingCorridorPoint) {
+      setPendingCorridorWaypoints([])
       setPendingCorridorPoint(point)
       return
     }
@@ -509,33 +616,88 @@ export default function DungeonMap({
       return
     }
 
+    finishPendingCorridor(point)
+  }
+
+  const handleCreateCorridorWaypoint = (point: Point) => {
+    if (!isEditable || !dungeon || activeTool !== "create-corridor" || isPersistingEdit) return
+    if (!pendingCorridorAnchor && !pendingCorridorPoint) return
+    if (!isPointWithinDungeonBounds(point)) return
+    if (roomOccupiedCells.has(pointKey(point)) || corridorCellKeys.has(pointKey(point))) return
+
+    setPendingCorridorWaypoints((current) => {
+      const previous = current[current.length - 1] ?? pendingCorridorAnchor?.point ?? pendingCorridorPoint
+      if (previous && previous.x === point.x && previous.y === point.y) return current
+      return [...current, point]
+    })
+  }
+
+  const handleUndoPendingCorridorWaypoint = () => {
+    if (!isEditable || activeTool !== "create-corridor" || isPersistingEdit) return
+    setPendingCorridorWaypoints((current) => current.slice(0, -1))
+  }
+
+  const pendingCorridorPreviewPoints = useMemo(() => {
+    const controlPoints = [
+      pendingCorridorAnchor?.point ?? pendingCorridorPoint,
+      ...pendingCorridorWaypoints,
+    ].filter((point): point is Point => Boolean(point))
+    if (!dungeon || activeTool !== "create-corridor") return controlPoints
+
     const startHub = pendingCorridorAnchor
       ? movePoint(pendingCorridorAnchor.point, pendingCorridorAnchor.direction)
       : pendingCorridorPoint
-    if (!startHub) return
+    if (!startHub) return controlPoints
 
     const blockedRoomCells = new Set<string>(roomOccupiedCells)
     if (pendingCorridorAnchor) {
       blockedRoomCells.delete(pointKey(pendingCorridorAnchor.point))
     }
-    const route = findGridPath(startHub, point, dungeon.bounds, blockedRoomCells, corridorCellKeys)
-    if (!route) return
 
-    const nextCorridor: DungeonCorridor = {
-      id: createNextCorridorId(dungeon.corridors),
-      points: compressPath(
-        pendingCorridorAnchor
-          ? [pendingCorridorAnchor.point, ...route]
-          : route,
-      ),
-      width: 1,
+    let endRoomPoint: Point | null = null
+    const targets = [...pendingCorridorWaypoints]
+
+    if (hoveredDungeonCell && isPointWithinDungeonBounds(hoveredDungeonCell)) {
+      const hoveredRoom = dungeon.rooms.find((room) => room.cells.some((cell) => isSamePoint(cell, hoveredDungeonCell)))
+      const hoveredKey = pointKey(hoveredDungeonCell)
+      const lastTarget = targets[targets.length - 1] ?? startHub
+
+      if (hoveredRoom) {
+        const anchor = pickRoomSideAnchorFromPoint(hoveredRoom, hoveredDungeonCell)
+        if (!pendingCorridorAnchor || !isSamePoint(anchor.point, pendingCorridorAnchor.point) || pendingCorridorWaypoints.length > 0) {
+          blockedRoomCells.delete(pointKey(anchor.point))
+          const endHub = movePoint(anchor.point, anchor.direction)
+          if (!isSamePoint(lastTarget, endHub)) {
+            targets.push(endHub)
+          }
+          endRoomPoint = anchor.point
+        }
+      } else if (!isSamePoint(lastTarget, hoveredDungeonCell) && (!roomOccupiedCells.has(hoveredKey) || corridorCellKeys.has(hoveredKey))) {
+        targets.push(hoveredDungeonCell)
+      }
     }
-    const nextDungeon = buildEditedDungeonWithCorridors(dungeon, [...dungeon.corridors, nextCorridor])
 
-    setPendingCorridorAnchor(null)
-    setPendingCorridorPoint(null)
-    void persistDungeonChange(nextDungeon, dungeon)
-  }
+    const route = routeCorridorThroughTargets(startHub, targets, blockedRoomCells)
+    if (!route) return controlPoints
+
+    return compressPathPreservingPoints(
+      [
+        ...(pendingCorridorAnchor ? [pendingCorridorAnchor.point] : []),
+        ...route,
+        ...(endRoomPoint ? [endRoomPoint] : []),
+      ],
+      pendingCorridorWaypoints,
+    )
+  }, [
+    activeTool,
+    corridorCellKeys,
+    dungeon,
+    hoveredDungeonCell,
+    pendingCorridorAnchor,
+    pendingCorridorPoint,
+    pendingCorridorWaypoints,
+    roomOccupiedCells,
+  ])
 
   if (error) {
     return <div className={styles.state}>{error}</div>
@@ -554,8 +716,12 @@ export default function DungeonMap({
       lightingPreviewEnabled={lightingPreviewEnabled || lightingOverlayEnabled}
       lightingRadiusRingsEnabled={lightingPreviewEnabled || lightingOverlayShowRadiusRings}
       pendingCorridorAnchorPoint={pendingCorridorAnchor?.point ?? pendingCorridorPoint}
+      pendingCorridorPathPoints={pendingCorridorPreviewPoints}
+      pendingCorridorWaypointPoints={pendingCorridorWaypoints}
       openDoorIds={openDoorIds}
-      onDoorClick={handleDoorToggle}
+      mapOverlay={mapOverlay}
+      focusPoint={focusPoint}
+      onDoorClick={doorToggleEnabled ? handleDoorToggle : undefined}
       onRoomSpanClick={({ room, point }) => {
         handleCreateCorridorFromCanvas(room, point)
       }}
@@ -568,6 +734,8 @@ export default function DungeonMap({
       }}
       onDungeonCellClick={({ point }) => handleLightCellClick(point)}
       onDungeonCellHover={({ point }) => setHoveredDungeonCell(point)}
+      onEmptyDungeonCellClick={({ point }) => handleCreateCorridorWaypoint(point)}
+      onUndoPendingCorridorWaypoint={handleUndoPendingCorridorWaypoint}
     >
       {renderEditToolPanel()}
     </DungeonCanvas>

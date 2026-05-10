@@ -2,7 +2,7 @@ import { normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
 import { normalizeBattleConditionStatus } from "@/lib/battle/conditions"
 import { normalizeBestiaryLocalImagePath } from "@/lib/monster/utils"
 import { backendRequest } from "@/lib/services/backend-api.service"
-import { buildAssetUrl } from "@/lib/services/asset-api.service"
+import { buildAssetUrl, getBackendAssetIdFromUrl } from "@/lib/services/asset-api.service"
 import type {
   BattleCenterHistory,
   BattleDungeonFogState,
@@ -47,7 +47,12 @@ type BattleObstacleDto = {
   y?: number | null
   width?: number | null
   height?: number | null
+  rotation?: number | null
   color?: string | null
+  name?: string | null
+  image?: string | null
+  imageAssetId?: number | null
+  hidden?: boolean | null
 }
 
 type BattleFogRevealDto = {
@@ -61,6 +66,7 @@ type BattleFogRevealDto = {
 type BattleDungeonFogStateDto = {
   enabled?: boolean | null
   exploredCellKeys?: string[] | null
+  openDoorIds?: string[] | null
   playerVisionBrightRadiusCells?: number | null
   playerVisionDimRadiusCells?: number | null
 }
@@ -152,7 +158,12 @@ type UpdateBattlePayload = {
     y: number
     width: number
     height: number
+    rotation: number
     color: string | null
+    name: string | null
+    image: string | null
+    imageAssetId: number | null
+    hidden: boolean | null
   }>
   fogEnabled: boolean
   nextFogRevealId: number
@@ -286,6 +297,10 @@ function normalizeToken(dto: BattleTokenDto): BattleToken {
   const sourceType = characterId ? "character" : explicitSourceType ?? "manual"
   const sourceRef = characterId ? String(characterId) : explicitSourceRef ?? undefined
   const normalizedImageText = toOptionalText(dto.image)
+  const dtoImageAssetId =
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? Math.trunc(dto.imageAssetId)
+      : getBackendAssetIdFromUrl(normalizedImageText)
 
   return {
     number,
@@ -293,13 +308,10 @@ function normalizeToken(dto: BattleTokenDto): BattleToken {
     characterId,
     sourceType,
     sourceRef,
-    imageAssetId:
-      typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
-        ? Math.trunc(dto.imageAssetId)
-        : undefined,
+    imageAssetId: dtoImageAssetId ?? undefined,
     image:
-      typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
-        ? buildAssetUrl(Math.trunc(dto.imageAssetId))
+      dtoImageAssetId !== null
+        ? buildAssetUrl(dtoImageAssetId)
         : normalizedImageText
           ? normalizeBestiaryLocalImagePath(normalizedImageText)
           : undefined,
@@ -332,6 +344,11 @@ function normalizeObstacle(dto: BattleObstacleDto): BattleObstacle {
   const shape = isBattleObstacleShape(dto.shape) ? dto.shape : "rectangle"
   const width = clampObstacleDimension(dto.width, shape === "circle" ? 8 : 14)
   const height = shape === "circle" ? width : clampObstacleDimension(dto.height, 8)
+  const normalizedImageText = toOptionalText(dto.image)
+  const dtoImageAssetId =
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? Math.trunc(dto.imageAssetId)
+      : getBackendAssetIdFromUrl(normalizedImageText)
 
   return {
     id,
@@ -340,7 +357,17 @@ function normalizeObstacle(dto: BattleObstacleDto): BattleObstacle {
     y: typeof dto.y === "number" && Number.isFinite(dto.y) ? clamp(dto.y, 0, 100) : 50,
     width,
     height,
+    rotation: typeof dto.rotation === "number" && Number.isFinite(dto.rotation) ? Math.trunc(dto.rotation) : 0,
     color: normalizeHexColor(dto.color, shape === "circle" ? "#f59e0b" : "#0f766e"),
+    name: toOptionalText(dto.name),
+    image:
+      dtoImageAssetId !== null
+        ? buildAssetUrl(dtoImageAssetId)
+        : normalizedImageText
+          ? normalizeBestiaryLocalImagePath(normalizedImageText)
+          : undefined,
+    imageAssetId: dtoImageAssetId ?? undefined,
+    hidden: Boolean(dto.hidden),
   }
 }
 
@@ -380,10 +407,21 @@ function normalizeDungeonFogState(dto: BattleDungeonFogStateDto | null | undefin
         ),
       ).sort((left, right) => left.localeCompare(right))
     : []
+  const openDoorIds = Array.isArray(dto?.openDoorIds)
+    ? Array.from(
+        new Set(
+          dto.openDoorIds
+            .filter((doorId): doorId is string => typeof doorId === "string")
+            .map((doorId) => doorId.trim())
+            .filter(Boolean),
+        ),
+      ).sort((left, right) => left.localeCompare(right))
+    : []
 
   return {
     enabled: Boolean(dto?.enabled),
     exploredCellKeys,
+    openDoorIds,
     playerVisionBrightRadiusCells: brightRadius,
     playerVisionDimRadiusCells: dimRadius,
   }
@@ -535,6 +573,10 @@ function toPayload(input: BattleState): UpdateBattlePayload {
         typeof token.number === "number" && Number.isFinite(token.number) && token.number > 0
           ? Math.max(1, Math.trunc(token.number))
           : index + 1
+      const imageAssetId =
+        typeof token.imageAssetId === "number" && Number.isFinite(token.imageAssetId) && token.imageAssetId > 0
+          ? Math.trunc(token.imageAssetId)
+          : getBackendAssetIdFromUrl(token.image)
 
       return {
         number,
@@ -554,16 +596,13 @@ function toPayload(input: BattleState): UpdateBattlePayload {
             ? String(Math.trunc(token.characterId))
             : toOptionalText(token.sourceRef) ?? null,
         image:
-          typeof token.imageAssetId === "number" && Number.isFinite(token.imageAssetId) && token.imageAssetId > 0
+          imageAssetId !== null
             ? null
             : (() => {
                 const normalizedImageText = toOptionalText(token.image)
                 return normalizedImageText ? normalizeBestiaryLocalImagePath(normalizedImageText) : null
               })(),
-        imageAssetId:
-          typeof token.imageAssetId === "number" && Number.isFinite(token.imageAssetId) && token.imageAssetId > 0
-            ? Math.trunc(token.imageAssetId)
-            : null,
+        imageAssetId,
         imageFocusX:
           typeof token.imageFocusX === "number" && Number.isFinite(token.imageFocusX) ? clamp(token.imageFocusX, 0, 100) : 50,
         imageFocusY:
@@ -599,6 +638,10 @@ function toPayload(input: BattleState): UpdateBattlePayload {
       const shape = isBattleObstacleShape(obstacle.shape) ? obstacle.shape : "rectangle"
       const width = clampObstacleDimension(obstacle.width, shape === "circle" ? 8 : 14)
       const height = shape === "circle" ? width : clampObstacleDimension(obstacle.height, 8)
+      const imageAssetId =
+        typeof obstacle.imageAssetId === "number" && Number.isFinite(obstacle.imageAssetId) && obstacle.imageAssetId > 0
+          ? Math.trunc(obstacle.imageAssetId)
+          : getBackendAssetIdFromUrl(obstacle.image)
 
       return {
         id:
@@ -610,7 +653,12 @@ function toPayload(input: BattleState): UpdateBattlePayload {
         y: clamp(obstacle.y, 0, 100),
         width,
         height,
+        rotation: typeof (obstacle as any).rotation === "number" ? Math.trunc((obstacle as any).rotation) : 0,
         color: normalizeHexColor(obstacle.color, shape === "circle" ? "#f59e0b" : "#0f766e"),
+        name: toOptionalText(obstacle.name) ?? null,
+        image: imageAssetId !== null ? null : toOptionalText(obstacle.image) ?? null,
+        imageAssetId,
+        hidden: typeof obstacle.hidden === "boolean" ? obstacle.hidden : null,
       }
     }),
     fogEnabled: Boolean(input.fogEnabled),

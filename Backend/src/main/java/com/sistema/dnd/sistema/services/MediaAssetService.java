@@ -116,11 +116,10 @@ public class MediaAssetService {
 
     @Transactional
     public void delete(Long id) {
-        MediaAssetEntity entity = findEntity(id);
         if (isReferenced(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El asset esta en uso y no puede borrarse");
         }
-        mediaAssetRepository.delete(entity);
+        mediaAssetRepository.deleteByIdIfExists(id);
     }
 
     public MediaAssetEntity findRequired(Long id) {

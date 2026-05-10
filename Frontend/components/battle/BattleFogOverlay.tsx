@@ -34,18 +34,18 @@ type DragState = {
   startY: number
 }
 
+type GridSnapConfig = {
+  cellSize: number
+  offsetX: number
+  offsetY: number
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
 function toDisplayY(y: number, height: number, verticalMirror: boolean) {
   return verticalMirror ? 100 - y - height : y
-}
-
-type GridSnapConfig = {
-  cellSize: number
-  offsetX: number
-  offsetY: number
 }
 
 function readGridSnapConfig(element: HTMLDivElement): GridSnapConfig | null {
@@ -143,7 +143,8 @@ export function BattleFogOverlay({
   onCreateReveal,
   onCoverArea,
 }: BattleFogOverlayProps) {
-  const maskId = useId()
+  const reactMaskId = useId()
+  const maskId = useMemo(() => `battle-fog-${reactMaskId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactMaskId])
   const rootRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<DragState | null>(null)
   const [draftReveal, setDraftReveal] = useState<FogRevealDraft | null>(null)
@@ -164,12 +165,7 @@ export function BattleFogOverlay({
   return (
     <div ref={rootRef} className={cn("pointer-events-none absolute inset-0 z-[35]", className)}>
       {overlayVisible && fogEnabled ? (
-        <svg
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <mask id={maskId}>
               <rect x="0" y="0" width="100" height="100" fill="#fff" />
@@ -199,10 +195,7 @@ export function BattleFogOverlay({
       ) : null}
 
       {overlayVisible && draftReveal && editorMode === "erase" ? (
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden="true"
-        >
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div
             className="absolute border border-white/20"
             style={{
@@ -325,8 +318,7 @@ export function BattleFogOverlay({
             event.preventDefault()
             event.stopPropagation()
           }}
-        >
-        </div>
+        />
       ) : null}
     </div>
   )

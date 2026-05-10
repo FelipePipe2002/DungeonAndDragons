@@ -82,11 +82,34 @@ export async function deleteAsset(assetId: number): Promise<void> {
   })
 }
 
+export function getBackendAssetIdFromUrl(url: string | null | undefined) {
+  const normalizedUrl = url?.trim()
+  if (!normalizedUrl) return null
+
+  const matchAssetPath = (value: string) => {
+    const match = value.match(/\/v1\/assets\/(\d+)(?:\D|$)/)
+    if (!match) return null
+    const assetId = Number.parseInt(match[1], 10)
+    return Number.isFinite(assetId) && assetId > 0 ? assetId : null
+  }
+
+  if (normalizedUrl.startsWith("/api/v1/assets/") || normalizedUrl.startsWith("/v1/assets/")) {
+    return matchAssetPath(normalizedUrl)
+  }
+
+  try {
+    const parsed = new URL(normalizedUrl)
+    return matchAssetPath(parsed.pathname)
+  } catch {
+    return null
+  }
+}
+
 function isBackendAssetUrl(url: string) {
   const normalizedUrl = url.trim()
   if (!normalizedUrl) return false
 
-  if (normalizedUrl.startsWith("/api/v1/assets/")) {
+  if (getBackendAssetIdFromUrl(normalizedUrl) !== null && normalizedUrl.startsWith("/api/v1/assets/")) {
     return true
   }
 

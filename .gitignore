@@ -7,6 +7,7 @@ node_modules/
 .DS_Store
 deploy-static/*
 deploy-static.bat
+!/deploy-static.bat
 .CleanedDataset/*
 Frontend/dnd-app-src.tgz
 Frontend/.env

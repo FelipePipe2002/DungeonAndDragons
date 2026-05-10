@@ -5,12 +5,23 @@ import { Accessibility, Bubbles, ChevronDown, Circle, EarOff, Eye, EyeOff, HatGl
 
 import type { BattleConditionDefinition } from "@/lib/battle/conditions"
 import type { BattleTokenFogVisibility } from "@/lib/battle/fog"
-import { resolveBattleTokenImagePresentation } from "@/lib/battle/token-image"
+import { resolveBattleTokenImagePresentation, type BattleTokenImageCrop } from "@/lib/battle/token-image"
 import type { BattleObstacle, BattleToken, Character } from "@/lib/types"
 
 type TokenPosition = {
   x: number
   y: number
+}
+
+type ObstacleSize = {
+  width: number
+  height: number
+}
+
+export type BattlePropPlacementDefinition = {
+  name: string
+  image: string
+  imageAssetId?: number | null
 }
 
 type TransformMetrics = {
@@ -37,6 +48,7 @@ type DragState =
       pointerId: number
       pointerTarget: HTMLElement
       obstacleId: number
+      obstacle: BattleObstacle
       lastPosition: TokenPosition
       pointerOffset: TokenPosition
       metrics: TransformMetrics
@@ -47,6 +59,8 @@ type DragState =
       pointerTarget: HTMLElement
       obstacleId: number
       obstacle: BattleObstacle
+      lastPosition: TokenPosition
+      lastSize: ObstacleSize
       resizeHandle: "center" | "nw" | "ne" | "sw" | "se"
       metrics: TransformMetrics
     }
@@ -65,8 +79,11 @@ type BattleTokenOverlayProps = {
   tokenInspectorEditable?: boolean
   hideHiddenTokens?: boolean
   ghostHiddenTokens?: boolean
+  hideHiddenObstacles?: boolean
+  showTokenLifeBadge?: boolean
   selectedTokenNumber?: number | null
   selectedObstacleId?: number | null
+  pendingPropPlacement?: BattlePropPlacementDefinition | null
   onSelectToken?: (tokenNumber: number) => void
   onTokenClick?: (tokenNumber: number) => void
   onUpdateTokenDetails?: (
@@ -95,8 +112,10 @@ type BattleTokenOverlayProps = {
   onResizeToken?: (tokenNumber: number, nextSize: number) => void
   onSelectObstacle?: (obstacleId: number) => void
   onMoveObstacle?: (obstacleId: number, nextPosition: TokenPosition) => void
-  onResizeObstacle?: (obstacleId: number, nextSize: { width: number; height: number }) => void
+  onResizeObstacle?: (obstacleId: number, nextSize: { width?: number; height?: number; rotation?: number }) => void
   onRemoveObstacle?: (obstacleId: number) => void
+  onPlaceProp?: (position: TokenPosition, keepSelected: boolean) => void
+  onToggleObstacleHidden?: (obstacleId: number) => void
   neutralPalette?: boolean
 }
 
@@ -114,14 +133,7 @@ function clampTokenSize(value: number | null | undefined) {
 
 const CLICK_OPEN_DRAG_THRESHOLD_PERCENT = 0.2
 const SUPPRESS_CLICK_AFTER_DRAG_MS = 350
-const CURRENT_TURN_TRAIL_STYLE = {
-  inset: "-16%",
-  boxShadow: "0 0 0 2px rgba(74, 222, 128, 0.8), 0 0 20px rgba(16, 185, 129, 0.55)",
-}
-const CURRENT_TURN_RIPPLE_STYLE = {
-  inset: "-22%",
-  boxShadow: "0 0 0 1px rgba(134, 239, 172, 0.65), 0 0 16px rgba(52, 211, 153, 0.4)",
-}
+const TOKEN_DECORATION_CANVAS_INSET_PERCENT = 24
 const CONDITION_ICON_BY_NAME: Record<string, LucideIcon> = {
   cegado: EyeOff,
   encantado: Heart,
@@ -277,6 +289,22 @@ function withAlpha(hexColor: string, alpha: number) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
+function getCanvasResolution(canvas: HTMLCanvasElement) {
+  const cssWidth = canvas.offsetWidth || 1
+  const cssHeight = canvas.offsetHeight || 1
+  const rect = canvas.getBoundingClientRect()
+  const pixelRatio = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+  const scale = Math.max(rect.width / cssWidth, rect.height / cssHeight) * pixelRatio
+
+  return {
+    cssWidth,
+    cssHeight,
+    nextWidth: Math.max(1, Math.ceil(cssWidth * scale)),
+    nextHeight: Math.max(1, Math.ceil(cssHeight * scale)),
+    scale,
+  }
+}
+
 function readGridMetrics(overlayElement: HTMLDivElement) {
   const styles = window.getComputedStyle(overlayElement)
   const cellSize = Number.parseFloat(styles.getPropertyValue("--battle-grid-cell-size"))
@@ -298,6 +326,7 @@ function snapPositionToGrid(
   position: TokenPosition,
   metrics: TransformMetrics,
   overlayElement: HTMLDivElement,
+  alignment: "center" | "edge" = "center",
 ): TokenPosition {
   const grid = readGridMetrics(overlayElement)
   if (!grid) {
@@ -306,8 +335,9 @@ function snapPositionToGrid(
 
   const snapAxis = (percentValue: number, total: number, offset: number) => {
     const pixelValue = (percentValue / 100) * total
+    const alignmentOffset = alignment === "center" ? grid.cellSize / 2 : 0
     const snappedPixel =
-      offset + grid.cellSize / 2 + Math.round((pixelValue - offset - grid.cellSize / 2) / grid.cellSize) * grid.cellSize
+      offset + alignmentOffset + Math.round((pixelValue - offset - alignmentOffset) / grid.cellSize) * grid.cellSize
 
     return clamp((snappedPixel / total) * 100, 0, 100)
   }
@@ -315,6 +345,25 @@ function snapPositionToGrid(
   return {
     x: snapAxis(position.x, metrics.localWidth, grid.offsetX),
     y: snapAxis(position.y, metrics.localHeight, grid.offsetY),
+  }
+}
+
+function snapObstaclePositionToGridEdges(
+  position: TokenPosition,
+  obstacle: BattleObstacle,
+  metrics: TransformMetrics,
+  overlayElement: HTMLDivElement,
+): TokenPosition {
+  const obstacleHeight = obstacle.shape === "circle" ? obstacle.width : obstacle.height
+  const topLeft = {
+    x: clamp(position.x - obstacle.width / 2, 0, 100),
+    y: clamp(position.y - obstacleHeight / 2, 0, 100),
+  }
+  const snappedTopLeft = snapPositionToGrid(topLeft, metrics, overlayElement, "edge")
+
+  return {
+    x: clamp(snappedTopLeft.x + obstacle.width / 2, 0, 100),
+    y: clamp(snappedTopLeft.y + obstacleHeight / 2, 0, 100),
   }
 }
 
@@ -337,15 +386,15 @@ function transformOverlayPosition(position: TokenPosition, verticalMirror: boole
     : position
 }
 
-function updatePreviewPositionMap(
-  current: Record<number, TokenPosition>,
+function updatePreviewMap<T>(
+  current: Record<number, T>,
   id: number,
-  nextPosition: TokenPosition | null,
+  nextValue: T | null,
 ) {
   const next = { ...current }
 
-  if (nextPosition) {
-    next[id] = nextPosition
+  if (nextValue) {
+    next[id] = nextValue
   } else {
     delete next[id]
   }
@@ -374,6 +423,209 @@ function resolveTokenFogVisibility(
   return source[tokenNumber] ?? "visible"
 }
 
+function drawTokenImageToCanvas(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement,
+  crop: BattleTokenImageCrop,
+  isDefeated: boolean,
+) {
+  const { cssWidth, cssHeight, nextWidth, nextHeight } = getCanvasResolution(canvas)
+
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth
+    canvas.height = nextHeight
+  }
+
+  const context = canvas.getContext("2d")
+  if (!context) return
+
+  context.clearRect(0, 0, nextWidth, nextHeight)
+  context.save()
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = "high"
+  context.filter = isDefeated ? "grayscale(1) brightness(0.75) saturate(0)" : "none"
+
+  const imageWidth = image.naturalWidth || image.width
+  const imageHeight = image.naturalHeight || image.height
+  const coverScale = Math.max(nextWidth / imageWidth, nextHeight / imageHeight)
+  const drawnWidth = imageWidth * coverScale
+  const drawnHeight = imageHeight * coverScale
+  const focusX = crop.focusX / 100
+  const focusY = crop.focusY / 100
+  const originX = nextWidth * focusX
+  const originY = nextHeight * focusY
+  const drawX = (nextWidth - drawnWidth) * focusX
+  const drawY = (nextHeight - drawnHeight) * focusY
+
+  context.translate(originX, originY)
+  context.scale(crop.zoom, crop.zoom)
+  context.translate(-originX, -originY)
+  context.drawImage(image, drawX, drawY, drawnWidth, drawnHeight)
+  context.restore()
+}
+
+function TokenImageCanvas({
+  alt,
+  crop,
+  isDefeated,
+  src,
+}: {
+  alt: string
+  crop: BattleTokenImageCrop
+  isDefeated: boolean
+  src: string
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    let cancelled = false
+    let animationFrame = 0
+    let lastWidth = 0
+    let lastHeight = 0
+    let loopStarted = false
+    const image = new Image()
+
+    const drawIfNeeded = (force = false) => {
+      if (cancelled || !image.complete || image.naturalWidth <= 0) return
+
+      const { nextWidth, nextHeight } = getCanvasResolution(canvas)
+
+      if (!force && nextWidth === lastWidth && nextHeight === lastHeight) return
+      lastWidth = nextWidth
+      lastHeight = nextHeight
+      drawTokenImageToCanvas(canvas, image, crop, isDefeated)
+    }
+
+    const tick = () => {
+      drawIfNeeded()
+      animationFrame = window.requestAnimationFrame(tick)
+    }
+
+    const startDrawing = () => {
+      if (loopStarted) return
+      loopStarted = true
+      drawIfNeeded(true)
+      animationFrame = window.requestAnimationFrame(tick)
+    }
+
+    image.onload = startDrawing
+    image.src = src
+    if (image.complete && image.naturalWidth > 0) {
+      startDrawing()
+    }
+
+    return () => {
+      cancelled = true
+      image.onload = null
+      window.cancelAnimationFrame(animationFrame)
+    }
+  }, [crop.focusX, crop.focusY, crop.zoom, isDefeated, src])
+
+  return <canvas ref={canvasRef} className="absolute inset-0 size-full" aria-label={alt} role="img" />
+}
+
+function drawTokenDecorationCanvas(
+  canvas: HTMLCanvasElement,
+  options: {
+    isCurrentTurn: boolean
+    statusColor: string | null
+  },
+) {
+  const { nextWidth, nextHeight } = getCanvasResolution(canvas)
+  const pixelRatio = window.devicePixelRatio || 1
+
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth
+    canvas.height = nextHeight
+  }
+
+  const context = canvas.getContext("2d")
+  if (!context) return
+
+  context.clearRect(0, 0, nextWidth, nextHeight)
+  const centerX = nextWidth / 2
+  const centerY = nextHeight / 2
+  const canvasScale = 1 + (TOKEN_DECORATION_CANVAS_INSET_PERCENT * 2) / 100
+  const tokenRadius = Math.min(nextWidth, nextHeight) / (2 * canvasScale)
+
+  const strokeCircle = (radius: number, color: string, width: number, shadowColor: string, shadowBlur: number) => {
+    const lineWidth = Math.max(1, width * pixelRatio)
+
+    context.save()
+    context.beginPath()
+    context.arc(centerX, centerY, radius, 0, Math.PI * 2)
+    context.strokeStyle = color
+    context.lineWidth = lineWidth
+    context.shadowColor = shadowColor
+    context.shadowBlur = shadowBlur * pixelRatio
+    context.stroke()
+    context.restore()
+  }
+
+  if (options.isCurrentTurn) {
+    strokeCircle(tokenRadius + 7 * pixelRatio, "rgba(74, 222, 128, 0.9)", 6, "rgba(16, 185, 129, 0.62)", 22)
+  }
+
+  if (options.statusColor) {
+    strokeCircle(tokenRadius + 3 * pixelRatio, options.statusColor, 3, withAlpha(options.statusColor, 0.68), 12)
+  }
+}
+
+function TokenDecorationCanvas({
+  isCurrentTurn,
+  statusColor,
+}: {
+  isCurrentTurn: boolean
+  statusColor: string | null
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    let animationFrame = 0
+    let lastWidth = 0
+    let lastHeight = 0
+
+    const drawIfNeeded = (force = false) => {
+      const { nextWidth, nextHeight } = getCanvasResolution(canvas)
+
+      if (!force && nextWidth === lastWidth && nextHeight === lastHeight) return
+      lastWidth = nextWidth
+      lastHeight = nextHeight
+      drawTokenDecorationCanvas(canvas, { isCurrentTurn, statusColor })
+    }
+
+    const tick = () => {
+      drawIfNeeded()
+      animationFrame = window.requestAnimationFrame(tick)
+    }
+
+    drawIfNeeded(true)
+    animationFrame = window.requestAnimationFrame(tick)
+
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [isCurrentTurn, statusColor])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute"
+      style={{
+        left: `-${TOKEN_DECORATION_CANVAS_INSET_PERCENT}%`,
+        top: `-${TOKEN_DECORATION_CANVAS_INSET_PERCENT}%`,
+        width: `${100 + TOKEN_DECORATION_CANVAS_INSET_PERCENT * 2}%`,
+        height: `${100 + TOKEN_DECORATION_CANVAS_INSET_PERCENT * 2}%`,
+      }}
+      aria-hidden="true"
+    />
+  )
+}
+
 function parseStatusDurationTurnsInput(value: string) {
   const trimmed = value.trim()
   if (!trimmed) {
@@ -398,13 +650,155 @@ function shouldIgnoreShortcutTarget(target: EventTarget | null) {
   )
 }
 
+function drawBattleObstacleCanvas(
+  canvas: HTMLCanvasElement,
+  obstacle: BattleObstacle,
+  isSelected: boolean,
+  image: HTMLImageElement | null = null,
+) {
+  const { cssWidth, cssHeight, nextWidth, nextHeight, scale } = getCanvasResolution(canvas)
+
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth
+    canvas.height = nextHeight
+  }
+
+  const context = canvas.getContext("2d")
+  if (!context) return
+
+  context.clearRect(0, 0, nextWidth, nextHeight)
+  context.save()
+  context.scale(scale, scale)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = "high"
+
+  const strokeWidth = 2
+  const inset = strokeWidth / 2 + 1
+  const width = Math.max(1, cssWidth - inset * 2)
+  const height = Math.max(1, cssHeight - inset * 2)
+
+  context.shadowBlur = isSelected ? 14 : 8
+  context.shadowColor = isSelected ? withAlpha("#fcd34d", 0.7) : withAlpha(obstacle.color, 0.24)
+  context.fillStyle = withAlpha(obstacle.color, 0.32)
+  context.strokeStyle = obstacle.color
+  context.lineWidth = strokeWidth
+
+  const drawObstacleImage = () => {
+    if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      return false
+    }
+
+    const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight)
+    const drawnWidth = image.naturalWidth * scale
+    const drawnHeight = image.naturalHeight * scale
+    const drawX = inset + (width - drawnWidth) / 2
+    const drawY = inset + (height - drawnHeight) / 2
+
+    context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, drawX, drawY, drawnWidth, drawnHeight)
+    return true
+  }
+
+  if (obstacle.shape === "circle") {
+    const radius = Math.max(1, Math.min(width, height) / 2)
+    context.beginPath()
+    context.arc(cssWidth / 2, cssHeight / 2, radius, 0, Math.PI * 2)
+    context.save()
+    context.clip()
+    const hasImage = drawObstacleImage()
+    if (!hasImage) {
+      context.fill()
+    }
+    context.restore()
+    if (!hasImage) {
+      context.stroke()
+    }
+
+    if (isSelected) {
+      context.shadowBlur = 0
+      context.strokeStyle = withAlpha("#fcd34d", 0.72)
+      context.lineWidth = 4
+      context.beginPath()
+      context.arc(cssWidth / 2, cssHeight / 2, Math.max(1, radius - 3), 0, Math.PI * 2)
+      context.stroke()
+    }
+  } else {
+    context.beginPath()
+    context.rect(inset, inset, width, height)
+    context.save()
+    context.clip()
+    const hasImage = drawObstacleImage()
+    if (!hasImage) {
+      context.fill()
+    }
+    context.restore()
+    if (!hasImage) {
+      context.stroke()
+    }
+
+    if (isSelected) {
+      context.shadowBlur = 0
+      context.strokeStyle = withAlpha("#fcd34d", 0.72)
+      context.lineWidth = 4
+      context.strokeRect(inset + 2, inset + 2, Math.max(1, width - 4), Math.max(1, height - 4))
+    }
+  }
+
+  context.restore()
+}
+
+function BattleObstacleCanvas({
+  obstacle,
+  isSelected,
+  image,
+}: {
+  obstacle: BattleObstacle
+  isSelected: boolean
+  image: HTMLImageElement | null
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    let animationFrameId: number | null = null
+    let lastWidth = 0
+    let lastHeight = 0
+
+    const draw = () => {
+      const { nextWidth, nextHeight } = getCanvasResolution(canvas)
+      if (nextWidth !== lastWidth || nextHeight !== lastHeight) {
+        lastWidth = nextWidth
+        lastHeight = nextHeight
+        drawBattleObstacleCanvas(canvas, obstacle, isSelected, image)
+      }
+
+      animationFrameId = window.requestAnimationFrame(draw)
+    }
+
+    const { nextWidth, nextHeight } = getCanvasResolution(canvas)
+    lastWidth = nextWidth
+    lastHeight = nextHeight
+    drawBattleObstacleCanvas(canvas, obstacle, isSelected, image)
+    animationFrameId = window.requestAnimationFrame(draw)
+
+    return () => {
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId)
+      }
+    }
+  }, [image, isSelected, obstacle])
+
+  return <canvas ref={canvasRef} className="pointer-events-none block size-full" aria-hidden="true" />
+}
+
 type BattleObstacleItemProps = {
   obstacle: BattleObstacle
   renderedPosition: TokenPosition
   isSelected: boolean
   interactive: boolean
   onRemoveObstacle?: (obstacleId: number) => void
-  onResizeObstacle?: (obstacleId: number, nextSize: { width: number; height: number }) => void
+  onResizeObstacle?: (obstacleId: number, nextSize: { width?: number; height?: number; rotation?: number }) => void
   onSelectObstacle?: (obstacleId: number) => void
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onResizePointerDown: (handle: "center" | "nw" | "ne" | "sw" | "se") => (event: ReactPointerEvent<HTMLElement>) => void
@@ -423,30 +817,67 @@ function BattleObstacleItem({
 }: BattleObstacleItemProps) {
   const isCircle = obstacle.shape === "circle"
   const obstacleWidth = obstacle.width
-  const obstacleHeight = isCircle ? obstacle.width : obstacle.height
+
+  const [image, setImage] = useState<HTMLImageElement | null>(null)
+
+  useEffect(() => {
+    if (!obstacle.image) {
+      setImage(null)
+      return
+    }
+
+    let cancelled = false
+    const nextImage = new Image()
+    nextImage.onload = () => {
+      if (!cancelled) {
+        setImage(nextImage)
+      }
+    }
+    nextImage.onerror = () => {
+      if (!cancelled) {
+        setImage(null)
+      }
+    }
+    nextImage.src = obstacle.image
+
+    return () => {
+      cancelled = true
+    }
+  }, [obstacle.image])
+
+  const hasLoadedImage = obstacle.image && image && image.naturalWidth > 0 && image.naturalHeight > 0
+  const obstacleHeight = hasLoadedImage ? "auto" : (isCircle ? undefined : `${obstacle.height}%`)
+  const aspectRatio = hasLoadedImage
+    ? `${image.naturalWidth} / ${image.naturalHeight}`
+    : isCircle
+      ? "1 / 1"
+      : undefined
 
   return (
     <button
       type="button"
       className="pointer-events-auto absolute bg-transparent p-0"
       data-battle-wheel-stop="true"
+      title={obstacle.name || `Obstáculo ${obstacle.id}`}
       style={{
         left: `${renderedPosition.x}%`,
         top: `${renderedPosition.y}%`,
         width: `${obstacleWidth}%`,
-        height: isCircle ? undefined : `${obstacleHeight}%`,
-        aspectRatio: isCircle ? "1 / 1" : undefined,
-        transform: "translate(-50%, -50%)",
-        zIndex: isSelected ? 2 : 1,
+        height: obstacleHeight,
+        aspectRatio: aspectRatio,
+        transform: `translate(-50%, -50%) rotate(${(obstacle as any).rotation ?? 0}deg)`,
+        zIndex: obstacle.image ? (isSelected ? 20 : 10) : (isSelected ? 2 : 1),
         touchAction: "none",
-        clipPath: isCircle ? "circle(50%)" : undefined,
+        opacity: obstacle.hidden ? 0.45 : 1,
       }}
       onClick={(event) => {
         event.stopPropagation()
-        onSelectObstacle?.(obstacle.id)
+        if (event.shiftKey) {
+          onSelectObstacle?.(obstacle.id)
+        }
       }}
       onDoubleClick={(event) => {
-        if (!interactive || !onRemoveObstacle) {
+        if (!interactive || !onRemoveObstacle || !event.shiftKey) {
           return
         }
 
@@ -459,7 +890,7 @@ function BattleObstacleItem({
         onRemoveObstacle(obstacle.id)
       }}
       onContextMenu={(event) => {
-        if (!interactive || !onRemoveObstacle) {
+        if (!interactive || !onRemoveObstacle || !event.shiftKey) {
           return
         }
 
@@ -473,32 +904,30 @@ function BattleObstacleItem({
           return
         }
 
-        event.preventDefault()
+        if (!event.shiftKey) {
+          return
+        }
+
         event.stopPropagation()
 
-        const delta = event.deltaY < 0 ? 1 : -1
-        const nextWidth = clamp(obstacle.width + delta, 0, 100)
-        const nextHeight = clamp(obstacle.height + delta, 0, 100)
+        const scaleDelta = event.deltaY < 0 ? 1.05 : 0.95
+        const nextWidth = clamp(obstacle.width * scaleDelta, 0.5, 100)
+        const nextHeight = clamp(obstacle.height * scaleDelta, 0.5, 100)
 
         onResizeObstacle(obstacle.id, {
-          width: nextWidth,
-          height: obstacle.shape === "circle" ? nextWidth : nextHeight,
+          width: Math.round(nextWidth * 100) / 100,
+          height: (obstacle.shape === "circle" || obstacle.image) ? Math.round(nextWidth * 100) / 100 : Math.round(nextHeight * 100) / 100,
         })
       }}
     >
-      <span
-        className="block size-full border-2 shadow-lg"
-        style={{
-          borderRadius: isCircle ? "50%" : "0",
-          borderColor: obstacle.color,
-          backgroundColor: withAlpha(obstacle.color, 0.32),
-          boxShadow: isSelected
-            ? `0 0 0 4px ${withAlpha("#fcd34d", 0.7)}`
-            : `0 0 0 1px ${withAlpha(obstacle.color, 0.15)}`,
-        }}
-      />
+      <BattleObstacleCanvas obstacle={obstacle} isSelected={isSelected} image={image} />
+      {obstacle.hidden ? (
+        <span className="pointer-events-none absolute right-1 top-1 inline-flex size-5 items-center justify-center rounded-full bg-stone-950/75 text-white shadow">
+          <EyeOff className="size-3" />
+        </span>
+      ) : null}
       {interactive && onResizeObstacle && isSelected
-        ? isCircle ? (
+        ? (isCircle || obstacle.image) ? (
             <span
               className="pointer-events-auto absolute left-1/2 top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-stone-800/70 bg-white/90 shadow"
               onPointerDown={onResizePointerDown("center")}
@@ -507,12 +936,16 @@ function BattleObstacleItem({
                   return
                 }
 
-                event.preventDefault()
+                if (!event.shiftKey) {
+                  return
+                }
+
                 event.stopPropagation()
 
-                const delta = event.deltaY < 0 ? 1 : -1
-                const nextSize = clamp(obstacle.width + delta, 0, 100)
-                onResizeObstacle(obstacle.id, { width: nextSize, height: nextSize })
+                const scaleDelta = event.deltaY < 0 ? 1.05 : 0.95
+                const nextSize = clamp(obstacle.width * scaleDelta, 0.5, 100)
+                const roundedSize = Math.round(nextSize * 100) / 100
+                onResizeObstacle(obstacle.id, { width: roundedSize, height: roundedSize })
               }}
             />
           ) : (
@@ -549,7 +982,7 @@ type SelectedObstacleToolbarProps = {
 function SelectedObstacleToolbar({ obstacle, renderedPosition, onRemoveObstacle }: SelectedObstacleToolbarProps) {
   return (
     <div
-      className="pointer-events-auto absolute z-[5] flex items-center gap-1 rounded-full border border-stone-900/15 bg-white/95 px-1.5 py-1 shadow-xl backdrop-blur"
+      className="pointer-events-auto absolute z-[30] flex items-center gap-1 rounded-full border border-stone-900/15 bg-white/95 px-1.5 py-1 shadow-xl backdrop-blur"
       style={{
         left: `${clamp(renderedPosition.x, 10, 90)}%`,
         top: `${clamp(renderedPosition.y + (renderedPosition.y < 18 ? 10 : -10), 10, 90)}%`,
@@ -577,15 +1010,16 @@ function SelectedObstacleToolbar({ obstacle, renderedPosition, onRemoveObstacle 
 
 type BattleTokenItemProps = {
   token: BattleToken
-  fogVisibility: BattleTokenFogVisibility
   linkedCharacter: Character | null
   tokenStatusDefinition: BattleConditionDefinition | null
   renderedPosition: TokenPosition
   selectedTokenNumber: number | null
   currentTurnTokenNumber: number | null
   ghostHiddenTokens: boolean
+  showTokenLifeBadge: boolean
   verticalMirror: boolean
   neutralPalette: boolean
+  pointerEventsEnabled: boolean
   onClick: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
   onMouseEnter: () => void
@@ -596,15 +1030,16 @@ type BattleTokenItemProps = {
 
 function BattleTokenItem({
   token,
-  fogVisibility,
   linkedCharacter,
   tokenStatusDefinition,
   renderedPosition,
   selectedTokenNumber,
   currentTurnTokenNumber,
   ghostHiddenTokens,
+  showTokenLifeBadge,
   verticalMirror,
   neutralPalette,
+  pointerEventsEnabled,
   onClick,
   onPointerDown,
   onMouseEnter,
@@ -617,7 +1052,6 @@ function BattleTokenItem({
   const isDeadEnemy = isEnemy && (token.life ?? 1) <= 0
   const isDefeated = typeof token.life === "number" && token.life <= 0
   const isHidden = Boolean(token.hidden)
-  const isFogDimmed = fogVisibility === "dim"
   const isCurrentTurn = !neutralPalette && !isHidden && currentTurnTokenNumber !== null && token.number === currentTurnTokenNumber
   const isGhosted = isHidden && ghostHiddenTokens
   const tokenImagePresentation = resolveBattleTokenImagePresentation({
@@ -627,7 +1061,8 @@ function BattleTokenItem({
   })
   const tokenImage = tokenImagePresentation.image
   const shouldShowTokenNumberBadge = !neutralPalette && (token.sourceType === "monster" || Boolean(tokenImage))
-  const tokenImagePresentationStyle = tokenImagePresentation.style
+  const shouldShowLifeBadge = showTokenLifeBadge && typeof token.life === "number" && Number.isFinite(token.life)
+  const tokenImageCrop = tokenImagePresentation.crop
   const renderedSize = clampTokenSize(token.size)
   const tokenDiameter = Math.round(44 * renderedSize)
   const tokenDiameterCss = `calc(${tokenDiameter}px * var(--map-image-scale, 1))`
@@ -635,7 +1070,7 @@ function BattleTokenItem({
   return (
     <button
       type="button"
-      className={`pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : isFogDimmed ? "opacity-70" : ""}`}
+      className={`${pointerEventsEnabled ? "pointer-events-auto" : "pointer-events-none"} absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent p-0 text-left ${isGhosted ? "opacity-25" : ""}`}
       data-battle-wheel-stop="true"
       style={{
         left: `${renderedPosition.x}%`,
@@ -659,28 +1094,10 @@ function BattleTokenItem({
           transformOrigin: "center",
         }}
       >
-        {isCurrentTurn ? (
-          <>
-            <span
-              className="pointer-events-none absolute rounded-full"
-              style={CURRENT_TURN_TRAIL_STYLE}
-              aria-hidden="true"
-            />
-            <span
-              className="pointer-events-none absolute rounded-full"
-              style={CURRENT_TURN_RIPPLE_STYLE}
-              aria-hidden="true"
-            />
-          </>
-        ) : null}
-        {tokenStatusDefinition ? (
-          <span
-            className="pointer-events-none absolute rounded-full"
-            style={{
-              inset: "0",
-              boxShadow: `0 0 0 2px ${tokenStatusDefinition.color}, 0 0 12px ${withAlpha(tokenStatusDefinition.color, 0.65)}`,
-            }}
-            aria-hidden="true"
+        {isCurrentTurn || tokenStatusDefinition ? (
+          <TokenDecorationCanvas
+            isCurrentTurn={isCurrentTurn}
+            statusColor={tokenStatusDefinition?.color ?? null}
           />
         ) : null}
         {tokenStatusDefinition ? (
@@ -696,18 +1113,14 @@ function BattleTokenItem({
                 }
               >
                 <TokenStatusIcon
-                  className="size-[0.9rem] drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]"
+                  className="size-[0.9rem]"
                   style={{ color: tokenStatusDefinition.color }}
+                  strokeWidth={2.5}
                   aria-hidden="true"
                 />
               </span>
             )
           })()
-        ) : null}
-        {tokenStatusDefinition && typeof token.statusDurationTurns === "number" && token.statusDurationTurns >= 0 ? (
-          <span className="pointer-events-none absolute -bottom-1.5 right-0 z-30 rounded-full bg-stone-950/85 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
-            {token.statusDurationTurns === 0 ? "INF" : `${token.statusDurationTurns}T`}
-          </span>
         ) : null}
         {isHidden ? (
           <>
@@ -728,7 +1141,7 @@ function BattleTokenItem({
           </>
         ) : null}
         <span
-          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${isFogDimmed ? "brightness-75 saturate-50" : ""} ${
+          className={`relative flex size-full items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
             neutralPalette
               ? tokenImage
                 ? ""
@@ -742,19 +1155,17 @@ function BattleTokenItem({
         >
           {tokenImage ? (
             <>
-              <img
+              <TokenImageCanvas
                 src={tokenImage}
                 alt={linkedCharacter?.nombre ?? token.nombre}
-                className={`absolute inset-0 size-full object-cover ${isDefeated ? "grayscale brightness-75 saturate-0" : ""}`}
-                style={tokenImagePresentationStyle}
-                draggable={false}
+                crop={tokenImageCrop ?? { focusX: 50, focusY: 50, zoom: 1 }}
+                isDefeated={isDefeated}
               />
               <span className={`absolute inset-0 ${isDefeated ? "bg-stone-900/30" : "bg-black/10"}`} aria-hidden="true" />
             </>
           ) : (
             token.sourceType === "monster" ? "X" : token.number
           )}
-          {isFogDimmed ? <span className="pointer-events-none absolute inset-0 bg-slate-950/35" aria-hidden="true" /> : null}
         </span>
         {shouldShowTokenNumberBadge ? (
           <span
@@ -765,6 +1176,18 @@ function BattleTokenItem({
             }}
           >
             {token.number}
+          </span>
+        ) : null}
+        {shouldShowLifeBadge ? (
+          <span
+            className="pointer-events-none absolute right-[-0.45rem] top-[-0.45rem] z-30 inline-flex min-w-5 items-center justify-center rounded-full border border-red-950/75 bg-red-600 px-1 text-[0.62rem] font-bold leading-none text-white shadow-[0_1px_5px_rgba(0,0,0,0.5)]"
+            style={{
+              transform: "scale(clamp(0.62, calc(1 / var(--map-canvas-scale, 1)), 1))",
+              transformOrigin: "center",
+            }}
+            title="Vida"
+          >
+            {token.life}
           </span>
         ) : null}
       </div>
@@ -808,7 +1231,7 @@ function BattleTokenInspector({
 }: BattleTokenInspectorProps) {
   return (
     <div
-      className="pointer-events-auto absolute z-10 w-[min(23rem,calc(100vw-1rem))] max-w-[calc(100%-1rem)] max-h-[min(78dvh,34rem)] overflow-y-auto rounded-2xl border border-stone-200/90 bg-white/96 p-3 text-stone-900 shadow-2xl backdrop-blur relative"
+      className="pointer-events-auto absolute z-[40] w-[min(23rem,calc(100vw-1rem))] max-w-[calc(100%-1rem)] max-h-[min(78dvh,34rem)] overflow-y-auto rounded-2xl border border-stone-200/90 bg-white/96 p-3 text-stone-900 shadow-2xl backdrop-blur relative"
       style={{
         left: inspectorPlacement?.left ?? "50%",
         top: inspectorPlacement?.top ?? "50%",
@@ -1030,21 +1453,21 @@ function BattleTokenInspector({
               />
             </label>
             <p className="col-span-2 text-[11px] text-stone-700">
-            <span
-              className="inline-flex items-center rounded-full border px-2 py-0.5 font-semibold"
-              style={{
-                borderColor: withAlpha(inspectedTokenStatusDefinition.color, 0.62),
-                backgroundColor: withAlpha(inspectedTokenStatusDefinition.color, 0.18),
-              }}
-              title={inspectedTokenStatusDefinition.entriesText || undefined}
-            >
-              {inspectedTokenStatusDefinition.name}
-              {typeof inspectedToken.statusDurationTurns === "number" && inspectedToken.statusDurationTurns >= 0
-                ? inspectedToken.statusDurationTurns === 0
-                  ? " · infinito"
-                  : ` · ${inspectedToken.statusDurationTurns} turnos`
-                : ""}
-            </span>
+              <span
+                className="inline-flex items-center rounded-full border px-2 py-0.5 font-semibold"
+                style={{
+                  borderColor: withAlpha(inspectedTokenStatusDefinition.color, 0.62),
+                  backgroundColor: withAlpha(inspectedTokenStatusDefinition.color, 0.18),
+                }}
+                title={inspectedTokenStatusDefinition.entriesText || undefined}
+              >
+                {inspectedTokenStatusDefinition.name}
+                {typeof inspectedToken.statusDurationTurns === "number" && inspectedToken.statusDurationTurns >= 0
+                  ? inspectedToken.statusDurationTurns === 0
+                    ? " · infinito"
+                    : ` · ${inspectedToken.statusDurationTurns} turnos`
+                  : ""}
+              </span>
             </p>
           </>
         ) : null}
@@ -1067,8 +1490,11 @@ export function BattleTokenOverlay({
   tokenInspectorEditable = false,
   hideHiddenTokens = false,
   ghostHiddenTokens = false,
+  hideHiddenObstacles = false,
+  showTokenLifeBadge = false,
   selectedTokenNumber = null,
   selectedObstacleId = null,
+  pendingPropPlacement = null,
   onSelectToken,
   onTokenClick,
   onUpdateTokenDetails,
@@ -1087,6 +1513,8 @@ export function BattleTokenOverlay({
   onMoveObstacle,
   onResizeObstacle,
   onRemoveObstacle,
+  onPlaceProp,
+  onToggleObstacleHidden,
   neutralPalette = false,
 }: BattleTokenOverlayProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
@@ -1099,6 +1527,7 @@ export function BattleTokenOverlay({
   const hoveredTokenNumberRef = useRef<number | null>(null)
   const pendingTokenPreviewRef = useRef<Record<number, TokenPosition> | null>(null)
   const pendingObstaclePreviewRef = useRef<Record<number, TokenPosition> | null>(null)
+  const pendingObstacleSizePreviewRef = useRef<Record<number, ObstacleSize> | null>(null)
   const pendingPreviewBroadcastRef = useRef<{
     tokenNumber: number
     position: TokenPosition | null
@@ -1113,6 +1542,7 @@ export function BattleTokenOverlay({
   } | null>(null)
   const [tokenPreviewPositions, setTokenPreviewPositions] = useState<Record<number, TokenPosition>>({})
   const [obstaclePreviewPositions, setObstaclePreviewPositions] = useState<Record<number, TokenPosition>>({})
+  const [obstaclePreviewSizes, setObstaclePreviewSizes] = useState<Record<number, ObstacleSize>>({})
   const [inspectedTokenNumber, setInspectedTokenNumber] = useState<number | null>(null)
 
   const tokenByNumber = useMemo(() => {
@@ -1144,13 +1574,14 @@ export function BattleTokenOverlay({
 
   const orderedObstacles = useMemo(
     () =>
-      [...obstacles].sort((left, right) => {
+      (hideHiddenObstacles ? obstacles.filter((obstacle) => !obstacle.hidden) : [...obstacles]).sort((left, right) => {
         if (left.id === selectedObstacleId) return 1
         if (right.id === selectedObstacleId) return -1
         return left.id - right.id
       }),
-    [obstacles, selectedObstacleId],
+    [hideHiddenObstacles, obstacles, selectedObstacleId],
   )
+  const tokenPointerEventsEnabled = true
 
   useEffect(() => {
     onPreviewTokenMoveRef.current = onPreviewTokenMove
@@ -1180,8 +1611,12 @@ export function BattleTokenOverlay({
       if (dragRef.current?.kind === "obstacle") {
         onPreviewObstacleMoveRef.current?.(dragRef.current.obstacleId, null)
       }
+      if (dragRef.current?.kind === "obstacle-resize") {
+        onPreviewObstacleMoveRef.current?.(dragRef.current.obstacleId, null)
+      }
       pendingTokenPreviewRef.current = null
       pendingObstaclePreviewRef.current = null
+      pendingObstacleSizePreviewRef.current = null
       pendingPreviewBroadcastRef.current = null
       pendingObstaclePreviewBroadcastRef.current = null
       releaseDragPointerCapture(dragRef.current)
@@ -1192,22 +1627,18 @@ export function BattleTokenOverlay({
       return
     }
 
-    const activeTokenNumber = hoveredTokenNumberRef.current ?? selectedTokenNumber
-    if (!activeTokenNumber) {
-      return
-    }
-
-    const token = tokenByNumber.get(activeTokenNumber)
-    if (!token) {
-      return
-    }
-
     const normalizedKey = event.key.toLowerCase()
     if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) {
       return
     }
 
+    const activeTokenNumber = hoveredTokenNumberRef.current ?? selectedTokenNumber
+    const token = activeTokenNumber ? tokenByNumber.get(activeTokenNumber) : null
+
     if (!event.shiftKey && normalizedKey === "s") {
+      if (!token) {
+        return
+      }
       event.preventDefault()
       onRequestToggleTokenType?.(token.number)
       return
@@ -1219,13 +1650,35 @@ export function BattleTokenOverlay({
 
     if (normalizedKey === "h") {
       event.preventDefault()
-      onUpdateTokenDetails?.(token.number, { hidden: !token.hidden })
+      if (token) {
+        onUpdateTokenDetails?.(token.number, { hidden: !token.hidden })
+        return
+      }
+      if (selectedObstacleId !== null) {
+        onToggleObstacleHidden?.(selectedObstacleId)
+      }
       return
     }
 
     if (normalizedKey === "d") {
+      if (!token) {
+        return
+      }
       event.preventDefault()
       onRequestTokenDuplicate?.(token.number)
+    }
+
+    if (normalizedKey === "r") {
+      if (selectedObstacleId !== null) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        const obstacle = obstacles.find((o) => o.id === selectedObstacleId)
+        if (obstacle && onResizeObstacle) {
+          const currentRotation = (obstacle as any).rotation ?? 0
+          onResizeObstacle(obstacle.id, { rotation: normalizeRotationDegrees(currentRotation + 45) })
+        }
+      }
+      return
     }
   })
 
@@ -1327,13 +1780,15 @@ export function BattleTokenOverlay({
       return
     }
 
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null
-      setTokenPreviewPositions(pendingTokenPreviewRef.current ?? {})
-      setObstaclePreviewPositions(pendingObstaclePreviewRef.current ?? {})
-      pendingTokenPreviewRef.current = null
-      pendingObstaclePreviewRef.current = null
-    })
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null
+        setTokenPreviewPositions(pendingTokenPreviewRef.current ?? {})
+        setObstaclePreviewPositions(pendingObstaclePreviewRef.current ?? {})
+        setObstaclePreviewSizes(pendingObstacleSizePreviewRef.current ?? {})
+        pendingTokenPreviewRef.current = null
+        pendingObstaclePreviewRef.current = null
+        pendingObstacleSizePreviewRef.current = null
+      })
   }
 
   const schedulePreviewUpdate = (
@@ -1342,18 +1797,28 @@ export function BattleTokenOverlay({
     nextPosition: TokenPosition | null,
   ) => {
     if (kind === "token") {
-      pendingTokenPreviewRef.current = updatePreviewPositionMap(
+      pendingTokenPreviewRef.current = updatePreviewMap(
         pendingTokenPreviewRef.current ?? tokenPreviewPositions,
         id,
         nextPosition,
       )
     } else {
-      pendingObstaclePreviewRef.current = updatePreviewPositionMap(
+      pendingObstaclePreviewRef.current = updatePreviewMap(
         pendingObstaclePreviewRef.current ?? obstaclePreviewPositions,
         id,
         nextPosition,
       )
     }
+
+    schedulePreviewFrame()
+  }
+
+  const scheduleObstacleSizePreviewUpdate = (id: number, nextSize: ObstacleSize | null) => {
+    pendingObstacleSizePreviewRef.current = updatePreviewMap(
+      pendingObstacleSizePreviewRef.current ?? obstaclePreviewSizes,
+      id,
+      nextSize,
+    )
 
     schedulePreviewFrame()
   }
@@ -1447,7 +1912,11 @@ export function BattleTokenOverlay({
     }
 
     const pointerPosition = screenPointToLocalPosition(clientX, clientY, dragState.metrics)
-    const logicalPointerPosition = transformPosition(pointerPosition)
+    const resizePointerPosition =
+      dragState.kind === "obstacle-resize" && snapToGrid && overlayRef.current
+        ? snapPositionToGrid(pointerPosition, dragState.metrics, overlayRef.current, "edge")
+        : pointerPosition
+    const logicalPointerPosition = transformPosition(resizePointerPosition)
 
     if (dragState.kind === "token") {
       let nextPosition = {
@@ -1455,9 +1924,7 @@ export function BattleTokenOverlay({
         y: clamp(pointerPosition.y + dragState.pointerOffset.y, 0, 100),
       }
 
-      if (snapToGrid && overlayRef.current) {
-        nextPosition = snapPositionToGrid(nextPosition, dragState.metrics, overlayRef.current)
-      }
+      if (snapToGrid && overlayRef.current) nextPosition = snapPositionToGrid(nextPosition, dragState.metrics, overlayRef.current)
 
       dragRef.current = {
         ...dragState,
@@ -1475,17 +1942,22 @@ export function BattleTokenOverlay({
 
       const clampSize = (value: number) => clamp(value, 0, 100)
 
-      if (dragState.resizeHandle === "center" || dragState.obstacle.shape === "circle") {
+      if (dragState.resizeHandle === "center" || dragState.obstacle.shape === "circle" || dragState.obstacle.image) {
         const nextWidth = clampSize(Math.abs(logicalPointerPosition.x - dragState.obstacle.x) * 2)
         const nextHeight =
-          dragState.obstacle.shape === "circle"
+          (dragState.obstacle.shape === "circle" || dragState.obstacle.image)
             ? nextWidth
             : clampSize(Math.abs(logicalPointerPosition.y - dragState.obstacle.y) * 2)
 
-        onResizeObstacle(dragState.obstacleId, {
+        const nextSize = {
           width: nextWidth,
           height: nextHeight,
-        })
+        }
+        dragRef.current = {
+          ...dragState,
+          lastSize: nextSize,
+        }
+        scheduleObstacleSizePreviewUpdate(dragState.obstacleId, nextSize)
         return
       }
 
@@ -1527,20 +1999,36 @@ export function BattleTokenOverlay({
       const nextCenterX = (nextLeft + nextRight) / 2
       const nextCenterY = (nextTop + nextBottom) / 2
 
-      onResizeObstacle(dragState.obstacleId, {
+      const nextSize = {
         width: nextWidth,
         height: nextHeight,
-      })
-      onMoveObstacle?.(dragState.obstacleId, {
+      }
+      const nextPosition = {
         x: clamp(nextCenterX, 0, 100),
         y: clamp(nextCenterY, 0, 100),
-      })
+      }
+      const nextRenderedPosition = transformPosition(nextPosition)
+      dragRef.current = {
+        ...dragState,
+        lastPosition: nextRenderedPosition,
+        lastSize: nextSize,
+      }
+      schedulePreviewUpdate("obstacle", dragState.obstacleId, nextRenderedPosition)
+      scheduleObstacleSizePreviewUpdate(dragState.obstacleId, nextSize)
       return
     }
 
-    const nextPosition = {
+    let nextPosition = {
       x: clamp(pointerPosition.x + dragState.pointerOffset.x, 0, 100),
       y: clamp(pointerPosition.y + dragState.pointerOffset.y, 0, 100),
+    }
+    if (snapToGrid && overlayRef.current) {
+      nextPosition = snapObstaclePositionToGridEdges(
+        nextPosition,
+        dragState.obstacle,
+        dragState.metrics,
+        overlayRef.current,
+      )
     }
     dragRef.current = {
       ...dragState,
@@ -1581,6 +2069,12 @@ export function BattleTokenOverlay({
     } else if (dragState.kind === "obstacle") {
       onMoveObstacle?.(dragState.obstacleId, transformPosition(dragState.lastPosition))
       schedulePreviewUpdate("obstacle", dragState.obstacleId, null)
+      schedulePreviewBroadcast("obstacle", dragState.obstacleId, null)
+    } else if (dragState.kind === "obstacle-resize") {
+      onResizeObstacle?.(dragState.obstacleId, dragState.lastSize)
+      onMoveObstacle?.(dragState.obstacleId, transformPosition(dragState.lastPosition))
+      schedulePreviewUpdate("obstacle", dragState.obstacleId, null)
+      scheduleObstacleSizePreviewUpdate(dragState.obstacleId, null)
       schedulePreviewBroadcast("obstacle", dragState.obstacleId, null)
     }
 
@@ -1688,11 +2182,16 @@ export function BattleTokenOverlay({
   const handleObstaclePointerDown = (obstacle: BattleObstacle) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
-    onSelectObstacle?.(obstacle.id)
 
     if (event.button !== 0) {
       return
     }
+
+    if (!event.shiftKey) {
+      return
+    }
+
+    onSelectObstacle?.(obstacle.id)
 
     if (!interactive || !onMoveObstacle) {
       return
@@ -1716,6 +2215,7 @@ export function BattleTokenOverlay({
       pointerId: event.pointerId,
       pointerTarget: event.currentTarget,
       obstacleId: obstacle.id,
+      obstacle,
       lastPosition: renderedPosition,
       pointerOffset: {
         x: renderedPosition.x - pointerPosition.x,
@@ -1731,11 +2231,16 @@ export function BattleTokenOverlay({
     (event: ReactPointerEvent<HTMLElement>) => {
       event.preventDefault()
       event.stopPropagation()
-      onSelectObstacle?.(obstacle.id)
 
       if (event.button !== 0) {
         return
       }
+
+      if (!event.shiftKey) {
+        return
+      }
+
+      onSelectObstacle?.(obstacle.id)
 
       if (!interactive || !onResizeObstacle) {
         return
@@ -1755,36 +2260,69 @@ export function BattleTokenOverlay({
         kind: "obstacle-resize",
         pointerId: event.pointerId,
         pointerTarget: event.currentTarget,
-        obstacleId: obstacle.id,
-        obstacle,
-        resizeHandle: handle,
+      obstacleId: obstacle.id,
+      obstacle,
+      lastPosition: transformPosition({ x: obstacle.x, y: obstacle.y }),
+      lastSize: {
+        width: obstacle.width,
+        height: obstacle.shape === "circle" ? obstacle.width : obstacle.height,
+      },
+      resizeHandle: handle,
         metrics,
       }
-      event.currentTarget.setPointerCapture(event.pointerId)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handlePropPlacementPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive || !pendingPropPlacement || !onPlaceProp || event.button !== 0) {
+      return
     }
+
+    const overlayElement = overlayRef.current
+    if (!overlayElement) {
+      return
+    }
+
+    const metrics = buildTransformMetrics(overlayElement)
+    if (!metrics) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const pointerPosition = screenPointToLocalPosition(event.clientX, event.clientY, metrics)
+    onPlaceProp(transformPosition(pointerPosition), event.shiftKey)
+  }
 
   return (
     <div ref={overlayRef} className="pointer-events-none relative size-full">
+      {interactive && pendingPropPlacement ? (
+        <div
+          className="pointer-events-auto absolute inset-0 z-[50] cursor-copy"
+          title={`Colocar ${pendingPropPlacement.name}`}
+          onPointerDown={handlePropPlacementPointerDown}
+        />
+      ) : null}
       {orderedTokens.map((token) => {
         const linkedCharacter =
           typeof token.characterId === "number" ? (characterById?.get(token.characterId) ?? null) : null
         const tokenStatusDefinition = resolveTokenStatusDefinition(token.status, statusDefinitionByName)
         const renderedPosition = tokenPreviewPositions[token.number] ?? transformPosition({ x: token.x, y: token.y })
-        const fogVisibility = resolveTokenFogVisibility(tokenFogVisibilityByNumber, token.number)
-
         return (
           <BattleTokenItem
             key={`token-${token.number}`}
             token={token}
-            fogVisibility={fogVisibility}
             linkedCharacter={linkedCharacter}
             tokenStatusDefinition={tokenStatusDefinition}
             renderedPosition={renderedPosition}
             selectedTokenNumber={selectedTokenNumber}
             currentTurnTokenNumber={currentTurnTokenNumber}
             ghostHiddenTokens={ghostHiddenTokens}
+            showTokenLifeBadge={showTokenLifeBadge}
             verticalMirror={verticalMirror}
             neutralPalette={neutralPalette}
+            pointerEventsEnabled={tokenPointerEventsEnabled}
             onClick={(event) => {
               event.stopPropagation()
 
@@ -1853,7 +2391,6 @@ export function BattleTokenOverlay({
                 return
               }
 
-              event.preventDefault()
               event.stopPropagation()
               const delta = event.deltaY < 0 ? 0.1 : -0.1
               onResizeToken(token.number, clampTokenSize(token.size + delta))
@@ -1862,20 +2399,30 @@ export function BattleTokenOverlay({
         )
       })}
 
-      {orderedObstacles.map((obstacle) => (
-        <BattleObstacleItem
-          key={`obstacle-${obstacle.id}`}
-          obstacle={obstacle}
-          renderedPosition={obstaclePreviewPositions[obstacle.id] ?? transformPosition({ x: obstacle.x, y: obstacle.y })}
-          isSelected={obstacle.id === selectedObstacleId}
-          interactive={interactive}
-          onRemoveObstacle={onRemoveObstacle}
-          onResizeObstacle={onResizeObstacle}
-          onSelectObstacle={onSelectObstacle}
-          onPointerDown={handleObstaclePointerDown(obstacle)}
-          onResizePointerDown={(handle) => handleObstacleResizePointerDown(obstacle, handle)}
-        />
-      ))}
+      {orderedObstacles.map((obstacle) => {
+        const previewSize = obstaclePreviewSizes[obstacle.id]
+        const renderedObstacle = previewSize
+          ? {
+              ...obstacle,
+              ...previewSize,
+            }
+          : obstacle
+
+        return (
+          <BattleObstacleItem
+            key={`obstacle-${obstacle.id}`}
+            obstacle={renderedObstacle}
+            renderedPosition={obstaclePreviewPositions[obstacle.id] ?? transformPosition({ x: obstacle.x, y: obstacle.y })}
+            isSelected={obstacle.id === selectedObstacleId}
+            interactive={interactive}
+            onRemoveObstacle={onRemoveObstacle}
+            onResizeObstacle={onResizeObstacle}
+            onSelectObstacle={onSelectObstacle}
+            onPointerDown={handleObstaclePointerDown(obstacle)}
+            onResizePointerDown={(handle) => handleObstacleResizePointerDown(obstacle, handle)}
+          />
+        )
+      })}
 
       {interactive && selectedObstacle && selectedObstacleRenderedPosition ? (
         <SelectedObstacleToolbar

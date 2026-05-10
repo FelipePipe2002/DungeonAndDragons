@@ -35,6 +35,6 @@ public class BattleDungeonFogJsonCodec {
     }
 
     private BattleDungeonFogData defaultValue() {
-        return new BattleDungeonFogData(false, java.util.List.of(), 4, 8);
+        return new BattleDungeonFogData(false, java.util.List.of(), java.util.List.of(), 4, 8);
     }
 }
