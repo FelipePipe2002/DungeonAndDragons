@@ -1,16 +1,10 @@
-import type { MediaAssetKind, MediaAssetMetadata } from "@/lib/types"
-import { backendRequest, buildBackendApiUrl } from "@/lib/services/backend-api.service"
-
-type MediaAssetMetadataDto = {
-  id: number
-  kind?: string | null
-  filename?: string | null
-  contentType?: string | null
-  byteSize?: number | null
-  downloadUrl?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
-}
+import type {
+  BackendAssetMetadataDto as MediaAssetMetadataDto,
+  MediaAssetKind,
+  MediaAssetMetadata,
+} from "@/lib/types"
+import { backendRequest, backendRequestBlob, buildBackendApiUrl } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 
 function isMediaAssetKind(value: unknown): value is MediaAssetKind {
   return value === "image" || value === "json" || value === "book" || value === "binary"
@@ -18,7 +12,7 @@ function isMediaAssetKind(value: unknown): value is MediaAssetKind {
 
 function toMediaAssetMetadata(dto: MediaAssetMetadataDto): MediaAssetMetadata {
   const id = typeof dto.id === "number" && Number.isFinite(dto.id) ? dto.id : 0
-  const fallbackPath = `/v1/assets/${id}`
+  const fallbackPath = backendRoutes.assets.byId(id)
   const downloadPath =
     typeof dto.downloadUrl === "string" && dto.downloadUrl.trim().length > 0
       ? dto.downloadUrl.trim()
@@ -57,7 +51,7 @@ export async function uploadAsset(
   const uploadFile = toUploadFile(file, options?.filename)
   formData.append("file", uploadFile)
 
-  const response = await backendRequest<MediaAssetMetadataDto>("/v1/assets", {
+  const response = await backendRequest<MediaAssetMetadataDto>(backendRoutes.assets.collection, {
     method: "POST",
     body: formData,
   })
@@ -72,12 +66,16 @@ export async function uploadJsonAsset(jsonText: string, filename: string): Promi
 }
 
 export async function fetchAssetMetadata(assetId: number): Promise<MediaAssetMetadata> {
-  const response = await backendRequest<MediaAssetMetadataDto>(`/v1/assets/${assetId}/metadata`)
+  const response = await backendRequest<MediaAssetMetadataDto>(backendRoutes.assets.metadata(assetId))
   return toMediaAssetMetadata(response)
 }
 
+export async function fetchAssetBlob(assetId: number): Promise<Blob> {
+  return backendRequestBlob(backendRoutes.assets.byId(assetId))
+}
+
 export async function deleteAsset(assetId: number): Promise<void> {
-  await backendRequest<void>(`/v1/assets/${assetId}`, {
+  await backendRequest<void>(backendRoutes.assets.byId(assetId), {
     method: "DELETE",
   })
 }
@@ -113,7 +111,7 @@ function isBackendAssetUrl(url: string) {
     return true
   }
 
-  return normalizedUrl.startsWith(buildBackendApiUrl("/v1/assets/"))
+  return normalizedUrl.startsWith(buildBackendApiUrl(backendRoutes.assets.byId(0).replace(/0$/, "")))
 }
 
 export async function fetchJsonAsset<T>(url: string): Promise<T> {
@@ -134,5 +132,5 @@ export async function fetchJsonAsset<T>(url: string): Promise<T> {
 }
 
 export function buildAssetUrl(assetId: number) {
-  return buildBackendApiUrl(`/v1/assets/${assetId}`)
+  return buildBackendApiUrl(backendRoutes.assets.byId(assetId))
 }

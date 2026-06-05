@@ -4,17 +4,14 @@ import com.sistema.dnd.sistema.dto.domain.BuildingDto;
 import com.sistema.dnd.sistema.dto.domain.BuildingUpsertRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapRequest;
 import com.sistema.dnd.sistema.entity.BuildingEntity;
-import com.sistema.dnd.sistema.entity.BuildingMapRefEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapKind;
-import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapSource;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.OrganizationEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
-import com.sistema.dnd.sistema.repository.BuildingMapRefRepository;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
 import com.sistema.dnd.sistema.repository.CharacterRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
@@ -30,7 +27,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class BuildingService {
 
     private final BuildingRepository buildingRepository;
-    private final BuildingMapRefRepository buildingMapRefRepository;
     private final LandmarkRepository landmarkRepository;
     private final CharacterRepository characterRepository;
     private final OrganizationRepository organizationRepository;
@@ -40,7 +36,6 @@ public class BuildingService {
 
     public BuildingService(
         BuildingRepository buildingRepository,
-        BuildingMapRefRepository buildingMapRefRepository,
         LandmarkRepository landmarkRepository,
         CharacterRepository characterRepository,
         OrganizationRepository organizationRepository,
@@ -49,7 +44,6 @@ public class BuildingService {
         DomainMapper domainMapper
     ) {
         this.buildingRepository = buildingRepository;
-        this.buildingMapRefRepository = buildingMapRefRepository;
         this.landmarkRepository = landmarkRepository;
         this.characterRepository = characterRepository;
         this.organizationRepository = organizationRepository;
@@ -58,7 +52,25 @@ public class BuildingService {
         this.domainMapper = domainMapper;
     }
 
-    public List<BuildingDto> findAll() {
+    public List<BuildingDto> findAll(Long landmarkId, Long organizationId) {
+        if (landmarkId != null && landmarkId > 0 && organizationId != null && organizationId > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo puede filtrar por landmarkId o organizationId");
+        }
+
+        if (landmarkId != null && landmarkId > 0) {
+            return buildingRepository.findByLandmarkIdOrderByNombreAsc(landmarkId)
+                .stream()
+                .map(domainMapper::toBuildingDto)
+                .toList();
+        }
+
+        if (organizationId != null && organizationId > 0) {
+            return buildingRepository.findByOrganizationIdOrderByNombreAsc(organizationId)
+                .stream()
+                .map(domainMapper::toBuildingDto)
+                .toList();
+        }
+
         return buildingRepository.findAll().stream().map(domainMapper::toBuildingDto).toList();
     }
 
@@ -103,22 +115,22 @@ public class BuildingService {
         }
 
         OrganizationEntity organization = null;
-        if (request.organizationId() != null) {
+        if (request.organizationId() != null && request.organizationId() > 0) {
             organization = organizationRepository.findById(request.organizationId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "organizationId invalido"));
         }
 
         CharacterEntity owner = null;
-        if (request.duenoId() != null) {
-            owner = characterRepository.findById(request.duenoId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "duenoId invalido"));
+        if (request.ownerId() != null && request.ownerId() > 0) {
+            owner = characterRepository.findById(request.ownerId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "ownerId invalido"));
         }
 
         entity.setLandmark(landmark);
         entity.setOrganization(organization);
         entity.setDueno(owner);
-        entity.setNombre(requiredTrimmed(request.nombre(), "El nombre del edificio es obligatorio"));
-        entity.setDescripcion(normalizedOrEmpty(request.descripcion()));
+        entity.setNombre(requiredTrimmed(request.name(), "El nombre del edificio es obligatorio"));
+        entity.setDescripcion(normalizedOrEmpty(request.description()));
         entity.setMapBuildingIndex(request.mapBuildingIndex());
         entity.setMapRotationDegrees(normalizeMapRotationDegrees(request.mapRotationDegrees()));
         entity.setMapGridEnabled(Boolean.TRUE.equals(request.mapGridEnabled()));
@@ -126,21 +138,19 @@ public class BuildingService {
         entity.setMapGridOffsetX(normalizeMapGridOffset(request.mapGridOffsetX()));
         entity.setMapGridOffsetY(normalizeMapGridOffset(request.mapGridOffsetY()));
 
-        if (request.posicion() == null) {
+        if (request.position() == null) {
             entity.setPosicionX(null);
             entity.setPosicionY(null);
         } else {
-            if (request.posicion().size() != 2) {
+            if (request.position().size() != 2) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "posicion debe tener [x,y]");
             }
-            entity.setPosicionX(request.posicion().get(0));
-            entity.setPosicionY(request.posicion().get(1));
+            entity.setPosicionX(request.position().get(0));
+            entity.setPosicionY(request.position().get(1));
         }
     }
 
     private void syncChildren(BuildingEntity building, BuildingUpsertRequest request) {
-        buildingMapRefRepository.deleteByBuildingId(building.getId());
-        buildingMapRefRepository.flush();
         taggingService.replaceTags(TaggableEntityType.building, building.getId(), request.tags());
 
         Long mapAssetId = request.mapAssetId();
@@ -151,22 +161,32 @@ public class BuildingService {
         }
 
         if (building.getMapAsset() != null) {
+            clearInlineMapRef(building);
             return;
         }
 
-        if (request.mapa() != null) {
-            LandmarkMapRequest map = request.mapa();
+        if (request.map() != null) {
+            LandmarkMapRequest map = request.map();
             validateMap(map);
-            BuildingMapRefEntity mapRef = new BuildingMapRefEntity();
-            mapRef.setBuilding(building);
-            mapRef.setKind(map.kind());
-            mapRef.setSource(map.source());
-            mapRef.setFilename(optionalTrimmed(map.filename()));
-            mapRef.setUrl(optionalTrimmed(map.url()));
-            mapRef.setStorageKey(optionalTrimmed(map.key()));
-            mapRef.setDataUrl(optionalTrimmed(map.dataUrl()));
-            buildingMapRefRepository.save(mapRef);
+            building.setMapKind(map.kind());
+            building.setMapSource(map.source());
+            building.setMapFilename(optionalTrimmed(map.filename()));
+            building.setMapUrl(optionalTrimmed(map.url()));
+            building.setMapStorageKey(optionalTrimmed(map.key()));
+            building.setMapDataUrl(optionalTrimmed(map.dataUrl()));
+            return;
         }
+
+        clearInlineMapRef(building);
+    }
+
+    private void clearInlineMapRef(BuildingEntity building) {
+        building.setMapKind(null);
+        building.setMapSource(null);
+        building.setMapFilename(null);
+        building.setMapUrl(null);
+        building.setMapStorageKey(null);
+        building.setMapDataUrl(null);
     }
 
     private void validateMap(LandmarkMapRequest map) {

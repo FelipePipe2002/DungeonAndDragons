@@ -1,6 +1,6 @@
 package com.sistema.dnd.sistema.repository;
 
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.entity.TaggingEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

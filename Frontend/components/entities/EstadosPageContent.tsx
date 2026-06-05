@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { CharacterDetailDialog } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { EstadoDetailDialog } from "@/components/dialog/detailed/EstadoDetailDialog"
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
+import { EntitiesPageHeader } from "@/components/entities/EntitiesPageHeader"
 import { EstadoResumeDialog } from "@/components/dialog/resumed/EstadoResumeDialog"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Button } from "@/components/ui/button"
@@ -51,49 +52,28 @@ export function EstadosPageContent({ showHeader = true }: EstadosPageContentProp
     [estadosData],
   )
 
+  const createEstadoAction = (
+    <Button
+      onClick={() => {
+        setSelectedEstadoId(null)
+        setDialogOpen(true)
+      }}
+      className="gap-2"
+    >
+      <Plus className="size-4" />
+      Crear Estado
+    </Button>
+  )
+
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-8">
-      {showHeader ? (
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex size-10 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
-                <Crown className="size-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-serif text-primary">Estados</h1>
-                <p className="text-sm text-muted-foreground">
-                  {filteredEstados.length} de {visibleRootCount} estados registrados
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => {
-                setSelectedEstadoId(null)
-                setDialogOpen(true)
-              }}
-              className="gap-2"
-            >
-              <Plus className="size-4" />
-              Crear Estado
-            </Button>
-          </div>
-          <div className="ornament-divider mt-4">~</div>
-        </div>
-      ) : (
-        <div className="mb-4 flex justify-end">
-          <Button
-            onClick={() => {
-              setSelectedEstadoId(null)
-              setDialogOpen(true)
-            }}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            Crear Estado
-          </Button>
-        </div>
-      )}
+      <EntitiesPageHeader
+        showHeader={showHeader}
+        title="Estados"
+        summary={`${filteredEstados.length} de ${visibleRootCount} estados registrados`}
+        icon={<Crown className="size-5 text-primary" />}
+        action={createEstadoAction}
+      />
 
       <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por nombre, tipo o gobierno..." className="mb-4" />
 
@@ -102,6 +82,7 @@ export function EstadosPageContent({ showHeader = true }: EstadosPageContentProp
           <EstadoResumeDialog
             key={estado.id}
             estadoId={estado.id}
+            openOnClick={false}
             onClick={() => {
               setSelectedEstadoId(estado.id)
               setDialogOpen(true)

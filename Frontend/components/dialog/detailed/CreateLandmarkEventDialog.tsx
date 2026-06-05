@@ -6,6 +6,7 @@ import { MentionField } from "@/components/mentionField/MentionField"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { toOptionalText } from "@/lib/normalize"
 import type { LandmarkEvent } from "@/lib/types"
 
 type CreateLandmarkEventDialogProps = {
@@ -35,11 +36,6 @@ function toFormState(event: LandmarkEvent | null | undefined): LandmarkEventForm
     fecha: event.fecha ?? "",
     descripcion: event.descripcion,
   }
-}
-
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
 }
 
 export function CreateLandmarkEventDialog({

@@ -11,7 +11,7 @@ import lombok.Setter;
 @Table(name = "party_inventory_balance")
 @Getter
 @Setter
-public class PartyInventoryBalanceEntity extends AuditableEntity {
+public class PartyInventoryBalanceEntity {
 
     @Id
     private Long id;

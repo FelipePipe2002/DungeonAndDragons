@@ -6,6 +6,9 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserListRow } from "@/components/browser/BrowserListRow"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import { FrameBypass } from "@/components/frameBypass/FrameBypass"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -20,7 +23,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { usePagesSection } from "@/app/informacion/hooks/usePagesSection"
-import { InformationSidebar } from "./shared"
 
 export default function PagesSection() {
   const pages = usePagesSection({ isActive: true })
@@ -29,7 +31,7 @@ export default function PagesSection() {
     <>
       <BrowserLayout
         sidebar={
-          <InformationSidebar
+          <BrowserSidebar
             query={pages.pageQuery}
             onQueryChange={pages.setPageQuery}
             placeholder="Buscar pagina..."
@@ -42,17 +44,20 @@ export default function PagesSection() {
           >
             <BrowserList>
               {pages.isLoading ? (
-                <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">Cargando paginas...</p>
+                <BrowserListMessage>Cargando paginas...</BrowserListMessage>
               ) : (
                 pages.filteredPages.map((page) => {
                   const isActive = page.id === pages.selectedPageId
 
                   return (
-                    <div
+                    <BrowserListRow
                       key={page.id}
-                      className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition-colors ${
-                        isActive ? "border-primary/60 bg-primary/5" : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
-                      }`}
+                      isActive={isActive}
+                      actions={
+                        <Button size="icon" variant="ghost" className="size-7" aria-label="Eliminar" disabled={pages.isDeletingId === page.id} onClick={() => pages.handleDeleteRequest(page.id)}>
+                          {pages.isDeletingId === page.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4 text-destructive" />}
+                        </Button>
+                      }
                     >
                       <Button
                         variant="ghost"
@@ -69,18 +74,15 @@ export default function PagesSection() {
                         <Link2 className="size-4 text-primary" />
                         <span className="truncate text-sm font-medium">{page.titulo}</span>
                       </Button>
-                      <Button size="icon" variant="ghost" className="size-7" aria-label="Eliminar" disabled={pages.isDeletingId === page.id} onClick={() => pages.handleDeleteRequest(page.id)}>
-                        {pages.isDeletingId === page.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4 text-destructive" />}
-                      </Button>
-                    </div>
+                    </BrowserListRow>
                   )
                 })
               )}
               {!pages.isLoading && pages.filteredPages.length === 0 ? (
-                <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">No hay paginas que coincidan con esa busqueda.</p>
+                <BrowserListMessage>No hay paginas que coincidan con esa busqueda.</BrowserListMessage>
               ) : null}
             </BrowserList>
-          </InformationSidebar>
+          </BrowserSidebar>
         }
         detail={
           <BrowserDetailPanel>

@@ -7,16 +7,14 @@ import com.sistema.dnd.sistema.entity.BuildingEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
-import com.sistema.dnd.sistema.entity.OrganizationCategoryEntity;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.OrganizationEntity;
 import com.sistema.dnd.sistema.entity.OrganizationLandmarkEntity;
 import com.sistema.dnd.sistema.entity.OrganizationMembershipEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
 import com.sistema.dnd.sistema.repository.CharacterRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
-import com.sistema.dnd.sistema.repository.OrganizationCategoryRepository;
 import com.sistema.dnd.sistema.repository.OrganizationMembershipRepository;
 import com.sistema.dnd.sistema.repository.OrganizationLandmarkRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
@@ -36,7 +34,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
-    private final OrganizationCategoryRepository organizationCategoryRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
     private final OrganizationLandmarkRepository organizationLandmarkRepository;
     private final BuildingRepository buildingRepository;
@@ -48,7 +45,6 @@ public class OrganizationService {
 
     public OrganizationService(
         OrganizationRepository organizationRepository,
-        OrganizationCategoryRepository organizationCategoryRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
         OrganizationLandmarkRepository organizationLandmarkRepository,
         BuildingRepository buildingRepository,
@@ -59,7 +55,6 @@ public class OrganizationService {
         DomainMapper domainMapper
     ) {
         this.organizationRepository = organizationRepository;
-        this.organizationCategoryRepository = organizationCategoryRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
         this.organizationLandmarkRepository = organizationLandmarkRepository;
         this.buildingRepository = buildingRepository;
@@ -108,48 +103,39 @@ public class OrganizationService {
     }
 
     private void applyUpsert(OrganizationEntity entity, OrganizationUpsertRequest request) {
-        entity.setNombre(requiredTrimmed(request.nombre(), "El nombre de la organizacion es obligatorio"));
-        entity.setDescripcion(normalizedOrEmpty(request.descripcion()));
-        Long imagenAssetId = request.imagenAssetId();
+        entity.setNombre(requiredTrimmed(request.name(), "El nombre de la organizacion es obligatorio"));
+        entity.setDescripcion(normalizedOrEmpty(request.description()));
+        Long imagenAssetId = request.imageAssetId();
         if (imagenAssetId != null && imagenAssetId > 0) {
             entity.setImagenAsset(resolveImageAsset(imagenAssetId));
             entity.setImagen(null);
         } else {
             entity.setImagenAsset(null);
-            entity.setImagen(optionalTrimmed(request.imagen()));
+            entity.setImagen(optionalTrimmed(request.image()));
         }
     }
 
     private void syncChildren(OrganizationEntity organization, OrganizationUpsertRequest request) {
-        List<Long> buildingIds = dedupeLongs(request.edificios());
+        List<Long> buildingIds = dedupeLongs(request.buildingIds());
 
         Map<Long, BuildingEntity> requestedBuildingsById = buildingRepository.findAllById(buildingIds)
             .stream().collect(Collectors.toMap(BuildingEntity::getId, value -> value));
         if (requestedBuildingsById.size() != buildingIds.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "edificios contiene ids invalidos");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "buildingIds contiene ids invalidos");
         }
 
-        Map<Long, String> categoryByCharacterId = dedupeMemberCategories(request.miembros());
+        Map<Long, String> categoryByCharacterId = dedupeMemberCategories(request.members());
         Map<Long, CharacterEntity> charactersById = characterRepository.findAllById(categoryByCharacterId.keySet())
             .stream().collect(Collectors.toMap(CharacterEntity::getId, value -> value));
         if (charactersById.size() != categoryByCharacterId.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "miembros contiene personajeId invalido");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "members contiene characterId invalido");
         }
 
-        organizationCategoryRepository.deleteByOrganizationId(organization.getId());
         organizationMembershipRepository.deleteByOrganizationId(organization.getId());
         organizationLandmarkRepository.deleteByOrganizationId(organization.getId());
-        organizationCategoryRepository.flush();
         organizationMembershipRepository.flush();
 
         taggingService.replaceTags(TaggableEntityType.organization, organization.getId(), request.tags());
-
-        for (String categoria : dedupeStrings(request.categorias())) {
-            OrganizationCategoryEntity item = new OrganizationCategoryEntity();
-            item.setOrganization(organization);
-            item.setCategoria(categoria);
-            organizationCategoryRepository.save(item);
-        }
 
         for (Map.Entry<Long, String> entry : categoryByCharacterId.entrySet()) {
             OrganizationMembershipEntity item = new OrganizationMembershipEntity();
@@ -195,8 +181,8 @@ public class OrganizationService {
         if (members == null || members.isEmpty()) return result;
 
         for (OrganizationMemberRequest member : members) {
-            if (member == null || member.personajeId() == null) continue;
-            result.put(member.personajeId(), normalizedOrEmpty(member.categoria()));
+            if (member == null || member.characterId() == null) continue;
+            result.put(member.characterId(), normalizedOrEmpty(member.category()));
         }
 
         return result;

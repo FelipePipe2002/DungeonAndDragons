@@ -38,6 +38,7 @@ import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterShee
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { formatEsArDateTime } from "@/lib/display"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -405,40 +406,22 @@ function shouldIgnoreShortcutTarget(target: EventTarget | null) {
 
 function formatBattleSummaryTimestamp(battle: BattleSummary) {
   const rawValue = battle.status === "finished" ? battle.endedAt ?? battle.updatedAt ?? battle.createdAt : battle.updatedAt ?? battle.createdAt
-  if (!rawValue) {
-    return "Sin fecha"
-  }
-
-  const parsed = new Date(rawValue)
-  if (Number.isNaN(parsed.getTime())) {
-    return rawValue
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
+  return formatEsArDateTime(rawValue, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(parsed)
+  })
 }
 
 function formatBattleDateTime(rawValue: string | null | undefined) {
-  if (!rawValue) {
-    return "-"
-  }
-
-  const parsed = new Date(rawValue)
-  if (Number.isNaN(parsed.getTime())) {
-    return rawValue
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
+  return formatEsArDateTime(rawValue, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(parsed)
+  }, { fallback: "-" })
 }
 
 function sortBattleState(battle: BattleState): BattleState {

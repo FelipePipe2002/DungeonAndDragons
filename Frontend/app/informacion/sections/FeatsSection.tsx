@@ -4,25 +4,25 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserSelectableListItem } from "@/components/browser/BrowserSelectableListItem"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import { FeatCard } from "@/components/card/feat-card"
 import { useFeatsSection } from "@/app/informacion/hooks/useFeatsSection"
 import { getFeatCategoryTone } from "@/lib/informacion/constants"
-import { getListItemClassName, InformationSidebar } from "./shared"
 
 export default function FeatsSection() {
   const feats = useFeatsSection({ isActive: true })
 
   return (
-    <BrowserLayout
-      sidebar={
-        <InformationSidebar query={feats.featQuery} onQueryChange={feats.setFeatQuery} placeholder="Buscar feat, categoria o prerequisito...">
+      <BrowserLayout
+        sidebar={
+        <BrowserSidebar query={feats.featQuery} onQueryChange={feats.setFeatQuery} placeholder="Buscar feat, categoria o prerequisito...">
           <BrowserList>
             {feats.featsStatus === "loading" ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">Cargando feats...</p>
+              <BrowserListMessage>Cargando feats...</BrowserListMessage>
             ) : feats.featsStatus === "error" ? (
-              <p className="rounded-sm border border-dashed border-destructive/50 p-4 text-sm text-destructive">
-                {feats.featsErrorMessage || "No se pudieron cargar los feats."}
-              </p>
+              <BrowserListMessage tone="error">{feats.featsErrorMessage || "No se pudieron cargar los feats."}</BrowserListMessage>
             ) : (
               feats.filteredFeats.map((featItem) => {
                 const isActive = feats.selectedFeatId === featItem.id
@@ -30,12 +30,11 @@ export default function FeatsSection() {
                 const tone = getFeatCategoryTone(feat.categoryCode)
 
                 return (
-                  <button
+                  <BrowserSelectableListItem
                     key={featItem.id}
-                    type="button"
                     onClick={() => feats.setSelectedFeatId(featItem.id)}
-                    className={getListItemClassName(isActive)}
-                    style={{ borderLeftWidth: 4, borderLeftColor: tone }}
+                    isActive={isActive}
+                    accentColor={tone}
                   >
                     <p className="font-semibold text-foreground">{feat.name}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
@@ -44,19 +43,17 @@ export default function FeatsSection() {
                         <span className="rounded-sm border border-[#d2c2a8] px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#6a4b31]">
                           Repeatable
                         </span>
-                      ) : null}
+                        ) : null}
                     </p>
-                  </button>
+                  </BrowserSelectableListItem>
                 )
               })
             )}
             {feats.featsStatus === "ready" && feats.filteredFeats.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No hay feats que coincidan con esa busqueda.
-              </p>
+              <BrowserListMessage>No hay feats que coincidan con esa busqueda.</BrowserListMessage>
             ) : null}
           </BrowserList>
-        </InformationSidebar>
+        </BrowserSidebar>
       }
       detail={
         <BrowserDetailPanel>

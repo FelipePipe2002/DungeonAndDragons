@@ -4,18 +4,17 @@ import java.util.List;
 
 public record EstadoDto(
     Long id,
-    String nombre,
-    String tipo,
-    String descripcion,
-    String historia,
-    String gobiernoTipo,
-    String imagen,
-    Long imagenAssetId,
-    String territorioImagen,
-    Long territorioImagenAssetId,
-    Long estadoPadreId,
-    List<EstadoMemberDto> miembros,
-    List<EstadoLandmarkRoleDto> landmarks,
-    List<String> subdivisiones
+    String name,
+    String type,
+    String description,
+    String history,
+    String governmentType,
+    String image,
+    Long imageAssetId,
+    String territoryImage,
+    Long territoryImageAssetId,
+    Long parentStateId,
+    List<EstadoMemberDto> members,
+    List<EstadoLandmarkRoleDto> landmarks
 ) {
 }

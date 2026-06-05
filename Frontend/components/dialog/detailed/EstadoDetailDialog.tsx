@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 
+import { DetailDialogShell } from "@/components/dialog/shared/detail-dialog-shell"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toOptionalText } from "@/lib/normalize"
 import { cn } from "@/lib/utils"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchCharacters } from "@/lib/services/character-api.service"
@@ -74,11 +76,6 @@ function toEstadoFormState(estado: Estado): EstadoFormState {
     landmarks: estado.landmarks.map((l) => ({ ...l })),
     subdivisionDraft: "",
   }
-}
-
-function toOptionalText(value: string): string | undefined {
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function normalizeRole(value: string) {
@@ -709,8 +706,7 @@ export function EstadoDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="parchment max-h-[90vh] w-[96vw] max-w-[92rem] overflow-hidden p-0">
+      <DetailDialogShell open={open} onOpenChange={onOpenChange} contentClassName="parchment max-h-[90vh] w-[96vw] max-w-[92rem] overflow-hidden p-0">
           <div className="flex h-[85vh] flex-col">
             <div className="scroll-banner shrink-0">
               <DialogHeader>
@@ -856,8 +852,7 @@ export function EstadoDetailDialog({
               </Tabs>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </DetailDialogShell>
 
       <ConfirmDialog
         open={isDeleteDialogOpen}

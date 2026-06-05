@@ -1,8 +1,8 @@
 package com.sistema.dnd.sistema.repository;
 
 import com.sistema.dnd.sistema.entity.BattleStateEntity;
-import com.sistema.dnd.sistema.entity.BattleSceneType;
-import com.sistema.dnd.sistema.entity.BattleStatus;
+import com.sistema.dnd.sistema.entity.enums.BattleSceneType;
+import com.sistema.dnd.sistema.entity.enums.BattleStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

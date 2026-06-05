@@ -1,4 +1,4 @@
-import type { Feat } from "@/lib/feats/feat-store"
+import type { Feat } from "@/lib/informacion/feats/store"
 
 export interface FeatCardProps {
   feat: Feat

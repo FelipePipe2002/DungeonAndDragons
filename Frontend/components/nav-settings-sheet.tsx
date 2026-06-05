@@ -19,7 +19,7 @@ import {
   getMainNavItemByPath,
   type NavigationShortcut,
 } from "@/lib/navigation/main-nav"
-import { TOGGLE_NAV_SETTINGS_EVENT, toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
+import { TOGGLE_NAV_SETTINGS_EVENT, toggleNavSettingsPanel } from "@/lib/navigation/events"
 
 type NavSettingsSheetProps = {
   showTrigger?: boolean

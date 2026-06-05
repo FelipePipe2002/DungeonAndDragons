@@ -77,10 +77,6 @@ Shared UI primitives, patterns, and hooks used across the app. Most components a
 ### Keyboard & Misc
 - `kbd`: Keyboard key display with grouped styling.
 
-## Hooks & Utilities
-- `use-mobile`: `matchMedia` hook returning `boolean` for mobile breakpoint (768px).
-- `use-toast`: Local toast store with `toast()` helpers (limit 1 toast by default).
-
 ## Usage Notes
 - Most components accept native props from their underlying Radix primitives.
 - Look for `data-slot` attributes to target styling consistently.

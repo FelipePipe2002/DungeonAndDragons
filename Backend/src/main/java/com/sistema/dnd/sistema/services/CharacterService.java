@@ -1,22 +1,24 @@
 package com.sistema.dnd.sistema.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema.dnd.sistema.dto.domain.CharacterDto;
-import com.sistema.dnd.sistema.dto.domain.CharacterEventRequest;
+import com.sistema.dnd.sistema.dto.domain.CharacterSheetData;
 import com.sistema.dnd.sistema.dto.domain.CharacterUpsertRequest;
+import com.sistema.dnd.sistema.dto.domain.EventDto;
 import com.sistema.dnd.sistema.entity.BuildingEntity;
-import com.sistema.dnd.sistema.entity.CharacterBuildingEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
-import com.sistema.dnd.sistema.entity.CharacterEventEntity;
+import com.sistema.dnd.sistema.entity.EventEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
 import com.sistema.dnd.sistema.entity.OrganizationEntity;
 import com.sistema.dnd.sistema.entity.OrganizationMembershipEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.EventOwnerType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
-import com.sistema.dnd.sistema.repository.CharacterBuildingRepository;
-import com.sistema.dnd.sistema.repository.CharacterEventRepository;
 import com.sistema.dnd.sistema.repository.CharacterRepository;
+import com.sistema.dnd.sistema.repository.EventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import com.sistema.dnd.sistema.repository.OrganizationMembershipRepository;
@@ -36,8 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class CharacterService {
 
     private final CharacterRepository characterRepository;
-    private final CharacterEventRepository characterEventRepository;
-    private final CharacterBuildingRepository characterBuildingRepository;
+    private final EventRepository eventRepository;
     private final LandmarkRepository landmarkRepository;
     private final BuildingRepository buildingRepository;
     private final OrganizationRepository organizationRepository;
@@ -45,12 +46,11 @@ public class CharacterService {
     private final MediaAssetRepository mediaAssetRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
-    private final CharacterSheetJsonCodec characterSheetJsonCodec;
+    private final ObjectMapper objectMapper;
 
     public CharacterService(
         CharacterRepository characterRepository,
-        CharacterEventRepository characterEventRepository,
-        CharacterBuildingRepository characterBuildingRepository,
+        EventRepository eventRepository,
         LandmarkRepository landmarkRepository,
         BuildingRepository buildingRepository,
         OrganizationRepository organizationRepository,
@@ -58,11 +58,10 @@ public class CharacterService {
         MediaAssetRepository mediaAssetRepository,
         TaggingService taggingService,
         DomainMapper domainMapper,
-        CharacterSheetJsonCodec characterSheetJsonCodec
+        ObjectMapper objectMapper
     ) {
         this.characterRepository = characterRepository;
-        this.characterEventRepository = characterEventRepository;
-        this.characterBuildingRepository = characterBuildingRepository;
+        this.eventRepository = eventRepository;
         this.landmarkRepository = landmarkRepository;
         this.buildingRepository = buildingRepository;
         this.organizationRepository = organizationRepository;
@@ -70,7 +69,7 @@ public class CharacterService {
         this.mediaAssetRepository = mediaAssetRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
-        this.characterSheetJsonCodec = characterSheetJsonCodec;
+        this.objectMapper = objectMapper;
     }
 
     public List<CharacterDto> findAll() {
@@ -111,6 +110,12 @@ public class CharacterService {
     public void delete(Long id) {
         CharacterEntity entity = characterRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Personaje no encontrado"));
+
+        for (BuildingEntity building : buildingRepository.findByDuenoIdOrderByNombreAsc(id)) {
+            building.setDueno(null);
+            buildingRepository.save(building);
+        }
+
         characterRepository.delete(entity);
     }
 
@@ -123,19 +128,19 @@ public class CharacterService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "landmarkId invalido"));
             entity.setLandmark(landmark);
         }
-        entity.setNombre(requiredTrimmed(request.nombre(), "El nombre del personaje es obligatorio"));
-        entity.setClase(normalizedOrEmpty(request.clase()));
-        entity.setRaza(normalizedOrEmpty(request.raza()));
-        entity.setDescripcion(normalizedOrEmpty(request.descripcion()));
+        entity.setNombre(requiredTrimmed(request.name(), "El nombre del personaje es obligatorio"));
+        entity.setClase(normalizedOrEmpty(request.characterClass()));
+        entity.setRaza(normalizedOrEmpty(request.race()));
+        entity.setDescripcion(normalizedOrEmpty(request.description()));
         entity.setPlayer(request.isPlayer());
-        entity.setCharacterSheet(characterSheetJsonCodec.write(request.characterSheet()));
-        Long imagenAssetId = request.imagenAssetId();
+        entity.setCharacterSheet(writeCharacterSheet(request.characterSheet()));
+        Long imagenAssetId = request.imageAssetId();
         if (imagenAssetId != null && imagenAssetId > 0) {
             entity.setImagenAsset(resolveImageAsset(imagenAssetId));
             entity.setImagen(null);
         } else {
             entity.setImagenAsset(null);
-            entity.setImagen(optionalTrimmed(request.imagen()));
+            entity.setImagen(optionalTrimmed(request.image()));
         }
         entity.setTokenImageFocusX(clampPercentage(request.tokenImageFocusX()));
         entity.setTokenImageFocusY(clampPercentage(request.tokenImageFocusY()));
@@ -165,10 +170,8 @@ public class CharacterService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "organizationIds contiene ids invalidos");
         }
 
-        characterEventRepository.deleteByCharacterId(character.getId());
-        characterBuildingRepository.deleteByCharacterId(character.getId());
-        characterEventRepository.flush();
-        characterBuildingRepository.flush();
+        eventRepository.deleteByOwnerTypeAndOwnerId(EventOwnerType.character, character.getId());
+        eventRepository.flush();
 
         Map<Long, String> previousMembershipCategoryByOrg = organizationMembershipRepository.findByCharacterId(character.getId())
             .stream()
@@ -184,23 +187,33 @@ public class CharacterService {
 
         taggingService.replaceTags(TaggableEntityType.character, character.getId(), request.tags());
 
-        List<CharacterEventRequest> events = request.eventos() == null ? List.of() : request.eventos();
+        List<EventDto> events = request.events() == null ? List.of() : request.events();
         // Persist in reverse so repository OrderByIdDesc returns the same order received from frontend.
         for (int index = events.size() - 1; index >= 0; index--) {
-            CharacterEventRequest event = events.get(index);
-            CharacterEventEntity item = new CharacterEventEntity();
-            item.setCharacter(character);
-            item.setSesion(requiredTrimmed(event.sesion(), "La sesion es obligatoria"));
-            item.setDescripcion(normalizedOrEmpty(event.descripcion()));
-            item.setFecha(optionalTrimmed(event.fecha()));
-            characterEventRepository.save(item);
+            EventDto event = events.get(index);
+            EventEntity item = new EventEntity();
+            item.setOwnerType(EventOwnerType.character);
+            item.setOwnerId(character.getId());
+            item.setTitulo(requiredTrimmed(event.title(), "El titulo del evento es obligatorio"));
+            item.setDescripcion(normalizedOrEmpty(event.description()));
+            item.setFecha(optionalTrimmed(event.date()));
+            item.setSesion(optionalTrimmed(event.session()));
+            eventRepository.save(item);
+        }
+
+        for (BuildingEntity building : buildingRepository.findByDuenoIdOrderByNombreAsc(character.getId())) {
+            if (!buildingsById.containsKey(building.getId())) {
+                building.setDueno(null);
+                buildingRepository.save(building);
+            }
         }
 
         for (Long buildingId : buildingIds) {
-            CharacterBuildingEntity link = new CharacterBuildingEntity();
-            link.setCharacter(character);
-            link.setBuilding(buildingsById.get(buildingId));
-            characterBuildingRepository.save(link);
+            BuildingEntity building = buildingsById.get(buildingId);
+            if (building.getDueno() == null || !character.getId().equals(building.getDueno().getId())) {
+                building.setDueno(character);
+                buildingRepository.save(building);
+            }
         }
 
         for (Long organizationId : organizationIds) {
@@ -259,5 +272,17 @@ public class CharacterService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "imagenAssetId debe apuntar a un asset de imagen");
         }
         return asset;
+    }
+
+    private String writeCharacterSheet(CharacterSheetData value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("No se pudo serializar el characterSheet", exception);
+        }
     }
 }

@@ -16,7 +16,7 @@ import lombok.Setter;
 @Table(name = "characters")
 @Getter
 @Setter
-public class CharacterEntity extends AuditableEntity {
+public class CharacterEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

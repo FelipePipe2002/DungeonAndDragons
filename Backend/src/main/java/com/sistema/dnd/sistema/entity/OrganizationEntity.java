@@ -16,7 +16,7 @@ import lombok.Setter;
 @Table(name = "organizations")
 @Getter
 @Setter
-public class OrganizationEntity extends AuditableEntity {
+public class OrganizationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

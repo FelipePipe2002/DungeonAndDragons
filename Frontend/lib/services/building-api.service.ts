@@ -1,56 +1,20 @@
-import type { Building } from "@/lib/types"
+import {
+  normalizeMapGridCellSize,
+  normalizeMapGridOffset,
+  normalizeMapRotationDegrees,
+} from "@/lib/map-grid"
+import { toPosition, toStringArray } from "@/lib/dto-mappers"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { toOptionalText } from "@/lib/normalize"
+import type {
+  BackendBuildingDto,
+  BackendBuildingUpsertPayload,
+  Building,
+  MediaAssetKind,
+} from "@/lib/types"
 import { backendRequest } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 import { fetchCharacters } from "@/lib/services/character-api.service"
-import type { MediaAssetKind } from "@/lib/types"
-
-type BuildingApiDto = {
-  id: number
-  landmarkId?: number | null
-  nombre: string
-  posicion?: number[] | null
-  descripcion?: string | null
-  tags?: string[] | null
-  duenoId?: number | null
-  mapBuildingIndex?: number | null
-  organizationId?: number | null
-  mapAssetId?: number | null
-  mapAssetKind?: string | null
-  mapRotationDegrees?: number | null
-  mapGridEnabled?: boolean | null
-  mapGridCellSize?: number | null
-  mapGridOffsetX?: number | null
-  mapGridOffsetY?: number | null
-  mapa?: {
-    kind?: string | null
-    filename?: string | null
-    url?: string | null
-    key?: string | null
-    dataUrl?: string | null
-  } | null
-}
-
-type BuildingUpsertPayload = {
-  landmarkId: number | null
-  nombre: string
-  posicion: [number, number] | null
-  descripcion: string
-  tags: string[]
-  duenoId: number | null
-  mapBuildingIndex: number | null
-  organizationId: number | null
-  mapAssetId: number | null
-  mapRotationDegrees: number
-  mapGridEnabled: boolean
-  mapGridCellSize: number
-  mapGridOffsetX: number
-  mapGridOffsetY: number
-  mapa:
-    | { kind: "asset"; filename: string }
-    | { kind: "embedded"; dataUrl: string }
-    | { kind: "external"; url: string }
-    | { kind: "stored"; key: string }
-    | null
-}
 
 let buildingsCache: Building[] | null = null
 let buildingsPromise: Promise<Building[]> | null = null
@@ -61,51 +25,11 @@ type FetchBuildingsOptions = {
   hydrateOwnerNames?: boolean
 }
 
-function toOptionalText(value: string | null | undefined): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function toStringArray(value: string[] | null | undefined): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === "string")
-}
-
-function toPosition(value: number[] | null | undefined): [number, number] | undefined {
-  if (!Array.isArray(value) || value.length !== 2) return undefined
-  const x = Number(value[0])
-  const y = Number(value[1])
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
-  return [x, y]
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function normalizeMapRotationDegrees(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  const normalized = Math.round(value)
-  const snappedQuarterTurns = Math.round(normalized / 90)
-  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
-}
-
-function normalizeMapGridCellSize(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 48
-  return Math.round(clamp(value, 8, 512) * 100) / 100
-}
-
-function normalizeMapGridOffset(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  return Math.round(value * 100) / 100
-}
-
 function isMediaAssetKind(value: unknown): value is MediaAssetKind {
   return value === "image" || value === "json" || value === "other"
 }
 
-function toBuildingMapReference(dto: BuildingApiDto["mapa"]): Building["mapa"] {
+function toBuildingMapReference(dto: BackendBuildingDto["map"]): Building["mapa"] {
   if (!dto || typeof dto.kind !== "string") return undefined
 
   if (dto.kind === "asset" && typeof dto.filename === "string" && dto.filename.trim().length > 0) {
@@ -127,7 +51,7 @@ function toBuildingMapReference(dto: BuildingApiDto["mapa"]): Building["mapa"] {
   return undefined
 }
 
-function toBuildingMapPayload(map: Building["mapa"]): BuildingUpsertPayload["mapa"] {
+function toBuildingMapPayload(map: Building["mapa"]): BackendBuildingUpsertPayload["map"] {
   if (!map) return null
 
   if (map.kind === "asset") {
@@ -145,7 +69,7 @@ function toBuildingMapPayload(map: Building["mapa"]): BuildingUpsertPayload["map
   return { kind: "stored", key: map.key.trim() }
 }
 
-function toBuilding(dto: BuildingApiDto): Building {
+function toBuilding(dto: BackendBuildingDto): Building {
   const mapAssetId =
     typeof dto.mapAssetId === "number" && Number.isFinite(dto.mapAssetId) && dto.mapAssetId > 0
       ? dto.mapAssetId
@@ -154,11 +78,11 @@ function toBuilding(dto: BuildingApiDto): Building {
   return {
     id: dto.id,
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : null,
-    nombre: dto.nombre ?? "",
-    posicion: toPosition(dto.posicion),
-    descripcion: dto.descripcion ?? "",
+    nombre: dto.name ?? "",
+    posicion: toPosition(dto.position),
+    descripcion: dto.description ?? "",
     tags: toStringArray(dto.tags),
-    duenoId: typeof dto.duenoId === "number" && dto.duenoId > 0 ? dto.duenoId : undefined,
+    duenoId: typeof dto.ownerId === "number" && dto.ownerId > 0 ? dto.ownerId : undefined,
     mapBuildingIndex:
       typeof dto.mapBuildingIndex === "number" && Number.isFinite(dto.mapBuildingIndex)
         ? dto.mapBuildingIndex
@@ -172,7 +96,7 @@ function toBuilding(dto: BuildingApiDto): Building {
     mapGridCellSize: normalizeMapGridCellSize(dto.mapGridCellSize),
     mapGridOffsetX: normalizeMapGridOffset(dto.mapGridOffsetX),
     mapGridOffsetY: normalizeMapGridOffset(dto.mapGridOffsetY),
-    mapa: toBuildingMapReference(dto.mapa),
+    mapa: toBuildingMapReference(dto.map),
   }
 }
 
@@ -201,7 +125,7 @@ async function hydrateOwnerNames(buildings: Building[]): Promise<Building[]> {
   })
 }
 
-function toBuildingUpsertPayload(input: Omit<Building, "id">): BuildingUpsertPayload {
+function toBuildingUpsertPayload(input: Omit<Building, "id">): BackendBuildingUpsertPayload {
   const mapAssetId =
     typeof input.mapAssetId === "number" && Number.isFinite(input.mapAssetId) && input.mapAssetId > 0
       ? input.mapAssetId
@@ -209,11 +133,11 @@ function toBuildingUpsertPayload(input: Omit<Building, "id">): BuildingUpsertPay
 
   return {
     landmarkId: typeof input.landmarkId === "number" && input.landmarkId > 0 ? input.landmarkId : null,
-    nombre: input.nombre.trim(),
-    posicion: input.posicion ?? null,
-    descripcion: input.descripcion.trim(),
+    name: input.nombre.trim(),
+    position: input.posicion ?? null,
+    description: input.descripcion.trim(),
     tags: Array.from(new Set(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))),
-    duenoId: input.duenoId ?? null,
+    ownerId: input.duenoId ?? null,
     mapBuildingIndex:
       typeof input.mapBuildingIndex === "number" && Number.isFinite(input.mapBuildingIndex)
         ? input.mapBuildingIndex
@@ -225,7 +149,7 @@ function toBuildingUpsertPayload(input: Omit<Building, "id">): BuildingUpsertPay
     mapGridCellSize: normalizeMapGridCellSize(input.mapGridCellSize),
     mapGridOffsetX: normalizeMapGridOffset(input.mapGridOffsetX),
     mapGridOffsetY: normalizeMapGridOffset(input.mapGridOffsetY),
-    mapa: mapAssetId ? null : toBuildingMapPayload(input.mapa),
+    map: mapAssetId ? null : toBuildingMapPayload(input.mapa),
   }
 }
 
@@ -242,7 +166,7 @@ export async function fetchBuildings(options: boolean | FetchBuildingsOptions = 
   const shouldHydrateOwnerNames = typeof options === "boolean" ? true : options.hydrateOwnerNames !== false
 
   if (!shouldHydrateOwnerNames) {
-    const response = await backendRequest<BuildingApiDto[]>("/v1/buildings")
+    const response = await backendRequest<BackendBuildingDto[]>(backendRoutes.buildings.collection())
     return response.map(toBuilding)
   }
 
@@ -254,7 +178,7 @@ export async function fetchBuildings(options: boolean | FetchBuildingsOptions = 
     return buildingsPromise
   }
 
-  const pendingRequest = backendRequest<BuildingApiDto[]>("/v1/buildings")
+  const pendingRequest = backendRequest<BackendBuildingDto[]>(backendRoutes.buildings.collection())
     .then(async (response) => {
       const hydrated = await hydrateOwnerNames(response.map(toBuilding))
       writeBuildingsCache(hydrated)
@@ -274,14 +198,14 @@ export async function fetchBuildingById(buildingId: number): Promise<Building> {
     return cached
   }
 
-  const response = await backendRequest<BuildingApiDto>(`/v1/buildings/${buildingId}`)
+  const response = await backendRequest<BackendBuildingDto>(backendRoutes.buildings.byId(buildingId))
   const building = (await hydrateOwnerNames([toBuilding(response)]))[0]
   buildingByIdCache.set(building.id, building)
   return building
 }
 
 export async function createBuilding(input: Omit<Building, "id">): Promise<Building> {
-  const response = await backendRequest<BuildingApiDto>("/v1/buildings", {
+  const response = await backendRequest<BackendBuildingDto>(backendRoutes.buildings.collection(), {
     method: "POST",
     body: toBuildingUpsertPayload(input),
   })
@@ -297,7 +221,7 @@ export async function updateBuilding(
   buildingId: number,
   input: Omit<Building, "id">,
 ): Promise<Building> {
-  const response = await backendRequest<BuildingApiDto>(`/v1/buildings/${buildingId}`, {
+  const response = await backendRequest<BackendBuildingDto>(backendRoutes.buildings.byId(buildingId), {
     method: "PUT",
     body: toBuildingUpsertPayload(input),
   })
@@ -310,7 +234,7 @@ export async function updateBuilding(
 }
 
 export async function deleteBuilding(buildingId: number): Promise<void> {
-  await backendRequest<void>(`/v1/buildings/${buildingId}`, {
+  await backendRequest<void>(backendRoutes.buildings.byId(buildingId), {
     method: "DELETE",
   })
 
@@ -320,7 +244,7 @@ export async function deleteBuilding(buildingId: number): Promise<void> {
 }
 
 export function getCachedBuildingName(buildingId: number) {
-  return buildingByIdCache.get(buildingId)?.nombre ?? "Desconocido"
+  return buildingByIdCache.get(buildingId)?.nombre ?? UNKNOWN_LABEL
 }
 
 export function clearBuildingsCache() {

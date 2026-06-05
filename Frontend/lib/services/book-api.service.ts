@@ -1,32 +1,16 @@
-import type { StoredBook } from "@/lib/types"
+import type {
+  BackendBookDto as BookDto,
+  BackendBookUploadSessionDto as BookUploadSessionDto,
+  StoredBook,
+} from "@/lib/types"
 import {
   backendRequest,
+  backendRequestBlob,
   buildBackendApiUrl,
   readBackendXsrfToken,
   BackendApiError,
 } from "@/lib/services/backend-api.service"
-
-type BookDto = {
-  id: number
-  filename?: string | null
-  contentType?: string | null
-  byteSize?: number | null
-  downloadUrl?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
-}
-
-type BookUploadSessionDto = {
-  sessionId?: string | null
-  status?: string | null
-  progressPercent?: number | null
-  processedBytes?: number | null
-  totalBytes?: number | null
-  bookId?: number | null
-  filename?: string | null
-  errorMessage?: string | null
-  updatedAt?: string | null
-}
+import { backendRoutes } from "@/lib/services/backend-routes"
 
 export type BookUploadStatus = "awaiting_upload" | "processing" | "completed" | "failed"
 
@@ -42,13 +26,22 @@ export type BookUploadProgress = {
   backendErrorMessage?: string
 }
 
+export type BookUploadSession = {
+  sessionId: string
+  status: BookUploadStatus
+  progressPercent: number
+  processedBytes: number
+  totalBytes: number | null
+  errorMessage?: string
+}
+
 type UploadBookOptions = {
   onProgress?: (progress: BookUploadProgress) => void
 }
 
 function toStoredBook(dto: BookDto): StoredBook {
   const id = typeof dto.id === "number" && Number.isFinite(dto.id) ? dto.id : 0
-  const fallbackPath = `/v1/books/${id}`
+  const fallbackPath = backendRoutes.books.byId(id)
   const downloadPath =
     typeof dto.downloadUrl === "string" && dto.downloadUrl.trim().length > 0
       ? dto.downloadUrl.trim()
@@ -82,7 +75,7 @@ function normalizeUploadStatus(value: unknown): BookUploadStatus {
   }
 }
 
-function normalizeUploadSession(dto: BookUploadSessionDto | null | undefined) {
+function normalizeUploadSession(dto: BookUploadSessionDto | null | undefined): BookUploadSession {
   const sessionId = typeof dto?.sessionId === "string" ? dto.sessionId.trim() : ""
   return {
     sessionId,
@@ -142,16 +135,34 @@ function extractUploadErrorMessage(payload: unknown, status: number) {
 }
 
 export async function fetchBooks(): Promise<StoredBook[]> {
-  const response = await backendRequest<BookDto[]>("/v1/books")
+  const response = await backendRequest<BookDto[]>(backendRoutes.books.collection)
   return Array.isArray(response) ? response.map(toStoredBook) : []
 }
 
-export async function uploadBook(file: File, options: UploadBookOptions = {}): Promise<StoredBook> {
-  const createdSession = normalizeUploadSession(
-    await backendRequest<BookUploadSessionDto>("/v1/books/uploads", {
+export async function createBookUploadSession(): Promise<BookUploadSession> {
+  return normalizeUploadSession(
+    await backendRequest<BookUploadSessionDto>(backendRoutes.books.uploads, {
       method: "POST",
     }),
   )
+}
+
+export async function fetchBookUploadSession(sessionId: string): Promise<BookUploadSession> {
+  return normalizeUploadSession(
+    await backendRequest<BookUploadSessionDto>(backendRoutes.books.uploadSession(sessionId)),
+  )
+}
+
+export async function fetchBookBlob(bookId: number): Promise<Blob> {
+  return backendRequestBlob(backendRoutes.books.byId(bookId))
+}
+
+export function buildBookUrl(bookId: number) {
+  return buildBackendApiUrl(backendRoutes.books.byId(bookId))
+}
+
+export async function uploadBook(file: File, options: UploadBookOptions = {}): Promise<StoredBook> {
+  const createdSession = await createBookUploadSession()
 
   if (!createdSession.sessionId) {
     throw new Error("No se pudo iniciar la sesion de subida del libro.")
@@ -170,9 +181,7 @@ export async function uploadBook(file: File, options: UploadBookOptions = {}): P
   const pollBackendProgress = (async () => {
     while (isPollingActive) {
       try {
-        const nextBackendSession = normalizeUploadSession(
-          await backendRequest<BookUploadSessionDto>(`/v1/books/uploads/${createdSession.sessionId}`),
-        )
+        const nextBackendSession = await fetchBookUploadSession(createdSession.sessionId)
         backendSession = nextBackendSession
         emitProgress(frontendUploadedBytes, backendSession)
 
@@ -190,7 +199,7 @@ export async function uploadBook(file: File, options: UploadBookOptions = {}): P
   try {
     const uploadedBook = await new Promise<StoredBook>((resolve, reject) => {
       const request = new XMLHttpRequest()
-      request.open("POST", buildBackendApiUrl(`/v1/books?uploadSessionId=${encodeURIComponent(createdSession.sessionId)}`))
+      request.open("POST", buildBackendApiUrl(backendRoutes.books.uploadWithSession(createdSession.sessionId)))
       request.withCredentials = true
       request.responseType = "text"
       request.setRequestHeader("Accept", "application/json")
@@ -253,9 +262,7 @@ export async function uploadBook(file: File, options: UploadBookOptions = {}): P
   } catch (error) {
     if (backendSession?.status !== "failed") {
       try {
-        backendSession = normalizeUploadSession(
-          await backendRequest<BookUploadSessionDto>(`/v1/books/uploads/${createdSession.sessionId}`),
-        )
+        backendSession = await fetchBookUploadSession(createdSession.sessionId)
         if (backendSession.status !== "failed" && backendSession.status !== "completed") {
           backendSession = {
             ...backendSession,
@@ -280,7 +287,7 @@ export async function uploadBook(file: File, options: UploadBookOptions = {}): P
 }
 
 export async function deleteBook(bookId: number): Promise<void> {
-  await backendRequest<void>(`/v1/books/${bookId}`, {
+  await backendRequest<void>(backendRoutes.books.byId(bookId), {
     method: "DELETE",
   })
 }

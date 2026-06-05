@@ -11,7 +11,7 @@ import lombok.Setter;
 @Table(name = "dm_notes")
 @Getter
 @Setter
-public class DmNotesEntity extends AuditableEntity {
+public class DmNotesEntity {
 
     @Id
     private Long id;

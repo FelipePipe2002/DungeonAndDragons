@@ -13,7 +13,7 @@ import lombok.Setter;
 @Table(name = "saved_pages")
 @Getter
 @Setter
-public class SavedPageEntity extends AuditableEntity {
+public class SavedPageEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

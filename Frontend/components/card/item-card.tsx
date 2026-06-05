@@ -1,4 +1,4 @@
-import type { Item } from "@/lib/items/item-store"
+import type { Item } from "@/lib/informacion/items/store"
 
 export interface ItemCardProps {
   item: Item

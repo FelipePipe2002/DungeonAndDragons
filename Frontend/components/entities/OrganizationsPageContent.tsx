@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
+import { EntitiesPageHeader } from "@/components/entities/EntitiesPageHeader"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ORGANIZATIONS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { ORGANIZATIONS_CHANGED_EVENT } from "@/lib/navigation/events"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchCharacterReferences } from "@/lib/services/character-api.service"
@@ -74,8 +76,8 @@ export function OrganizationsPageContent({ showHeader = true, loadRelatedData = 
     }
   }, [loadPageData])
 
-  const resolveLandmarkName = (landmarkId: number) => landmarkNamesById[landmarkId] ?? "Desconocido"
-  const resolveBuildingName = (buildingId: number) => buildingNamesById[buildingId] ?? "Desconocido"
+  const resolveLandmarkName = (landmarkId: number) => landmarkNamesById[landmarkId] ?? UNKNOWN_LABEL
+  const resolveBuildingName = (buildingId: number) => buildingNamesById[buildingId] ?? UNKNOWN_LABEL
   const filteredOrganizations = useMemo(
     () =>
       organizationsData.filter((organization) =>
@@ -93,47 +95,28 @@ export function OrganizationsPageContent({ showHeader = true, loadRelatedData = 
     [buildingNamesById, landmarkNamesById, organizationsData, searchQuery],
   )
 
+  const createOrganizationAction = (
+    <Button
+      onClick={() => {
+        setSelectedOrg(null)
+        setDialogOpen(true)
+      }}
+      className="gap-2"
+    >
+      <Plus className="size-4" />
+      Crear Organizacion
+    </Button>
+  )
+
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-8">
-      {showHeader ? (
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex size-10 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
-                <Shield className="size-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-serif text-primary">Organizaciones</h1>
-                <p className="text-sm text-muted-foreground">{filteredOrganizations.length} de {organizationsData.length} facciones registradas en el codex</p>
-              </div>
-            </div>
-            <Button
-              onClick={() => {
-                setSelectedOrg(null)
-                setDialogOpen(true)
-              }}
-              className="gap-2"
-            >
-              <Plus className="size-4" />
-              Crear Organizacion
-            </Button>
-          </div>
-          <div className="ornament-divider mt-4">~</div>
-        </div>
-      ) : (
-        <div className="mb-4 flex justify-end">
-          <Button
-            onClick={() => {
-              setSelectedOrg(null)
-              setDialogOpen(true)
-            }}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            Crear Organizacion
-          </Button>
-        </div>
-      )}
+      <EntitiesPageHeader
+        showHeader={showHeader}
+        title="Organizaciones"
+        summary={`${filteredOrganizations.length} de ${organizationsData.length} facciones registradas en el codex`}
+        icon={<Shield className="size-5 text-primary" />}
+        action={createOrganizationAction}
+      />
 
       <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por nombre, descripcion, categorias, miembros, sedes o regiones..." className="mb-4" />
 
@@ -214,8 +197,6 @@ export function OrganizationsPageContent({ showHeader = true, loadRelatedData = 
           setDialogOpen(open)
           if (!open) setSelectedOrg(null)
         }}
-        resolveBuildingName={resolveBuildingName}
-        resolveLandmarkName={resolveLandmarkName}
         onOrganizationUpdated={(updatedOrganization) => {
           setSelectedOrg(updatedOrganization)
           void loadPageData()

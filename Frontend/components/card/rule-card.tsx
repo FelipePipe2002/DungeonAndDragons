@@ -1,4 +1,4 @@
-import type { Rule } from "@/lib/rules/rule-store"
+import type { Rule } from "@/lib/informacion/rules/store"
 
 export interface RuleCardProps {
   rule: Rule

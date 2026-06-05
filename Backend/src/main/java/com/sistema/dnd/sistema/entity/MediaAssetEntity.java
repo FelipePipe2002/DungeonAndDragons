@@ -1,5 +1,7 @@
 package com.sistema.dnd.sistema.entity;
 
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetStorageMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,14 +10,17 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "media_assets")
 @Getter
 @Setter
-public class MediaAssetEntity extends AuditableEntity {
+public class MediaAssetEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,4 +54,12 @@ public class MediaAssetEntity extends AuditableEntity {
 
     @Column(name = "binary_content", columnDefinition = "BYTEA")
     private byte[] binaryContent;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
 }

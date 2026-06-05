@@ -4,10 +4,12 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserSelectableListItem } from "@/components/browser/BrowserSelectableListItem"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import { SpellCard } from "@/components/card/spell-card"
 import { useSpellsSection } from "@/app/informacion/hooks/useSpellsSection"
 import { getSpellSchoolTone } from "@/lib/informacion/constants"
-import { getListItemClassName, InformationSidebar } from "./shared"
 
 export default function SpellsSection() {
   const spells = useSpellsSection({ isActive: true })
@@ -15,14 +17,12 @@ export default function SpellsSection() {
   return (
     <BrowserLayout
       sidebar={
-        <InformationSidebar query={spells.spellQuery} onQueryChange={spells.setSpellQuery} placeholder="Buscar spell, escuela o nivel...">
+        <BrowserSidebar query={spells.spellQuery} onQueryChange={spells.setSpellQuery} placeholder="Buscar spell, escuela o nivel...">
           <BrowserList>
             {spells.spellsStatus === "loading" ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">Cargando spells...</p>
+              <BrowserListMessage>Cargando spells...</BrowserListMessage>
             ) : spells.spellsStatus === "error" ? (
-              <p className="rounded-sm border border-dashed border-destructive/50 p-4 text-sm text-destructive">
-                {spells.spellsErrorMessage || "No se pudieron cargar los spells."}
-              </p>
+              <BrowserListMessage tone="error">{spells.spellsErrorMessage || "No se pudieron cargar los spells."}</BrowserListMessage>
             ) : (
               spells.filteredSpells.map((spellItem) => {
                 const isActive = spells.selectedSpellId === spellItem.id
@@ -32,12 +32,11 @@ export default function SpellsSection() {
                 const levelLabel = spell.levelLabel || "-"
 
                 return (
-                  <button
+                  <BrowserSelectableListItem
                     key={spellItem.id}
-                    type="button"
                     onClick={() => spells.setSelectedSpellId(spellItem.id)}
-                    className={getListItemClassName(isActive)}
-                    style={{ borderLeftWidth: 4, borderLeftColor: tone.accent }}
+                    isActive={isActive}
+                    accentColor={tone.accent}
                   >
                     <p className="font-semibold text-foreground">{spell.name}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
@@ -45,17 +44,15 @@ export default function SpellsSection() {
                         {schoolLabel} {levelLabel}
                       </span>
                     </p>
-                  </button>
+                  </BrowserSelectableListItem>
                 )
               })
             )}
             {spells.spellsStatus === "ready" && spells.filteredSpells.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No hay spells que coincidan con esa busqueda.
-              </p>
+              <BrowserListMessage>No hay spells que coincidan con esa busqueda.</BrowserListMessage>
             ) : null}
           </BrowserList>
-        </InformationSidebar>
+        </BrowserSidebar>
       }
       detail={
         <BrowserDetailPanel>

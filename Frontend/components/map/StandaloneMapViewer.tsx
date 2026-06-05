@@ -13,6 +13,11 @@ import {
 
 import type { Landmark, LandmarkId, LandmarkType } from "@/lib/types"
 import {
+  fallbackLandmarkIconForType,
+  isLandmarkImageIcon,
+  LANDMARK_TYPE_LABELS,
+} from "@/lib/landmarks/utils"
+import {
   createLandmark,
   fetchLandmarks,
   updateLandmark,
@@ -64,17 +69,6 @@ const LANDMARK_TYPE_FOLDER_ALIASES: Record<LandmarkType, string[]> = {
   bandera: ["bandera"],
   campamento: ["campamento"],
   mazmorra: ["mazmorra"],
-}
-
-const LANDMARK_TYPE_LABELS: Record<LandmarkType, string> = {
-  ciudad: "Ciudad",
-  pueblo: "Pueblo",
-  aldea: "Aldea",
-  fuerte: "Fuerte",
-  puente: "Puente",
-  bandera: "Bandera",
-  campamento: "Campamento",
-  mazmorra: "Mazmorra",
 }
 
 type Point = {
@@ -290,9 +284,9 @@ export function StandaloneMapViewer({
   }
 
   const createTypeImages = folderImagesForType(createType, folderAssets)
-  const createFallbackIcon = fallbackIconForType(createType)
+  const createFallbackIcon = fallbackLandmarkIconForType(createType)
   const createPreviewName = createName.trim().length > 0 ? createName.trim() : "Nuevo Landmark"
-  const createPreviewIcon = isImageIcon(createIcon)
+  const createPreviewIcon = isLandmarkImageIcon(createIcon)
     ? { image: createIcon, text: "" }
     : { image: "", text: createIcon || createFallbackIcon }
   const popoverLandmark = landmarkPopover
@@ -303,7 +297,7 @@ export function StandaloneMapViewer({
     : null
   const editType = editLandmarkForm?.tipo ?? "ciudad"
   const editTypeImages = editLandmarkForm ? folderImagesForType(editType, folderAssets) : []
-  const editFallbackIcon = fallbackIconForType(editType)
+  const editFallbackIcon = fallbackLandmarkIconForType(editType)
 
   const clampOffset = (rawOffset: Point, nextScale: number): Point => {
     const viewport = viewportRef.current
@@ -417,13 +411,13 @@ export function StandaloneMapViewer({
 
     setLandmarks((current) =>
       current.map((landmark) => {
-        if (isImageIcon(landmark.icono)) {
+        if (isLandmarkImageIcon(landmark.icono)) {
           return landmark
         }
 
         const nextImage = pickFolderImageForType(landmark.tipo)
         if (!nextImage) {
-          return { ...landmark, icono: fallbackIconForType(landmark.tipo) }
+          return { ...landmark, icono: fallbackLandmarkIconForType(landmark.tipo) }
         }
 
         return { ...landmark, icono: nextImage }
@@ -657,7 +651,7 @@ export function StandaloneMapViewer({
   ) => {
     const defaultType: LandmarkType = "ciudad"
     const nextId = nextLandmarkId(landmarks)
-    const defaultIcon = pickFolderImageForType(defaultType) ?? fallbackIconForType(defaultType)
+    const defaultIcon = pickFolderImageForType(defaultType) ?? fallbackLandmarkIconForType(defaultType)
     const anchorX = clamp(clientX + 12, 12, window.innerWidth - CREATE_POPOVER_WIDTH - 12)
     const anchorY = clamp(clientY + 12, 12, window.innerHeight - CREATE_POPOVER_HEIGHT - 12)
 
@@ -757,7 +751,7 @@ export function StandaloneMapViewer({
     if (!isLandmarkType(value)) return
 
     setCreateType(value)
-    setCreateIcon(pickFolderImageForType(value) ?? fallbackIconForType(value))
+    setCreateIcon(pickFolderImageForType(value) ?? fallbackLandmarkIconForType(value))
   }
 
   const handleEditTypeChange = (value: string) => {
@@ -768,7 +762,7 @@ export function StandaloneMapViewer({
       return {
         ...current,
         tipo: value,
-        icono: pickFolderImageForType(value) ?? fallbackIconForType(value),
+        icono: pickFolderImageForType(value) ?? fallbackLandmarkIconForType(value),
       }
     })
   }
@@ -788,7 +782,7 @@ export function StandaloneMapViewer({
       : currentLandmark.nombre
     const nextIcon = editLandmarkForm.icono.trim().length > 0
       ? editLandmarkForm.icono.trim()
-      : pickFolderImageForType(editLandmarkForm.tipo) ?? fallbackIconForType(editLandmarkForm.tipo)
+      : pickFolderImageForType(editLandmarkForm.tipo) ?? fallbackLandmarkIconForType(editLandmarkForm.tipo)
 
     try {
       const savedLandmark = await updateLandmark(
@@ -821,7 +815,7 @@ export function StandaloneMapViewer({
     const nextName = createName.trim().length > 0 ? createName.trim() : `Nuevo Landmark ${landmarkId}`
     const nextIcon = createIcon.trim().length > 0
       ? createIcon.trim()
-      : pickFolderImageForType(createType) ?? fallbackIconForType(createType)
+      : pickFolderImageForType(createType) ?? fallbackLandmarkIconForType(createType)
     const landmarkInput = buildLandmarkInput(
       nextName,
       createType,

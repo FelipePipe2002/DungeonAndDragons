@@ -1,7 +1,6 @@
 package com.sistema.dnd.sistema.controllers;
 
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryBalanceDto;
-import com.sistema.dnd.sistema.dto.domain.PartyInventoryBalanceUpsertRequest;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryDto;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryItemDto;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryItemUpsertRequest;
@@ -34,7 +33,7 @@ public class PartyInventoryController {
     }
 
     @PutMapping("/balance")
-    public PartyInventoryBalanceDto updateBalance(@Valid @RequestBody PartyInventoryBalanceUpsertRequest request) {
+    public PartyInventoryBalanceDto updateBalance(@Valid @RequestBody PartyInventoryBalanceDto request) {
         return partyInventoryService.updateBalance(request);
     }
 

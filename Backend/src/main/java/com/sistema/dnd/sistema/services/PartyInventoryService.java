@@ -1,7 +1,6 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryBalanceDto;
-import com.sistema.dnd.sistema.dto.domain.PartyInventoryBalanceUpsertRequest;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryDto;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryItemDto;
 import com.sistema.dnd.sistema.dto.domain.PartyInventoryItemUpsertRequest;
@@ -48,7 +47,7 @@ public class PartyInventoryService {
     }
 
     @Transactional
-    public PartyInventoryBalanceDto updateBalance(PartyInventoryBalanceUpsertRequest request) {
+    public PartyInventoryBalanceDto updateBalance(PartyInventoryBalanceDto request) {
         PartyInventoryBalanceEntity entity = partyInventoryBalanceRepository.findById(BALANCE_SINGLETON_ID)
             .orElseGet(() -> {
                 PartyInventoryBalanceEntity created = new PartyInventoryBalanceEntity();
@@ -121,8 +120,7 @@ public class PartyInventoryService {
             entity.getCopper(),
             entity.getSilver(),
             entity.getGold(),
-            entity.getPlatinum(),
-            entity.getUpdatedAt()
+            entity.getPlatinum()
         );
     }
 
@@ -137,9 +135,7 @@ public class PartyInventoryService {
             entity.isImportant(),
             entity.getNotes(),
             entity.getSourceItemName(),
-            entity.getSourceItemTypeCode(),
-            entity.getCreatedAt(),
-            entity.getUpdatedAt()
+            entity.getSourceItemTypeCode()
         );
     }
 

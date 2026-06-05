@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { DmRelationshipDirection, DmRelationshipEntityType, DmRelationshipInput } from "@/lib/types"
-import { fetchRelationshipEntityOptions, type RelationshipEntityOption } from "@/lib/dm-relationships/entity-options"
+import { fetchRelationshipEntityOptions, type RelationshipEntityOption } from "@/lib/services/dm/entity-options"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"

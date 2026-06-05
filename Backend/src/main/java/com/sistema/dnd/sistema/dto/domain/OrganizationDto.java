@@ -4,14 +4,14 @@ import java.util.List;
 
 public record OrganizationDto(
     Long id,
-    String nombre,
-    String descripcion,
+    String name,
+    String description,
     List<String> tags,
-    String imagen,
-    Long imagenAssetId,
-    List<String> categorias,
-    List<Long> edificios,
-    List<OrganizationMemberDto> miembros,
+    String image,
+    Long imageAssetId,
+    List<String> categories,
+    List<Long> buildingIds,
+    List<OrganizationMemberDto> members,
     List<Long> landmarks
 ) {
 }

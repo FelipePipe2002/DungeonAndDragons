@@ -1,4 +1,5 @@
 import { backendRequest, clearBackendXsrfToken } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 
 export type AuthUser = {
   id: number
@@ -35,7 +36,7 @@ export async function loginWithCredentials(email: string, password: string): Pro
     throw new Error("Email y contrasena son obligatorios.")
   }
 
-  return backendRequest<AuthUser>("/auth/login", {
+  return backendRequest<AuthUser>(backendRoutes.auth.login, {
     headers: {
       Authorization: toBasicAuthHeader(normalizedEmail, normalizedPassword),
     },
@@ -53,7 +54,7 @@ export async function registerWithCredentials(
     throw new Error("Email y contrasena son obligatorios.")
   }
 
-  return backendRequest<RegisterResponse>("/auth/register", {
+  return backendRequest<RegisterResponse>(backendRoutes.auth.register, {
     method: "POST",
     body: {
       email: normalizedEmail,
@@ -64,14 +65,14 @@ export async function registerWithCredentials(
 }
 
 export async function fetchRegistrationStatus(): Promise<RegistrationStatusResponse> {
-  return backendRequest<RegistrationStatusResponse>("/auth/registration-status", {
+  return backendRequest<RegistrationStatusResponse>(backendRoutes.auth.registrationStatus, {
     skipAuthRedirect: true,
   })
 }
 
 export async function logoutCurrentUser(): Promise<void> {
   try {
-    await backendRequest<{ message: string }>("/auth/logout", {
+    await backendRequest<{ message: string }>(backendRoutes.auth.logout, {
       method: "POST",
       skipAuthRedirect: true,
     })

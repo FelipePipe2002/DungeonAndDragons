@@ -1,11 +1,12 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import type { ComponentType } from "react"
 import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import type { InformationSection } from "@/lib/informacion/types"
-import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
+import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/main-nav"
 
 const MonstersSection = dynamic(() => import("@/app/informacion/sections/MonstersSection"))
 const ConditionsSection = dynamic(() => import("@/app/informacion/sections/ConditionsSection"))
@@ -15,6 +16,17 @@ const FeatsSection = dynamic(() => import("@/app/informacion/sections/FeatsSecti
 const RulesSection = dynamic(() => import("@/app/informacion/sections/RulesSection"))
 const BooksSection = dynamic(() => import("@/app/informacion/sections/BooksSection"))
 const PagesSection = dynamic(() => import("@/app/informacion/sections/PagesSection"))
+
+const SECTION_COMPONENTS: Record<InformationSection, ComponentType> = {
+  monsters: MonstersSection,
+  conditions: ConditionsSection,
+  spells: SpellsSection,
+  items: ItemsSection,
+  feats: FeatsSection,
+  rules: RulesSection,
+  books: BooksSection,
+  pages: PagesSection,
+}
 
 function InformacionPageContent() {
   const router = useRouter()
@@ -38,35 +50,9 @@ function InformacionPageContent() {
     router.replace(`/informacion?section=${encodeURIComponent(normalizedSection)}`)
   }, [infoSubnavConfig, router, searchParams])
 
-  if (activeSection === "conditions") {
-    return <ConditionsSection />
-  }
+  const ActiveSectionComponent = SECTION_COMPONENTS[activeSection]
 
-  if (activeSection === "spells") {
-    return <SpellsSection />
-  }
-
-  if (activeSection === "items") {
-    return <ItemsSection />
-  }
-
-  if (activeSection === "feats") {
-    return <FeatsSection />
-  }
-
-  if (activeSection === "rules") {
-    return <RulesSection />
-  }
-
-  if (activeSection === "books") {
-    return <BooksSection />
-  }
-
-  if (activeSection === "pages") {
-    return <PagesSection />
-  }
-
-  return <MonstersSection />
+  return <ActiveSectionComponent />
 }
 
 export default function InformacionPage() {

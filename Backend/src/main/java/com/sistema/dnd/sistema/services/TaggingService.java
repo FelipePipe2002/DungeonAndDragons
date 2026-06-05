@@ -1,7 +1,7 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.entity.TagEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.entity.TaggingEntity;
 import com.sistema.dnd.sistema.repository.TagRepository;
 import com.sistema.dnd.sistema.repository.TaggingRepository;

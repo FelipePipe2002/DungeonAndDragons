@@ -1,5 +1,8 @@
 package com.sistema.dnd.sistema.entity;
 
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
+import com.sistema.dnd.sistema.entity.enums.LandmarkType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,7 +21,7 @@ import lombok.Setter;
 @Table(name = "landmarks")
 @Getter
 @Setter
-public class LandmarkEntity extends AuditableEntity {
+public class LandmarkEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -92,5 +95,25 @@ public class LandmarkEntity extends AuditableEntity {
 
     @Column(name = "dungeon_generator_config", columnDefinition = "TEXT")
     private String dungeonGeneratorConfig;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "map_kind", length = 20)
+    private LandmarkMapKind mapKind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "map_source", length = 20)
+    private LandmarkMapSource mapSource;
+
+    @Column(name = "map_filename")
+    private String mapFilename;
+
+    @Column(name = "map_url")
+    private String mapUrl;
+
+    @Column(name = "map_storage_key")
+    private String mapStorageKey;
+
+    @Column(name = "map_data_url", columnDefinition = "TEXT")
+    private String mapDataUrl;
 
 }

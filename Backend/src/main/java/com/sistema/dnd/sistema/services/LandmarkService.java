@@ -1,20 +1,19 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
-import com.sistema.dnd.sistema.dto.domain.LandmarkEventRequest;
+import com.sistema.dnd.sistema.dto.domain.EventDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkUpsertRequest;
 import com.sistema.dnd.sistema.entity.EstadoEntity;
+import com.sistema.dnd.sistema.entity.EventEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
-import com.sistema.dnd.sistema.entity.LandmarkEventEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapKind;
-import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapSource;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.EventOwnerType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.EstadoRepository;
-import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
-import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
+import com.sistema.dnd.sistema.repository.EventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import jakarta.transaction.Transactional;
 import java.util.LinkedHashSet;
@@ -29,8 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class LandmarkService {
 
     private final LandmarkRepository landmarkRepository;
-    private final LandmarkEventRepository landmarkEventRepository;
-    private final LandmarkMapRefRepository landmarkMapRefRepository;
+    private final EventRepository eventRepository;
     private final EstadoRepository estadoRepository;
     private final TaggingService taggingService;
     private final DomainMapper domainMapper;
@@ -38,16 +36,14 @@ public class LandmarkService {
 
     public LandmarkService(
         LandmarkRepository landmarkRepository,
-        LandmarkEventRepository landmarkEventRepository,
-        LandmarkMapRefRepository landmarkMapRefRepository,
+        EventRepository eventRepository,
         EstadoRepository estadoRepository,
         TaggingService taggingService,
         DomainMapper domainMapper,
         LandmarkMapValidator landmarkMapValidator
     ) {
         this.landmarkRepository = landmarkRepository;
-        this.landmarkEventRepository = landmarkEventRepository;
-        this.landmarkMapRefRepository = landmarkMapRefRepository;
+        this.eventRepository = eventRepository;
         this.estadoRepository = estadoRepository;
         this.taggingService = taggingService;
         this.domainMapper = domainMapper;
@@ -110,15 +106,15 @@ public class LandmarkService {
 
     private void applyUpsert(LandmarkEntity entity, LandmarkUpsertRequest request) {
         EstadoEntity estado = null;
-        if (request.estadoId() != null && request.estadoId() > 0) {
-            estado = estadoRepository.findById(request.estadoId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "estadoId invalido"));
+        if (request.stateId() != null && request.stateId() > 0) {
+            estado = estadoRepository.findById(request.stateId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "stateId invalido"));
         }
 
         EstadoEntity subdivision = null;
         if (request.subdivisionId() != null && request.subdivisionId() > 0) {
             if (estado == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subdivisionId requiere estadoId");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subdivisionId requiere stateId");
             }
             subdivision = estadoRepository.findById(request.subdivisionId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "subdivisionId invalido"));
@@ -127,19 +123,19 @@ public class LandmarkService {
             }
         }
 
-        entity.setIcono(normalizedOrEmpty(request.icono()));
-        entity.setNombre(requiredTrimmed(request.nombre(), "El nombre del landmark es obligatorio"));
-        entity.setTipo(request.tipo());
+        entity.setIcono(normalizedOrEmpty(request.icon()));
+        entity.setNombre(requiredTrimmed(request.name(), "El nombre del landmark es obligatorio"));
+        entity.setTipo(request.type());
         entity.setEstado(estado);
         entity.setSubdivision(subdivision);
-        entity.setEscalaIcono(request.escalaIcono());
-        entity.setEscalaTexto(request.escalaTexto());
-        entity.setMostrarLeyenda(request.mostrarLeyenda());
-        entity.setPosicionX(request.posicion().get(0));
-        entity.setPosicionY(request.posicion().get(1));
-        entity.setPoblacion(request.poblacion());
-        entity.setDescripcionCorta(optionalTrimmed(request.descripcionCorta()));
-        entity.setHistoria(optionalTrimmed(request.historia()));
+        entity.setEscalaIcono(request.iconScale());
+        entity.setEscalaTexto(request.textScale());
+        entity.setMostrarLeyenda(request.showLegend());
+        entity.setPosicionX(request.position().get(0));
+        entity.setPosicionY(request.position().get(1));
+        entity.setPoblacion(request.population());
+        entity.setDescripcionCorta(optionalTrimmed(request.shortDescription()));
+        entity.setHistoria(optionalTrimmed(request.history()));
         entity.setMapRotationDegrees(normalizeMapRotationDegrees(request.mapRotationDegrees()));
         entity.setMapGridEnabled(Boolean.TRUE.equals(request.mapGridEnabled()));
         entity.setMapGridCellSize(normalizeMapGridCellSize(request.mapGridCellSize()));
@@ -151,10 +147,8 @@ public class LandmarkService {
     }
 
     private void syncChildren(LandmarkEntity landmark, LandmarkUpsertRequest request, MediaAssetEntity mapAsset) {
-        landmarkEventRepository.deleteByLandmarkId(landmark.getId());
-        landmarkMapRefRepository.deleteByLandmarkId(landmark.getId());
-        landmarkEventRepository.flush();
-        landmarkMapRefRepository.flush();
+        eventRepository.deleteByOwnerTypeAndOwnerId(EventOwnerType.landmark, landmark.getId());
+        eventRepository.flush();
         taggingService.replaceTags(TaggableEntityType.landmark, landmark.getId(), request.tags());
 
         if (mapAsset != null) {
@@ -163,44 +157,44 @@ public class LandmarkService {
             landmark.setMapAsset(null);
         }
 
-        for (LandmarkEventRequest event : request.eventos() == null ? List.<LandmarkEventRequest>of() : request.eventos()) {
-            LandmarkEventEntity item = new LandmarkEventEntity();
-            item.setLandmark(landmark);
-            item.setNombre(requiredTrimmed(event.nombre(), "El nombre del evento es obligatorio"));
-            item.setDescripcion(normalizedOrEmpty(event.descripcion()));
-            item.setFecha(optionalTrimmed(event.fecha()));
-
-            if (event.posicion() != null) {
-                if (event.posicion().size() != 2) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La posicion del evento debe tener [x,y]");
-                }
-                Double x = event.posicion().get(0);
-                Double y = event.posicion().get(1);
-                validatePosition(x, y, "evento.posicion");
-                item.setPosicionX(x);
-                item.setPosicionY(y);
-            }
-
-            landmarkEventRepository.save(item);
+        for (EventDto event : request.events() == null ? List.<EventDto>of() : request.events()) {
+            EventEntity item = new EventEntity();
+            item.setOwnerType(EventOwnerType.landmark);
+            item.setOwnerId(landmark.getId());
+            item.setTitulo(requiredTrimmed(event.title(), "El titulo del evento es obligatorio"));
+            item.setDescripcion(normalizedOrEmpty(event.description()));
+            item.setFecha(optionalTrimmed(event.date()));
+            item.setSesion(optionalTrimmed(event.session()));
+            eventRepository.save(item);
         }
 
         if (landmark.getMapAsset() != null) {
+            clearInlineMapRef(landmark);
             return;
         }
 
-        if (request.mapa() != null) {
-            LandmarkMapRequest map = request.mapa();
+        if (request.map() != null) {
+            LandmarkMapRequest map = request.map();
             validateMap(map);
-            LandmarkMapRefEntity mapRef = new LandmarkMapRefEntity();
-            mapRef.setLandmark(landmark);
-            mapRef.setKind(map.kind());
-            mapRef.setSource(map.source());
-            mapRef.setFilename(optionalTrimmed(map.filename()));
-            mapRef.setUrl(optionalTrimmed(map.url()));
-            mapRef.setStorageKey(optionalTrimmed(map.key()));
-            mapRef.setDataUrl(optionalTrimmed(map.dataUrl()));
-            landmarkMapRefRepository.save(mapRef);
+            landmark.setMapKind(map.kind());
+            landmark.setMapSource(map.source());
+            landmark.setMapFilename(optionalTrimmed(map.filename()));
+            landmark.setMapUrl(optionalTrimmed(map.url()));
+            landmark.setMapStorageKey(optionalTrimmed(map.key()));
+            landmark.setMapDataUrl(optionalTrimmed(map.dataUrl()));
+            return;
         }
+
+        clearInlineMapRef(landmark);
+    }
+
+    private void clearInlineMapRef(LandmarkEntity landmark) {
+        landmark.setMapKind(null);
+        landmark.setMapSource(null);
+        landmark.setMapFilename(null);
+        landmark.setMapUrl(null);
+        landmark.setMapStorageKey(null);
+        landmark.setMapDataUrl(null);
     }
 
     private void validateMap(LandmarkMapRequest map) {

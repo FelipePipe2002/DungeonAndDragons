@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { CreateLandmarkEventDialog } from "@/components/dialog/detailed/CreateLandmarkEventDialog"
+import { DetailDialogShell } from "@/components/dialog/shared/detail-dialog-shell"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { isLandmarkImageIcon, LANDMARK_TYPE_LABELS } from "@/lib/landmarks/utils"
 import {
   Select,
   SelectContent,
@@ -19,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { toOptionalText } from "@/lib/normalize"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { fetchEstados } from "@/lib/services/estado-api.service"
 import { deleteLandmark, fetchLandmarkById, updateLandmark } from "@/lib/services/landmark-api.service"
@@ -71,26 +74,6 @@ const EMPTY_LANDMARK_FORM_STATE: LandmarkFormState = {
   subdivisionId: "none",
 }
 
-const tipoLabels: Record<string, string> = {
-  ciudad: "Ciudad",
-  pueblo: "Pueblo",
-  aldea: "Aldea",
-  fuerte: "Fuerte",
-  puente: "Puente",
-  bandera: "Bandera",
-  campamento: "Campamento",
-  mazmorra: "Mazmorra",
-}
-
-function isImageIcon(icono: string) {
-  return (
-    icono.startsWith("http://") ||
-    icono.startsWith("https://") ||
-    icono.startsWith("data:") ||
-    icono.startsWith("/")
-  )
-}
-
 function toLandmarkFormState(landmark: Landmark): LandmarkFormState {
   return {
     nombre: landmark.nombre,
@@ -103,11 +86,6 @@ function toLandmarkFormState(landmark: Landmark): LandmarkFormState {
     subdivisionId:
       typeof landmark.subdivisionId === "number" && landmark.subdivisionId > 0 ? String(landmark.subdivisionId) : "none",
   }
-}
-
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
 }
 
 export function LandmarkDetailDialog({
@@ -270,7 +248,7 @@ export function LandmarkDetailDialog({
         icono: formState.icono.trim(),
       }
     : currentLandmark
-  const previewImageIcon = isImageIcon(previewLandmark.icono) ? previewLandmark.icono : undefined
+  const previewImageIcon = isLandmarkImageIcon(previewLandmark.icono) ? previewLandmark.icono : undefined
 
   const estadoNameById = new Map(estados.map((estado) => [estado.id, estado.nombre]))
   const currentEstadoName =
@@ -417,8 +395,7 @@ export function LandmarkDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="parchment max-h-[90vh] max-w-6xl overflow-hidden p-0">
+      <DetailDialogShell open={open} onOpenChange={handleDialogOpenChange} contentClassName="parchment max-h-[90vh] max-w-6xl overflow-hidden p-0">
           <div className="flex h-[85vh] flex-col">
             <div className="scroll-banner shrink-0">
               <DialogHeader>
@@ -487,7 +464,7 @@ export function LandmarkDetailDialog({
 
                     <div className="mt-1 flex items-center gap-3 text-sm">
                       <Badge variant="outline" className="border-primary/30 text-[10px] text-primary">
-                        {tipoLabels[currentLandmark.tipo] ?? currentLandmark.tipo}
+                        {LANDMARK_TYPE_LABELS[currentLandmark.tipo] ?? currentLandmark.tipo}
                       </Badge>
                       {previewPopulation !== undefined && Number.isFinite(previewPopulation) && (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -554,7 +531,7 @@ export function LandmarkDetailDialog({
                           </div>
                           <ImageEmbeddingPicker
                             usage="generic"
-                            value={isImageIcon(formState.icono) ? formState.icono : undefined}
+                            value={isLandmarkImageIcon(formState.icono) ? formState.icono : undefined}
                             onChange={(nextValue) => setFormState((prev) => ({ ...prev, icono: nextValue }))}
                             label={`Imagen del icono de ${previewName}`}
                             previewClassName="h-24 w-full"
@@ -837,8 +814,7 @@ export function LandmarkDetailDialog({
               </aside>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </DetailDialogShell>
 
       <ConfirmDialog
         open={isDeleteDialogOpen}

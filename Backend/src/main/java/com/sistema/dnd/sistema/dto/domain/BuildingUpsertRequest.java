@@ -6,13 +6,13 @@ import java.util.List;
 
 public record BuildingUpsertRequest(
     Long landmarkId,
-    @NotBlank(message = "El nombre del edificio es obligatorio")
-    String nombre,
-    @Size(min = 2, max = 2, message = "posicion debe tener [x, y]")
-    List<Double> posicion,
-    String descripcion,
+    @NotBlank(message = "name es obligatorio")
+    String name,
+    @Size(min = 2, max = 2, message = "position debe tener [x, y]")
+    List<Double> position,
+    String description,
     List<String> tags,
-    Long duenoId,
+    Long ownerId,
     Integer mapBuildingIndex,
     Long organizationId,
     Long mapAssetId,
@@ -21,6 +21,6 @@ public record BuildingUpsertRequest(
     Double mapGridCellSize,
     Double mapGridOffsetX,
     Double mapGridOffsetY,
-    LandmarkMapRequest mapa
+    LandmarkMapRequest map
 ) {
 }

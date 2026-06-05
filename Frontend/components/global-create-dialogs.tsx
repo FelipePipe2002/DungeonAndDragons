@@ -8,8 +8,7 @@ import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetai
 import { CharacterDetailDialog } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
-import { createDmRelationship } from "@/lib/services/dm-relationships-api.service"
-import { createDmEvent } from "@/lib/services/dm-events-api.service"
+import { createDmEvent, createDmRelationship } from "@/lib/services/dm"
 import { serviceMessage } from "@/lib/service-message"
 import {
   OPEN_CREATE_DM_EVENT,
@@ -22,7 +21,7 @@ import {
   notifyBuildingsChanged,
   notifyCharactersChanged,
   notifyOrganizationsChanged,
-} from "@/lib/navigation/global-create-events"
+} from "@/lib/navigation/events"
 
 export function GlobalCreateDialogs() {
   const [isCharacterDialogOpen, setIsCharacterDialogOpen] = useState(false)

@@ -5,15 +5,14 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 public record OrganizationUpsertRequest(
-    @NotBlank(message = "El nombre de la organizacion es obligatorio")
-    String nombre,
-    String descripcion,
+    @NotBlank(message = "name es obligatorio")
+    String name,
+    String description,
     List<String> tags,
-    String imagen,
-    Long imagenAssetId,
-    List<String> categorias,
-    List<Long> edificios,
-    List<@Valid OrganizationMemberRequest> miembros,
+    String image,
+    Long imageAssetId,
+    List<Long> buildingIds,
+    List<@Valid OrganizationMemberRequest> members,
     List<Long> landmarks
 ) {
 }

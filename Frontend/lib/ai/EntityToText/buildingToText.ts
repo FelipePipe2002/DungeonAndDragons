@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { Building } from "@/lib/types"
 import { fetchCharacterById } from "@/lib/services/character-api.service"
 import { fetchLandmarkById, getCachedLandmarkName } from "@/lib/services/landmark-api.service"
@@ -42,9 +43,9 @@ export async function buildingToText(building: Building): Promise<string> {
     if (!duenoNombre) {
       try {
         const character = await fetchCharacterById(duenoId)
-        duenoNombre = character?.nombre?.trim() || "Desconocido"
+        duenoNombre = character?.nombre?.trim() || UNKNOWN_LABEL
       } catch {
-        duenoNombre = "Desconocido"
+        duenoNombre = UNKNOWN_LABEL
       }
     }
 

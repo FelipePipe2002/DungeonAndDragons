@@ -18,13 +18,19 @@ import { Maximize2, RotateCw } from "lucide-react"
 import BuildingsMap from "@/components/buildings/BuildingsMap"
 import DungeonMap, { type DungeonDisplayStyle } from "@/components/dungeons/DungeonMap"
 import type { NormalizedDungeonMap } from "@/lib/dungeons/types"
+import { getLandmarkMapUrlFromReference } from "@/lib/landmarks/utils"
+import {
+  normalizeMapGridCellSize,
+  normalizeMapGridOffset,
+  normalizeMapRotationDegrees,
+} from "@/lib/map-grid"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
-import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { buildBackendApiUrl } from "@/lib/services/backend-api.service"
 import { fetchBuildings, updateBuilding } from "@/lib/services/building-api.service"
 import { fetchLandmarkBySlug, updateLandmark } from "@/lib/services/landmark-api.service"
+import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import type { BattleSceneType, Building, Landmark, LandmarkType } from "@/lib/types"
 import { PresentationCover } from "./PresentationCover"
 import styles from "./LandmarkMapOnlyPage.module.css"
@@ -107,34 +113,6 @@ function assetFileToPublicUrl(filename: string) {
   return `/maps/${filename}`
 }
 
-function mapUrlFromReference(landmark: Landmark): string | null {
-  if (typeof landmark.mapAssetId === "number" && landmark.mapAssetId > 0) {
-    return buildAssetUrl(landmark.mapAssetId)
-  }
-
-  const ref = landmark.mapa
-  if (!ref) return null
-
-  if (ref.kind === "embedded") return ref.dataUrl
-  if (ref.kind === "external") return ref.url
-  if (ref.kind === "asset") return assetFileToPublicUrl(ref.filename)
-
-  if (ref.kind === "stored") {
-    const assetId = Number.parseInt(ref.key, 10)
-    if (Number.isFinite(assetId) && assetId > 0) {
-      return buildAssetUrl(assetId)
-    }
-    return null
-  }
-
-  if (ref.kind === "buildings") {
-    if (ref.source === "external") return ref.url
-    return assetFileToPublicUrl(ref.filename)
-  }
-
-  return null
-}
-
 function mapUrlFromBuilding(building: Building): string | null {
   if (typeof building.mapAssetId === "number" && building.mapAssetId > 0) {
     return buildAssetUrl(building.mapAssetId)
@@ -166,23 +144,6 @@ function isBackendAssetUrl(url: string) {
   }
 
   return normalized.startsWith(buildBackendApiUrl("/v1/assets/"))
-}
-
-function normalizeMapRotationDegrees(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  const normalized = Math.round(value)
-  const snappedQuarterTurns = Math.round(normalized / 90)
-  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
-}
-
-function normalizeMapGridCellSize(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 48
-  return Math.round(clamp(value, 8, 512) * 100) / 100
-}
-
-function normalizeMapGridOffset(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  return Math.round(value * 100) / 100
 }
 
 function decodeSlug(raw: string | undefined) {
@@ -432,7 +393,7 @@ export const LandmarkMapOnlyClient = memo(function LandmarkMapOnlyClient({
   }, [])
 
   const effectiveMapUrl = useMemo(() => {
-    if (landmark) return mapUrlFromReference(landmark)
+    if (landmark) return getLandmarkMapUrlFromReference(landmark)
     if (building) return mapUrlFromBuilding(building)
     return null
   }, [building, landmark])

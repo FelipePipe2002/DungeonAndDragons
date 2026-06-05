@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { Trash2 } from "lucide-react"
 
+import { DmSectionMessage } from "@/components/dm/DmSectionMessage"
+import { formatDmTimestamp } from "@/lib/dm/formatTimestamp"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
-import { deleteDmEvent, fetchDmEvents } from "@/lib/services/dm-events-api.service"
-import { DM_EVENTS_CHANGED_EVENT, openCreateDmEventDialog } from "@/lib/navigation/global-create-events"
+import { deleteDmEvent, fetchDmEvents } from "@/lib/services/dm"
+import { DM_EVENTS_CHANGED_EVENT, openCreateDmEventDialog } from "@/lib/navigation/events"
 import type { DmEvent } from "@/lib/types"
 
 type DmEventsSectionProps = {
@@ -24,18 +26,6 @@ function sortDmEvents(events: DmEvent[]) {
     }
     return b.id - a.id
   })
-}
-
-function formatEventTimestamp(value?: string) {
-  if (!value) return null
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-
-  return new Intl.DateTimeFormat("es", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsed)
 }
 
 export default function DmEventsSection({ onOpenMention }: DmEventsSectionProps) {
@@ -108,16 +98,14 @@ export default function DmEventsSection({ onOpenMention }: DmEventsSectionProps)
         {eventsError ? <p className="text-sm text-destructive">{eventsError}</p> : null}
 
         {isEventsLoading ? (
-          <div className="rounded-md border border-border bg-background p-4 text-sm text-muted-foreground">
-            Cargando eventos...
-          </div>
+          <DmSectionMessage>Cargando eventos...</DmSectionMessage>
         ) : events.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border bg-background/80 p-6 text-sm text-muted-foreground">
+          <DmSectionMessage variant="empty">
             No hay eventos todavia. Usa <span className="font-semibold">Alt+E</span> para agregar uno.
-          </div>
+          </DmSectionMessage>
         ) : (
           events.map((eventItem) => {
-            const timestamp = formatEventTimestamp(eventItem.createdAt)
+            const timestamp = formatDmTimestamp(eventItem.createdAt)
 
             return (
               <article key={eventItem.id} className="rounded-md border border-border bg-card p-4 shadow-sm">

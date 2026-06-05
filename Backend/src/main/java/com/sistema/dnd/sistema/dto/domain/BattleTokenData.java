@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BattleTokenData(
     Integer number,
-    String nombre,
+    String name,
     Integer characterId,
     String sourceType,
     String sourceRef,

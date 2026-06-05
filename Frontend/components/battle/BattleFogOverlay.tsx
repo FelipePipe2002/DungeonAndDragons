@@ -137,7 +137,7 @@ export function BattleFogOverlay({
   interactive = false,
   editorMode = "idle",
   className,
-  overlayOpacity = 0.98,
+  overlayOpacity = 1,
   overlayVisible = true,
   interactionPaddingPx = 56,
   onCreateReveal,

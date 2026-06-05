@@ -1,3 +1,6 @@
+import type { LucideIcon } from "lucide-react"
+import { BookMarked, BookOpen, Building2, CalendarDays, Coins, Crown, Link2, MapPin, Package, ScrollText, Shield, Star, Swords, UserRound, Users, WandSparkles } from "lucide-react"
+
 export type MainNavItemId =
   | "mapa"
   | "entidades"
@@ -17,6 +20,20 @@ export type MainNavItem = {
 export type NavigationShortcut = {
   key: string
   action: string
+}
+
+export type AppSubnavItem = {
+  id: string
+  label: string
+  icon: LucideIcon
+  value: string
+}
+
+export type AppSubnavConfig = {
+  basePath: string
+  queryKey: string
+  defaultValue: string
+  items: AppSubnavItem[]
 }
 
 export const MAIN_NAV_ITEMS: MainNavItem[] = [
@@ -85,6 +102,49 @@ export const GLOBAL_NAVIGATION_SHORTCUTS: NavigationShortcut[] = MAIN_NAV_SHORTC
     } satisfies NavigationShortcut
   })
   .filter((shortcut): shortcut is NavigationShortcut => shortcut !== null)
+
+export const APP_SUBNAV_CONFIGS: AppSubnavConfig[] = [
+  {
+    basePath: "/informacion",
+    queryKey: "section",
+    defaultValue: "monsters",
+    items: [
+      { id: "monsters", value: "monsters", label: "Monstruos", icon: Swords },
+      { id: "conditions", value: "conditions", label: "Condiciones", icon: ScrollText },
+      { id: "spells", value: "spells", label: "Conjuros", icon: WandSparkles },
+      { id: "items", value: "items", label: "Items", icon: Package },
+      { id: "feats", value: "feats", label: "Dotes", icon: Star },
+      { id: "rules", value: "rules", label: "Reglas", icon: BookOpen },
+      { id: "books", value: "books", label: "Libros", icon: BookMarked },
+      { id: "pages", value: "pages", label: "Paginas", icon: Link2 },
+    ],
+  },
+  {
+    basePath: "/entidades",
+    queryKey: "section",
+    defaultValue: "personajes",
+    items: [
+      { id: "personajes", value: "personajes", label: "Personajes", icon: Users },
+      { id: "jugadores", value: "jugadores", label: "Jugadores", icon: UserRound },
+      { id: "edificios", value: "edificios", label: "Edificios", icon: Building2 },
+      { id: "organizaciones", value: "organizaciones", label: "Organizaciones", icon: Shield },
+      { id: "landmarks", value: "landmarks", label: "Landmarks", icon: MapPin },
+      { id: "estados", value: "estados", label: "Estados", icon: Crown },
+    ],
+  },
+  {
+    basePath: "/dm",
+    queryKey: "section",
+    defaultValue: "dm-notes",
+    items: [
+      { id: "dm-notes", value: "dm-notes", label: "DM", icon: BookOpen },
+      { id: "open-loops", value: "open-loops", label: "Open Loops", icon: ScrollText },
+      { id: "dm-events", value: "dm-events", label: "Eventos DM", icon: CalendarDays },
+      { id: "dm-relationships", value: "dm-relationships", label: "Relaciones", icon: Link2 },
+      { id: "party-inventory", value: "party-inventory", label: "Party Inventory", icon: Coins },
+    ],
+  },
+]
 
 // Atajos locales por pantalla. La vista detalle de landmarks agrega shortcuts propios.
 const LOCAL_SHORTCUTS_BY_PATH: Record<string, NavigationShortcut[]> = {
@@ -201,4 +261,21 @@ export function getLocalNavigationShortcuts(pathname: string | null | undefined)
   }
 
   return LOCAL_SHORTCUTS_BY_PATH[normalizedPath] ?? []
+}
+
+export function getSubnavConfig(pathname: string | null | undefined): AppSubnavConfig | null {
+  const normalizedPath = normalizeMainNavPath(pathname)
+
+  return (
+    APP_SUBNAV_CONFIGS.find((config) => normalizedPath === config.basePath || normalizedPath.startsWith(`${config.basePath}/`)) ?? null
+  )
+}
+
+export function getSubnavActiveValue(config: AppSubnavConfig, currentValue: string | null | undefined): string {
+  const normalizedValue = currentValue?.trim()
+  if (!normalizedValue) {
+    return config.defaultValue
+  }
+
+  return config.items.some((item) => item.value === normalizedValue) ? normalizedValue : config.defaultValue
 }

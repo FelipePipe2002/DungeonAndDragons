@@ -1,4 +1,4 @@
-import type { Spell } from "@/lib/spells/spell-store"
+import type { Spell } from "@/lib/informacion/spells/store"
 
 export interface SpellCardProps {
   spell: Spell

@@ -1,112 +1,43 @@
-import type { Organization, OrganizationMember } from "@/lib/types"
+import { toNumberArray, toOrganizationMember, toStringArray } from "@/lib/dto-mappers"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { dedupeNumbers, dedupeStrings, toOptionalText } from "@/lib/normalize"
+import type {
+  BackendOrganizationDto,
+  BackendOrganizationUpsertPayload,
+  Organization,
+  OrganizationMember,
+} from "@/lib/types"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { backendRequest } from "@/lib/services/backend-api.service"
-
-type OrganizationApiMemberDto = {
-  personajeId: number
-  nombre?: string | null
-  profesion?: string | null
-  raza?: string | null
-  landmarkId?: number | null
-  categoria?: string | null
-}
-
-type OrganizationApiDto = {
-  id: number
-  nombre: string
-  descripcion?: string | null
-  tags?: string[] | null
-  imagen?: string | null
-  imagenAssetId?: number | null
-  categorias?: string[] | null
-  edificios?: number[] | null
-  miembros?: OrganizationApiMemberDto[] | null
-  landmarks?: number[] | null
-}
-
-type OrganizationMemberUpsertPayload = {
-  personajeId: number
-  categoria: string
-}
-
-type OrganizationUpsertPayload = {
-  nombre: string
-  descripcion: string
-  tags: string[]
-  imagen: string | null
-  imagenAssetId: number | null
-  categorias: string[]
-  edificios: number[]
-  miembros: OrganizationMemberUpsertPayload[]
-  landmarks: number[]
-}
+import { backendRoutes } from "@/lib/services/backend-routes"
 
 let organizationsCache: Organization[] | null = null
 let organizationsPromise: Promise<Organization[]> | null = null
 const organizationByIdCache = new Map<number, Organization>()
 
-function toOptionalText(value: string | null | undefined): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function toStringArray(value: string[] | null | undefined): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === "string")
-}
-
-function toNumberArray(value: number[] | null | undefined): number[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
-}
-
-function dedupeNumbers(values: number[]) {
-  return Array.from(new Set(values))
-}
-
-function dedupeStrings(values: string[]) {
-  return Array.from(new Set(values))
-}
-
-function toOrganizationMember(dto: OrganizationApiMemberDto): OrganizationMember {
-  const characterId =
-    typeof dto.personajeId === "number" && Number.isFinite(dto.personajeId) ? dto.personajeId : 0
-
-  return {
-    personajeId: characterId,
-    nombre: toOptionalText(dto.nombre) ?? `Miembro ${characterId}`,
-    profesion: toOptionalText(dto.profesion) ?? "",
-    raza: toOptionalText(dto.raza) ?? "",
-    landmarkId:
-      typeof dto.landmarkId === "number" && Number.isFinite(dto.landmarkId) ? dto.landmarkId : 0,
-    categoria: toOptionalText(dto.categoria) ?? "",
-  }
-}
-
-function toOrganization(dto: OrganizationApiDto): Organization {
+function toOrganization(dto: BackendOrganizationDto): Organization {
   const imagenAssetId =
-    typeof dto.imagenAssetId === "number" && Number.isFinite(dto.imagenAssetId) && dto.imagenAssetId > 0
-      ? dto.imagenAssetId
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? dto.imageAssetId
       : undefined
 
   return {
     id: dto.id,
-    nombre: dto.nombre ?? "",
-    descripcion: dto.descripcion ?? "",
+    nombre: dto.name ?? "",
+    descripcion: dto.description ?? "",
     tags: dedupeStrings(toStringArray(dto.tags).map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
-    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
+    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.image),
     imagenAssetId,
     categorias: dedupeStrings(
-      toStringArray(dto.categorias).map((category) => category.trim()).filter((category) => category.length > 0),
+      toStringArray(dto.categories).map((category) => category.trim()).filter((category) => category.length > 0),
     ),
-    edificios: dedupeNumbers(toNumberArray(dto.edificios)),
-    miembros: Array.isArray(dto.miembros) ? dto.miembros.map(toOrganizationMember) : [],
+    edificios: dedupeNumbers(toNumberArray(dto.buildingIds)),
+    miembros: Array.isArray(dto.members) ? dto.members.map(toOrganizationMember) : [],
     landmarks: dedupeNumbers(toNumberArray(dto.landmarks).filter((landmarkId) => landmarkId > 0)),
   }
 }
 
-function toOrganizationUpsertPayload(input: Omit<Organization, "id">): OrganizationUpsertPayload {
+function toOrganizationUpsertPayload(input: Omit<Organization, "id">): BackendOrganizationUpsertPayload {
   const membersByCharacterId = new Map<number, OrganizationMember>()
   for (const member of input.miembros) {
     if (typeof member.personajeId !== "number" || !Number.isFinite(member.personajeId)) {
@@ -121,16 +52,15 @@ function toOrganizationUpsertPayload(input: Omit<Organization, "id">): Organizat
       : null
 
   return {
-    nombre: input.nombre.trim(),
-    descripcion: input.descripcion.trim(),
+    name: input.nombre.trim(),
+    description: input.descripcion.trim(),
     tags: dedupeStrings(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
-    imagen: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
-    imagenAssetId,
-    categorias: dedupeStrings(input.categorias.map((category) => category.trim()).filter((category) => category.length > 0)),
-    edificios: dedupeNumbers(input.edificios.filter((buildingId) => Number.isFinite(buildingId))),
-    miembros: Array.from(membersByCharacterId.values()).map((member) => ({
-      personajeId: member.personajeId,
-      categoria: member.categoria?.trim() ?? "",
+    image: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
+    imageAssetId: imagenAssetId,
+    buildingIds: dedupeNumbers(input.edificios.filter((buildingId) => Number.isFinite(buildingId))),
+    members: Array.from(membersByCharacterId.values()).map((member) => ({
+      characterId: member.personajeId,
+      category: member.categoria?.trim() ?? "",
     })),
     landmarks: dedupeNumbers(input.landmarks.filter((landmarkId) => Number.isFinite(landmarkId) && landmarkId > 0)),
   }
@@ -153,7 +83,7 @@ export async function fetchOrganizations(forceRefresh = false): Promise<Organiza
     return organizationsPromise
   }
 
-  const pendingRequest = backendRequest<OrganizationApiDto[]>("/v1/organizations")
+  const pendingRequest = backendRequest<BackendOrganizationDto[]>(backendRoutes.organizations.collection)
     .then((response) => {
       const organizations = response.map(toOrganization)
       writeOrganizationsCache(organizations)
@@ -173,14 +103,14 @@ export async function fetchOrganizationById(organizationId: number): Promise<Org
     return cached
   }
 
-  const response = await backendRequest<OrganizationApiDto>(`/v1/organizations/${organizationId}`)
+  const response = await backendRequest<BackendOrganizationDto>(backendRoutes.organizations.byId(organizationId))
   const organization = toOrganization(response)
   organizationByIdCache.set(organization.id, organization)
   return organization
 }
 
 export async function createOrganization(input: Omit<Organization, "id">): Promise<Organization> {
-  const response = await backendRequest<OrganizationApiDto>("/v1/organizations", {
+  const response = await backendRequest<BackendOrganizationDto>(backendRoutes.organizations.collection, {
     method: "POST",
     body: toOrganizationUpsertPayload(input),
   })
@@ -196,7 +126,7 @@ export async function updateOrganization(
   organizationId: number,
   input: Omit<Organization, "id">,
 ): Promise<Organization> {
-  const response = await backendRequest<OrganizationApiDto>(`/v1/organizations/${organizationId}`, {
+  const response = await backendRequest<BackendOrganizationDto>(backendRoutes.organizations.byId(organizationId), {
     method: "PUT",
     body: toOrganizationUpsertPayload(input),
   })
@@ -209,7 +139,7 @@ export async function updateOrganization(
 }
 
 export async function deleteOrganization(organizationId: number): Promise<void> {
-  await backendRequest<void>(`/v1/organizations/${organizationId}`, {
+  await backendRequest<void>(backendRoutes.organizations.byId(organizationId), {
     method: "DELETE",
   })
 
@@ -225,5 +155,5 @@ export function clearOrganizationsCache() {
 }
 
 export function getCachedOrganizationName(organizationId: number) {
-  return organizationByIdCache.get(organizationId)?.nombre ?? "Desconocido"
+  return organizationByIdCache.get(organizationId)?.nombre ?? UNKNOWN_LABEL
 }

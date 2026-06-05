@@ -1,27 +1,27 @@
 package com.sistema.dnd.sistema.dto.domain;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record EstadoUpsertRequest(
-    @NotBlank(message = "El nombre del estado es obligatorio")
-    @Size(max = 200, message = "El nombre del estado debe tener max 200 caracteres")
-    String nombre,
-    @NotBlank(message = "El tipo del estado es obligatorio")
-    @Size(max = 120, message = "El tipo del estado debe tener max 120 caracteres")
-    String tipo,
-    String descripcion,
-    String historia,
-    @Size(max = 120, message = "El tipo de gobierno debe tener max 120 caracteres")
-    String gobiernoTipo,
-    String imagen,
-    Long imagenAssetId,
-    String territorioImagen,
-    Long territorioImagenAssetId,
-    Long estadoPadreId,
-    List<EstadoMemberRequest> miembros,
-    List<EstadoLandmarkRoleRequest> landmarks,
-    List<String> subdivisiones
+    @NotBlank(message = "name es obligatorio")
+    @Size(max = 200, message = "name debe tener max 200 caracteres")
+    String name,
+    @NotBlank(message = "type es obligatorio")
+    @Size(max = 120, message = "type debe tener max 120 caracteres")
+    String type,
+    String description,
+    String history,
+    @Size(max = 120, message = "governmentType debe tener max 120 caracteres")
+    String governmentType,
+    String image,
+    Long imageAssetId,
+    String territoryImage,
+    Long territoryImageAssetId,
+    Long parentStateId,
+    List<@Valid EstadoMemberDto> members,
+    List<@Valid EstadoLandmarkRoleDto> landmarks
 ) {
 }

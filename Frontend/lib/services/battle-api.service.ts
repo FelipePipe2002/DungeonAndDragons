@@ -1,9 +1,20 @@
 import { normalizeCurrentTurnTokenNumber } from "@/lib/battle/initiative"
 import { normalizeBattleConditionStatus } from "@/lib/battle/conditions"
 import { normalizeBestiaryLocalImagePath } from "@/lib/monster/utils"
+import { toOptionalText } from "@/lib/normalize"
 import { backendRequest } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 import { buildAssetUrl, getBackendAssetIdFromUrl } from "@/lib/services/asset-api.service"
 import type {
+  BackendBattleCenterHistoryDto as BattleCenterHistoryDto,
+  BackendBattleCreateInput as CreateBattleInput,
+  BackendBattleDungeonFogStateDto as BattleDungeonFogStateDto,
+  BackendBattleFogRevealDto as BattleFogRevealDto,
+  BackendBattleObstacleDto as BattleObstacleDto,
+  BackendBattleStateDto as BattleStateDto,
+  BackendBattleSummaryDto as BattleSummaryDto,
+  BackendBattleTokenDto as BattleTokenDto,
+  BackendBattleUpdatePayload as UpdateBattlePayload,
   BattleCenterHistory,
   BattleDungeonFogState,
   BattleFogReveal,
@@ -17,173 +28,6 @@ import type {
   BattleTokenSourceType,
   BattleTokenType,
 } from "@/lib/types"
-
-type BattleTokenDto = {
-  number?: number | null
-  nombre?: string | null
-  characterId?: number | null
-  sourceType?: string | null
-  sourceRef?: string | null
-  image?: string | null
-  imageAssetId?: number | null
-  imageFocusX?: number | null
-  imageFocusY?: number | null
-  imageZoom?: number | null
-  type?: string | null
-  x?: number | null
-  y?: number | null
-  initiative?: number | null
-  life?: number | null
-  size?: number | null
-  status?: string | null
-  statusDurationTurns?: number | null
-  hidden?: boolean | null
-}
-
-type BattleObstacleDto = {
-  id?: number | null
-  shape?: string | null
-  x?: number | null
-  y?: number | null
-  width?: number | null
-  height?: number | null
-  rotation?: number | null
-  color?: string | null
-  name?: string | null
-  image?: string | null
-  imageAssetId?: number | null
-  hidden?: boolean | null
-}
-
-type BattleFogRevealDto = {
-  id?: number | null
-  x?: number | null
-  y?: number | null
-  width?: number | null
-  height?: number | null
-}
-
-type BattleDungeonFogStateDto = {
-  enabled?: boolean | null
-  exploredCellKeys?: string[] | null
-  openDoorIds?: string[] | null
-  playerVisionBrightRadiusCells?: number | null
-  playerVisionDimRadiusCells?: number | null
-}
-
-type BattleStateDto = {
-  id?: number | null
-  slug?: string | null
-  landmarkSlug?: string | null
-  sceneType?: string | null
-  sceneSlug?: string | null
-  parentLandmarkSlug?: string | null
-  title?: string | null
-  status?: string | null
-  roundNumber?: number | null
-  dmNotes?: string | null
-  nextTokenNumber?: number | null
-  currentTurnTokenNumber?: number | null
-  tokens?: BattleTokenDto[] | null
-  nextObstacleId?: number | null
-  obstacles?: BattleObstacleDto[] | null
-  fogEnabled?: boolean | null
-  nextFogRevealId?: number | null
-  fogReveals?: BattleFogRevealDto[] | null
-  dungeonFog?: BattleDungeonFogStateDto | null
-  createdAt?: string | null
-  updatedAt?: string | null
-  endedAt?: string | null
-}
-
-type BattleSummaryDto = {
-  id?: number | null
-  slug?: string | null
-  landmarkSlug?: string | null
-  sceneType?: string | null
-  sceneSlug?: string | null
-  parentLandmarkSlug?: string | null
-  title?: string | null
-  status?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
-  endedAt?: string | null
-  tokenCount?: number | null
-  obstacleCount?: number | null
-}
-
-type BattleCenterHistoryDto = {
-  activeBattles?: BattleSummaryDto[] | null
-  finishedBattles?: BattleSummaryDto[] | null
-  page?: number | null
-  pageSize?: number | null
-  totalFinishedBattles?: number | null
-  totalFinishedPages?: number | null
-  hasPreviousPage?: boolean | null
-  hasNextPage?: boolean | null
-}
-
-type UpdateBattlePayload = {
-  title: string
-  roundNumber: number
-  dmNotes: string | null
-  nextTokenNumber: number
-  currentTurnTokenNumber: number | null
-  tokens: Array<{
-    number: number
-    nombre: string
-    characterId: number | null
-    sourceType: BattleTokenSourceType | null
-    sourceRef: string | null
-    image: string | null
-    imageAssetId: number | null
-    imageFocusX: number | null
-    imageFocusY: number | null
-    imageZoom: number | null
-    type: BattleTokenType
-    x: number
-    y: number
-    initiative: number | null
-    life: number | null
-    size: number | null
-    status: string | null
-    statusDurationTurns: number | null
-    hidden: boolean | null
-  }>
-  nextObstacleId: number
-  obstacles: Array<{
-    id: number
-    shape: BattleObstacleShape
-    x: number
-    y: number
-    width: number
-    height: number
-    rotation: number
-    color: string | null
-    name: string | null
-    image: string | null
-    imageAssetId: number | null
-    hidden: boolean | null
-  }>
-  fogEnabled: boolean
-  nextFogRevealId: number
-  fogReveals: Array<{
-    id: number
-    x: number
-    y: number
-    width: number
-    height: number
-  }>
-  dungeonFog: BattleDungeonFogState
-}
-
-type CreateBattleInput =
-  | string
-  | {
-      sceneType: BattleSceneType
-      sceneSlug: string
-      parentLandmarkSlug: string
-    }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -219,12 +63,6 @@ function clampFogRevealDimension(value: number | null | undefined, fallback: num
   }
 
   return Math.round(clamp(value, 0.1, 100) * 100) / 100
-}
-
-function toOptionalText(value: string | null | undefined) {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function normalizeDateText(value: string | null | undefined) {
@@ -708,7 +546,7 @@ function normalizeCenterHistory(dto: BattleCenterHistoryDto | null | undefined):
 }
 
 export async function fetchCurrentBattle(): Promise<BattleState | null> {
-  const response = await backendRequest<BattleStateDto | undefined>("/v1/battles/active/current")
+  const response = await backendRequest<BattleStateDto | undefined>(backendRoutes.battles.activeCurrent)
   return response ? normalizeState(response) : null
 }
 
@@ -716,14 +554,7 @@ export async function fetchActiveBattle(
   sceneType: BattleSceneType,
   sceneSlug: string,
 ): Promise<BattleState | null> {
-  const searchParams = new URLSearchParams({
-    sceneType,
-    sceneSlug,
-  })
-
-  const response = await backendRequest<BattleStateDto | undefined>(
-    `/v1/battles/active?${searchParams.toString()}`,
-  )
+  const response = await backendRequest<BattleStateDto | undefined>(backendRoutes.battles.active(sceneType, sceneSlug))
 
   return response ? normalizeState(response) : null
 }
@@ -735,17 +566,12 @@ export async function fetchBattleHistory(
     sceneSlug?: string | null
   },
 ): Promise<BattleSummary[]> {
-  const searchParams = new URLSearchParams({
-    parentLandmarkSlug: landmarkSlug,
-  })
-
-  if (options?.sceneSlug?.trim()) {
-    searchParams.set("sceneSlug", options.sceneSlug.trim())
-    searchParams.set("sceneType", options.sceneType === "building" ? "building" : "landmark")
-  }
-
   const response = await backendRequest<BattleSummaryDto[]>(
-    `/v1/battles?${searchParams.toString()}`,
+    backendRoutes.battles.collection({
+      parentLandmarkSlug: landmarkSlug,
+      sceneSlug: options?.sceneSlug?.trim() || null,
+      sceneType: options?.sceneSlug?.trim() ? (options.sceneType === "building" ? "building" : "landmark") : null,
+    }),
   )
 
   return Array.isArray(response) ? response.map(normalizeSummary) : []
@@ -756,29 +582,25 @@ export async function fetchBattleCenterHistory(options?: {
   page?: number
   pageSize?: number
 }): Promise<BattleCenterHistory> {
-  const searchParams = new URLSearchParams()
-
-  if (options?.sceneType) {
-    searchParams.set("sceneType", options.sceneType)
-  }
-
-  if (typeof options?.page === "number" && Number.isFinite(options.page) && options.page >= 0) {
-    searchParams.set("page", String(Math.trunc(options.page)))
-  }
-
-  if (typeof options?.pageSize === "number" && Number.isFinite(options.pageSize) && options.pageSize > 0) {
-    searchParams.set("pageSize", String(Math.trunc(options.pageSize)))
-  }
-
   const response = await backendRequest<BattleCenterHistoryDto>(
-    `/v1/battles/center-history${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+    backendRoutes.battles.centerHistory({
+      sceneType: options?.sceneType ?? null,
+      page:
+        typeof options?.page === "number" && Number.isFinite(options.page) && options.page >= 0
+          ? Math.trunc(options.page)
+          : undefined,
+      pageSize:
+        typeof options?.pageSize === "number" && Number.isFinite(options.pageSize) && options.pageSize > 0
+          ? Math.trunc(options.pageSize)
+          : undefined,
+    }),
   )
 
   return normalizeCenterHistory(response)
 }
 
 export async function fetchBattleById(id: number): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}`)
+  const response = await backendRequest<BattleStateDto>(backendRoutes.battles.byId(id))
   return normalizeState(response)
 }
 
@@ -792,7 +614,7 @@ export async function createBattle(input: CreateBattleInput): Promise<BattleStat
         }
       : input
 
-  const response = await backendRequest<BattleStateDto>("/v1/battles", {
+  const response = await backendRequest<BattleStateDto>(backendRoutes.battles.collection(), {
     method: "POST",
     body: payload,
   })
@@ -800,7 +622,7 @@ export async function createBattle(input: CreateBattleInput): Promise<BattleStat
 }
 
 export async function updateBattle(id: number, input: BattleState): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}`, {
+  const response = await backendRequest<BattleStateDto>(backendRoutes.battles.byId(id), {
     method: "PUT",
     body: toPayload(input),
   })
@@ -808,20 +630,20 @@ export async function updateBattle(id: number, input: BattleState): Promise<Batt
 }
 
 export async function deleteBattle(id: number): Promise<void> {
-  await backendRequest<void>(`/v1/battles/${id}`, {
+  await backendRequest<void>(backendRoutes.battles.byId(id), {
     method: "DELETE",
   })
 }
 
 export async function finishBattle(id: number): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}/finish`, {
+  const response = await backendRequest<BattleStateDto>(backendRoutes.battles.finish(id), {
     method: "POST",
   })
   return normalizeState(response)
 }
 
 export async function reopenBattle(id: number): Promise<BattleState> {
-  const response = await backendRequest<BattleStateDto>(`/v1/battles/${id}/reopen`, {
+  const response = await backendRequest<BattleStateDto>(backendRoutes.battles.reopen(id), {
     method: "POST",
   })
   return normalizeState(response)

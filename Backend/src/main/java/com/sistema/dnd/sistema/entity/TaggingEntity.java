@@ -1,5 +1,6 @@
 package com.sistema.dnd.sistema.entity;
 
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

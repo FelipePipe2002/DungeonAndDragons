@@ -1,7 +1,6 @@
 package com.sistema.dnd.sistema.controllers;
 
 import com.sistema.dnd.sistema.dto.domain.SavedPageDto;
-import com.sistema.dnd.sistema.dto.domain.SavedPageUpsertRequest;
 import com.sistema.dnd.sistema.services.SavedPageService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,12 +31,12 @@ public class SavedPageController {
     }
 
     @PostMapping
-    public ResponseEntity<SavedPageDto> create(@Valid @RequestBody SavedPageUpsertRequest request) {
+    public ResponseEntity<SavedPageDto> create(@Valid @RequestBody SavedPageDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPageService.create(request));
     }
 
     @PutMapping("/{id}")
-    public SavedPageDto update(@PathVariable Long id, @Valid @RequestBody SavedPageUpsertRequest request) {
+    public SavedPageDto update(@PathVariable Long id, @Valid @RequestBody SavedPageDto request) {
         return savedPageService.update(id, request);
     }
 

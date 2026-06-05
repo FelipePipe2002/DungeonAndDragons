@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkUpsertRequest;
-import com.sistema.dnd.sistema.entity.LandmarkType;
+import com.sistema.dnd.sistema.entity.enums.LandmarkType;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
@@ -33,7 +33,7 @@ public class LandmarkMapValidator {
             mapAsset = resolveMapAsset(mapAssetId);
         }
 
-        validate(request.tipo(), request.mapa(), mapAsset);
+        validate(request.type(), request.map(), mapAsset);
         return mapAsset;
     }
 

@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
+import { EntitiesPageHeader } from "@/components/entities/EntitiesPageHeader"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { isLandmarkImageIcon, LANDMARK_TYPE_LABELS } from "@/lib/landmarks/utils"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
@@ -17,27 +19,12 @@ import { fetchOrganizations } from "@/lib/services/organization-api.service"
 import type { Landmark } from "@/lib/types"
 import { ArrowRight, Building2, CalendarDays, MapPin, Shield, Users } from "lucide-react"
 
-function isImageIcon(icono: string) {
-  return icono.startsWith("http://") || icono.startsWith("https://") || icono.startsWith("data:") || icono.startsWith("/")
-}
-
 function LandmarkIcon({ landmark, className }: { landmark: Landmark; className: string }) {
-  if (isImageIcon(landmark.icono)) {
+  if (isLandmarkImageIcon(landmark.icono)) {
     return <img src={landmark.icono} alt={landmark.nombre} className={`${className} object-contain`} />
   }
 
   return <MapPin className={className} />
-}
-
-const tipoLabels: Record<string, string> = {
-  ciudad: "Ciudad",
-  pueblo: "Pueblo",
-  aldea: "Aldea",
-  fuerte: "Fuerte",
-  puente: "Puente",
-  bandera: "Bandera",
-  campamento: "Campamento",
-  mazmorra: "Mazmorra",
 }
 
 type LandmarksPageContentProps = {
@@ -147,7 +134,7 @@ export function LandmarksPageContent({ showHeader = true, loadRelatedData = true
           searchQuery,
           landmark.nombre,
           landmark.tipo,
-          tipoLabels[landmark.tipo] ?? landmark.tipo,
+          LANDMARK_TYPE_LABELS[landmark.tipo] ?? landmark.tipo,
           landmark.descripcionCorta,
           landmark.historia,
           landmark.tags,
@@ -161,20 +148,12 @@ export function LandmarksPageContent({ showHeader = true, loadRelatedData = true
 
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-8">
-      {showHeader ? (
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex size-10 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
-              <MapPin className="size-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-serif text-primary">Landmarks</h1>
-              <p className="text-sm text-muted-foreground">{filteredLandmarks.length} de {landmarksData.length} regiones registradas en el codex</p>
-            </div>
-          </div>
-          <div className="ornament-divider mt-4">~</div>
-        </div>
-      ) : null}
+      <EntitiesPageHeader
+        showHeader={showHeader}
+        title="Landmarks"
+        summary={`${filteredLandmarks.length} de ${landmarksData.length} regiones registradas en el codex`}
+        icon={<MapPin className="size-5 text-primary" />}
+      />
 
       <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por nombre, tipo, descripcion, tags o contenido relacionado..." className="mb-4" />
 
@@ -202,7 +181,7 @@ export function LandmarksPageContent({ showHeader = true, loadRelatedData = true
             >
               <div className="flex w-20 shrink-0 flex-col items-center justify-center border-r border-border bg-secondary/40 p-4">
                 <LandmarkIcon landmark={landmark} className="size-8 text-primary" />
-                <span className="mt-2 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground text-center">{tipoLabels[landmark.tipo] ?? landmark.tipo}</span>
+                <span className="mt-2 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground text-center">{LANDMARK_TYPE_LABELS[landmark.tipo] ?? landmark.tipo}</span>
               </div>
 
               <div className="flex flex-1 flex-col gap-2 p-5">

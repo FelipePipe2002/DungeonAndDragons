@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { MentionField, type MentionRef } from "@/components/mentionField/MentionField"
 import { Button } from "@/components/ui/button"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
-import { fetchDmNotes, updateDmNotes } from "@/lib/services/dm-notes-api.service"
+import { fetchDmNotes, updateDmNotes } from "@/lib/services/dm"
 
 const DM_NOTES_SAVE_DEBOUNCE_MS = 450
 

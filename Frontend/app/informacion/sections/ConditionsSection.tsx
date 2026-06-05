@@ -4,8 +4,62 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserSelectableListItem } from "@/components/browser/BrowserSelectableListItem"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import { useConditionsSection } from "@/app/informacion/hooks/useConditionsSection"
-import { getListItemClassName, InformationSidebar } from "./shared"
+import type { ConditionEntryBlock } from "@/lib/informacion/types"
+
+function renderConditionBlock(conditionId: string, block: ConditionEntryBlock, index: number) {
+  if (block.kind === "paragraph") {
+    return (
+      <p key={`${conditionId}-paragraph-${index}`} className="text-sm leading-7 text-[#3b2a1c]">
+        {block.text}
+      </p>
+    )
+  }
+
+  if (block.kind === "list") {
+    return (
+      <ul key={`${conditionId}-list-${index}`} className="list-disc space-y-2 pl-5">
+        {block.items.map((item, itemIndex) => (
+          <li key={`${conditionId}-list-item-${index}-${itemIndex}`} className="text-sm leading-7 text-[#3b2a1c]">
+            {item}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  return (
+    <div key={`${conditionId}-table-${index}`} className="overflow-x-auto rounded-sm border" style={{ borderColor: "rgba(125, 62, 29, 0.18)", background: "rgba(255, 255, 255, 0.72)" }}>
+      <table className="min-w-full text-left text-sm">
+        {block.headers.length > 0 ? (
+          <thead className="border-b" style={{ borderColor: "rgba(125, 62, 29, 0.18)", background: "rgba(125, 62, 29, 0.08)" }}>
+            <tr>
+              {block.headers.map((header, headerIndex) => (
+                <th key={`${conditionId}-table-header-${index}-${headerIndex}`} className="px-3 py-2 font-semibold text-[#352417]">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        ) : null}
+        <tbody>
+          {block.rows.map((row, rowIndex) => (
+            <tr key={`${conditionId}-table-row-${index}-${rowIndex}`} className={rowIndex % 2 === 0 ? "bg-white/60" : "bg-transparent"}>
+              {row.map((cell, cellIndex) => (
+                <td key={`${conditionId}-table-cell-${index}-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-[#3b2a1c]">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export default function ConditionsSection() {
   const conditions = useConditionsSection({ isActive: true })
@@ -14,7 +68,7 @@ export default function ConditionsSection() {
   return (
     <BrowserLayout
       sidebar={
-        <InformationSidebar
+        <BrowserSidebar
           query={conditions.conditionQuery}
           onQueryChange={conditions.setConditionQuery}
           placeholder="Buscar condicion..."
@@ -24,24 +78,21 @@ export default function ConditionsSection() {
               const isActive = conditions.selectedConditionId === condition.id
 
               return (
-                <button
+                <BrowserSelectableListItem
                   key={condition.id}
-                  type="button"
                   onClick={() => conditions.setSelectedConditionId(condition.id)}
-                  className={getListItemClassName(isActive)}
-                  style={{ borderLeftWidth: 4, borderLeftColor: condition.color }}
+                  isActive={isActive}
+                  accentColor={condition.color}
                 >
                   <p className="font-semibold text-foreground">{condition.name}</p>
-                </button>
+                </BrowserSelectableListItem>
               )
             })}
             {conditions.filteredConditions.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No hay condiciones que coincidan con esa busqueda.
-              </p>
+              <BrowserListMessage>No hay condiciones que coincidan con esa busqueda.</BrowserListMessage>
             ) : null}
           </BrowserList>
-        </InformationSidebar>
+        </BrowserSidebar>
       }
       detail={
         <BrowserDetailPanel>
@@ -62,58 +113,7 @@ export default function ConditionsSection() {
                 />
               </header>
               <div className="rounded-sm border p-4" style={{ borderColor: "#d7c5a8", backgroundColor: "rgba(255, 249, 238, 0.74)" }}>
-                <div className="space-y-4">
-                  {selectedCondition.blocks.map((block, index) => {
-                    if (block.kind === "paragraph") {
-                      return (
-                        <p key={`${selectedCondition.id}-paragraph-${index}`} className="text-sm leading-7 text-[#3b2a1c]">
-                          {block.text}
-                        </p>
-                      )
-                    }
-
-                    if (block.kind === "list") {
-                      return (
-                        <ul key={`${selectedCondition.id}-list-${index}`} className="list-disc space-y-2 pl-5">
-                          {block.items.map((item, itemIndex) => (
-                            <li key={`${selectedCondition.id}-list-item-${index}-${itemIndex}`} className="text-sm leading-7 text-[#3b2a1c]">
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      )
-                    }
-
-                    return (
-                      <div key={`${selectedCondition.id}-table-${index}`} className="overflow-x-auto rounded-sm border" style={{ borderColor: "rgba(125, 62, 29, 0.18)", background: "rgba(255, 255, 255, 0.72)" }}>
-                        <table className="min-w-full text-left text-sm">
-                          {block.headers.length > 0 && (
-                            <thead className="border-b" style={{ borderColor: "rgba(125, 62, 29, 0.18)", background: "rgba(125, 62, 29, 0.08)" }}>
-                              <tr>
-                                {block.headers.map((header, headerIndex) => (
-                                  <th key={`${selectedCondition.id}-table-header-${index}-${headerIndex}`} className="px-3 py-2 font-semibold text-[#352417]">
-                                    {header}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                          )}
-                          <tbody>
-                            {block.rows.map((row, rowIndex) => (
-                              <tr key={`${selectedCondition.id}-table-row-${index}-${rowIndex}`} className={rowIndex % 2 === 0 ? "bg-white/60" : "bg-transparent"}>
-                                {row.map((cell, cellIndex) => (
-                                  <td key={`${selectedCondition.id}-table-cell-${index}-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-[#3b2a1c]">
-                                    {cell}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  })}
-                </div>
+                <div className="space-y-4">{selectedCondition.blocks.map((block, index) => renderConditionBlock(selectedCondition.id, block, index))}</div>
               </div>
             </article>
           ) : (

@@ -1,7 +1,7 @@
 package com.sistema.dnd.sistema.dto.domain;
 
-import com.sistema.dnd.sistema.entity.LandmarkMapKind;
-import com.sistema.dnd.sistema.entity.LandmarkMapSource;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
 import jakarta.validation.constraints.NotNull;
 
 public record LandmarkMapRequest(

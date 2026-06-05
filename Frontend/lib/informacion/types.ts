@@ -1,8 +1,8 @@
-import type { Feat, FeatEntryBlock } from "@/lib/feats/feat-store"
-import type { Item, ItemEntryBlock } from "@/lib/items/item-store"
+import type { Feat, FeatEntryBlock } from "@/lib/informacion/feats/store"
+import type { Item, ItemEntryBlock } from "@/lib/informacion/items/store"
 import type { MonsterListItem, MonsterRecord } from "@/lib/monster/types"
-import type { Rule, RuleEntryBlock } from "@/lib/rules/rule-store"
-import type { Spell } from "@/lib/spells/spell-store"
+import type { Rule, RuleEntryBlock } from "@/lib/informacion/rules/store"
+import type { Spell } from "@/lib/informacion/spells/store"
 
 export type InformationSection = "monsters" | "conditions" | "spells" | "items" | "feats" | "rules" | "books" | "pages"
 

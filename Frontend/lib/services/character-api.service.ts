@@ -1,7 +1,16 @@
 import { normalizeCharacterSheet } from "@/lib/character-sheet"
-import type { Character, CharacterEvent, CharacterSheet } from "@/lib/types"
+import { toCharacterEvent, toNumberArray, toStringArray } from "@/lib/dto-mappers"
+import { toOptionalText } from "@/lib/normalize"
+import type {
+  BackendBuildingReferenceDto,
+  BackendCharacterDto,
+  BackendCharacterUpsertPayload,
+  Character,
+  CharacterSheet,
+} from "@/lib/types"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { backendRequest } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 import {
   fetchLandmarkReferences,
   type LandmarkReference,
@@ -29,64 +38,6 @@ export interface CharacterReferences {
   organizations: CharacterOrganizationReference[]
 }
 
-type CharacterApiEventDto = {
-  sesion: string
-  descripcion: string
-  fecha?: string | null
-}
-
-type CharacterApiDto = {
-  id: number
-  nombre: string
-  clase: string
-  raza: string
-  descripcion: string
-  isPlayer?: boolean | null
-  characterSheet?: CharacterSheet | null
-  tags?: string[] | null
-  imagen?: string | null
-  imagenAssetId?: number | null
-  tokenImageFocusX?: number | null
-  tokenImageFocusY?: number | null
-  tokenImageZoom?: number | null
-  initiativeImageFocusX?: number | null
-  initiativeImageFocusY?: number | null
-  initiativeImageZoom?: number | null
-  landmarkId?: number | null
-  buildingIds?: number[] | null
-  organizationIds?: number[] | null
-  eventos?: CharacterApiEventDto[] | null
-}
-
-type CharacterUpsertPayload = {
-  nombre: string
-  clase: string
-  raza: string
-  descripcion: string
-  isPlayer: boolean
-  characterSheet: CharacterSheet | null
-  tags: string[]
-  imagen: string | null
-  imagenAssetId: number | null
-  tokenImageFocusX: number | null
-  tokenImageFocusY: number | null
-  tokenImageZoom: number | null
-  initiativeImageFocusX: number | null
-  initiativeImageFocusY: number | null
-  initiativeImageZoom: number | null
-  landmarkId: number | null
-  buildingIds: number[]
-  organizationIds: number[]
-  eventos: CharacterApiEventDto[]
-}
-
-type BuildingRefDto = {
-  id: number
-  nombre: string
-  landmarkId?: number | null
-  duenoId?: number | null
-}
-
 type FetchCharactersOptions = {
   forceRefresh?: boolean
   isPlayer?: boolean
@@ -100,50 +51,26 @@ let playerCharactersPromise: Promise<Character[]> | null = null
 let npcCharactersPromise: Promise<Character[]> | null = null
 const characterByIdCache = new Map<number, Character>()
 
-function toOptionalText(value: string | null | undefined): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function toStringArray(value: string[] | null | undefined): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === "string")
-}
-
-function toNumberArray(value: number[] | null | undefined): number[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
-}
-
-function toCharacterEvent(event: CharacterApiEventDto): CharacterEvent {
-  return {
-    sesion: event.sesion ?? "",
-    descripcion: event.descripcion ?? "",
-    fecha: toOptionalText(event.fecha),
-  }
-}
-
-function toCharacter(dto: CharacterApiDto): Character {
+function toCharacter(dto: BackendCharacterDto): Character {
   const imagenAssetId =
-    typeof dto.imagenAssetId === "number" && Number.isFinite(dto.imagenAssetId) && dto.imagenAssetId > 0
-      ? dto.imagenAssetId
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? dto.imageAssetId
       : undefined
 
   return {
     id: dto.id,
-    nombre: dto.nombre ?? "",
-    clase: dto.clase ?? "",
-    raza: dto.raza ?? "",
-    descripcion: dto.descripcion ?? "",
+    nombre: dto.name ?? "",
+    clase: dto.characterClass ?? "",
+    raza: dto.race ?? "",
+    descripcion: dto.description ?? "",
     isPlayer: dto.isPlayer === true,
     characterSheet: normalizeCharacterSheet(dto.characterSheet ?? null, {
-      nombre: dto.nombre ?? "",
-      raza: dto.raza ?? "",
-      clase: dto.clase ?? "",
+      nombre: dto.name ?? "",
+      raza: dto.race ?? "",
+      clase: dto.characterClass ?? "",
     }),
     tags: toStringArray(dto.tags),
-    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
+    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.image),
     imagenAssetId,
     tokenImageFocusX:
       typeof dto.tokenImageFocusX === "number" && Number.isFinite(dto.tokenImageFocusX)
@@ -170,21 +97,21 @@ function toCharacter(dto: CharacterApiDto): Character {
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : 0,
     buildingIds: toNumberArray(dto.buildingIds),
     organizationIds: toNumberArray(dto.organizationIds),
-    eventos: Array.isArray(dto.eventos) ? dto.eventos.map(toCharacterEvent) : [],
+    eventos: Array.isArray(dto.events) ? dto.events.map(toCharacterEvent) : [],
   }
 }
 
-function toCharacterUpsertPayload(input: Omit<Character, "id">): CharacterUpsertPayload {
+function toCharacterUpsertPayload(input: Omit<Character, "id">): BackendCharacterUpsertPayload {
   const imagenAssetId =
     typeof input.imagenAssetId === "number" && Number.isFinite(input.imagenAssetId) && input.imagenAssetId > 0
       ? input.imagenAssetId
       : null
 
   return {
-    nombre: input.nombre.trim(),
-    clase: input.clase.trim(),
-    raza: input.raza.trim(),
-    descripcion: input.descripcion.trim(),
+    name: input.nombre.trim(),
+    characterClass: input.clase.trim(),
+    race: input.raza.trim(),
+    description: input.descripcion.trim(),
     isPlayer: input.isPlayer === true,
     characterSheet: normalizeCharacterSheet(input.characterSheet, {
       nombre: input.nombre,
@@ -192,8 +119,8 @@ function toCharacterUpsertPayload(input: Omit<Character, "id">): CharacterUpsert
       clase: input.clase,
     }),
     tags: Array.from(new Set(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))),
-    imagen: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
-    imagenAssetId,
+    image: imagenAssetId ? null : toOptionalText(input.imagen) ?? null,
+    imageAssetId: imagenAssetId,
     tokenImageFocusX:
       typeof input.tokenImageFocusX === "number" && Number.isFinite(input.tokenImageFocusX)
         ? input.tokenImageFocusX
@@ -219,22 +146,22 @@ function toCharacterUpsertPayload(input: Omit<Character, "id">): CharacterUpsert
     landmarkId: input.landmarkId > 0 ? input.landmarkId : null,
     buildingIds: Array.from(new Set(input.buildingIds)),
     organizationIds: Array.from(new Set(input.organizationIds)),
-    eventos: input.eventos.map((event) => ({
-      sesion: event.sesion.trim(),
-      descripcion: event.descripcion.trim(),
-      fecha: toOptionalText(event.fecha) ?? null,
+    events: input.eventos.map((event) => ({
+      session: event.sesion.trim(),
+      description: event.descripcion.trim(),
+      date: toOptionalText(event.fecha) ?? null,
     })),
   }
 }
 
 async function fetchCharacterBuildingReferences(): Promise<CharacterBuildingReference[]> {
-  const response = await backendRequest<BuildingRefDto[]>("/v1/buildings")
+  const response = await backendRequest<BackendBuildingReferenceDto[]>(backendRoutes.buildings.collection())
   return response
     .map((item) => ({
       id: item.id,
-      nombre: item.nombre,
+      nombre: item.name,
       landmarkId: typeof item.landmarkId === "number" && item.landmarkId > 0 ? item.landmarkId : null,
-      duenoId: typeof item.duenoId === "number" && item.duenoId > 0 ? item.duenoId : null,
+      duenoId: typeof item.ownerId === "number" && item.ownerId > 0 ? item.ownerId : null,
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
 }
@@ -275,8 +202,8 @@ export async function fetchCharacters(options: boolean | FetchCharactersOptions 
     return scopedPromise
   }
 
-  const path = typeof isPlayer === "boolean" ? `/v1/characters?isPlayer=${isPlayer}` : "/v1/characters"
-  const pendingRequest = backendRequest<CharacterApiDto[]>(path)
+  const path = backendRoutes.characters.collection(typeof isPlayer === "boolean" ? { isPlayer } : undefined)
+  const pendingRequest = backendRequest<BackendCharacterDto[]>(path)
     .then((response) => {
       const characters = response.map(toCharacter)
       for (const character of characters) {
@@ -323,14 +250,14 @@ export async function fetchCharacterById(characterId: number): Promise<Character
     return cached
   }
 
-  const response = await backendRequest<CharacterApiDto>(`/v1/characters/${characterId}`)
+  const response = await backendRequest<BackendCharacterDto>(backendRoutes.characters.byId(characterId))
   const character = toCharacter(response)
   characterByIdCache.set(character.id, character)
   return character
 }
 
 export async function createCharacter(input: Omit<Character, "id">): Promise<Character> {
-  const response = await backendRequest<CharacterApiDto>("/v1/characters", {
+  const response = await backendRequest<BackendCharacterDto>(backendRoutes.characters.collection(), {
     method: "POST",
     body: toCharacterUpsertPayload(input),
   })
@@ -347,7 +274,7 @@ export async function createCharacter(input: Omit<Character, "id">): Promise<Cha
 }
 
 export async function updateCharacter(characterId: number, input: Omit<Character, "id">): Promise<Character> {
-  const response = await backendRequest<CharacterApiDto>(`/v1/characters/${characterId}`, {
+  const response = await backendRequest<BackendCharacterDto>(backendRoutes.characters.byId(characterId), {
     method: "PUT",
     body: toCharacterUpsertPayload(input),
   })
@@ -364,7 +291,7 @@ export async function updateCharacter(characterId: number, input: Omit<Character
 }
 
 export async function deleteCharacter(characterId: number): Promise<void> {
-  await backendRequest<void>(`/v1/characters/${characterId}`, {
+  await backendRequest<void>(backendRoutes.characters.byId(characterId), {
     method: "DELETE",
   })
 

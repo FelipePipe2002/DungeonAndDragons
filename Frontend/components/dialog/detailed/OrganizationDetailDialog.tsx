@@ -1,16 +1,19 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { DetailDialogShell } from "@/components/dialog/shared/detail-dialog-shell"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { dedupeNumbers, toOptionalText } from "@/lib/normalize"
 import {
   fetchCharacterReferences,
   fetchCharacters,
@@ -33,8 +36,6 @@ interface OrganizationDetailDialogProps {
   organizationId?: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  resolveBuildingName?: (buildingId: number) => string
-  resolveLandmarkName?: (landmarkId: number) => string
   onOrganizationUpdated?: (organization: Organization) => void
   onOrganizationDeleted?: (organizationId: number) => void
   initialLandmarkId?: number
@@ -79,15 +80,6 @@ function toOrganizationFormState(organization: Organization): OrganizationFormSt
     edificios: [...organization.edificios],
     miembros: organization.miembros.map((member) => ({ ...member })),
   }
-}
-
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
-}
-
-function dedupeNumbers(values: number[]) {
-  return Array.from(new Set(values))
 }
 
 function dedupeMembers(values: OrganizationMember[]) {
@@ -150,8 +142,6 @@ export function OrganizationDetailDialog({
   organizationId,
   open,
   onOpenChange,
-  resolveBuildingName,
-  resolveLandmarkName,
   onOrganizationUpdated,
   onOrganizationDeleted,
   initialLandmarkId,
@@ -694,8 +684,7 @@ export function OrganizationDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="parchment flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0">
+      <DetailDialogShell open={open} onOpenChange={handleDialogOpenChange} contentClassName="parchment flex max-h-[90vh] max-w-7xl flex-col overflow-hidden p-0">
         <div className="flex h-[85vh] min-h-0 flex-col">
           <div className="scroll-banner shrink-0">
             <DialogHeader>
@@ -897,8 +886,7 @@ export function OrganizationDetailDialog({
                         ) : (
                           <div className="divide-y divide-border/50">
                             {paginatedLandmarkIds.map((landmarkId) => {
-                              const landmarkName =
-                                landmarkNameById.get(landmarkId) ?? resolveLandmarkName?.(landmarkId) ?? "Desconocido"
+                              const landmarkName = landmarkNameById.get(landmarkId) ?? UNKNOWN_LABEL
 
                               return (
                                 <div key={landmarkId} className="flex items-center gap-2 px-2 py-1.5">
@@ -1006,10 +994,7 @@ export function OrganizationDetailDialog({
                           ) : (
                             <div className="divide-y divide-border/50">
                               {paginatedBuildingIds.map((buildingId) => {
-                                const buildingName =
-                                  buildingNameById.get(buildingId) ??
-                                  resolveBuildingName?.(buildingId) ??
-                                  "Desconocido"
+                                const buildingName = buildingNameById.get(buildingId) ?? UNKNOWN_LABEL
 
                                 return (
                                   <div key={buildingId} className="flex items-center gap-2 px-2 py-1.5">
@@ -1318,7 +1303,7 @@ export function OrganizationDetailDialog({
                                 <td className="px-3 py-2.5">
                                   <span className="flex items-center gap-1 text-muted-foreground">
                                     <MapPin className="size-3 text-primary/50" />
-                                    {resolveLandmarkName?.(member.landmarkId) ?? "Desconocido"}
+                                    {landmarkNameById.get(member.landmarkId) ?? UNKNOWN_LABEL}
                                   </span>
                                 </td>
                                 <td className="px-3 py-2.5">
@@ -1377,7 +1362,7 @@ export function OrganizationDetailDialog({
                     <div className="flex flex-col gap-1">
                       {paginatedViewBuildingIds.map((buildingId) => (
                         <span key={buildingId} className="text-sm text-foreground">
-                          {resolveBuildingName?.(buildingId) ?? "Desconocido"}
+                          {buildingNameById.get(buildingId) ?? UNKNOWN_LABEL}
                         </span>
                       ))}
                     </div>
@@ -1418,7 +1403,7 @@ export function OrganizationDetailDialog({
                     <div className="flex flex-col gap-1">
                       {paginatedViewLandmarkIds.map((landmarkId) => (
                         <span key={landmarkId} className="text-sm text-foreground">
-                          {resolveLandmarkName?.(landmarkId) ?? "Desconocido"}
+                          {landmarkNameById.get(landmarkId) ?? UNKNOWN_LABEL}
                         </span>
                       ))}
                     </div>
@@ -1455,8 +1440,7 @@ export function OrganizationDetailDialog({
             </div>
           </ScrollArea>
         </div>
-        </DialogContent>
-      </Dialog>
+      </DetailDialogShell>
       <ConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

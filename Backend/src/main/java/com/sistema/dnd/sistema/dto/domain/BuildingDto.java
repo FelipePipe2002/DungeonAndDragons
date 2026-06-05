@@ -5,11 +5,11 @@ import java.util.List;
 public record BuildingDto(
     Long id,
     Long landmarkId,
-    String nombre,
-    List<Double> posicion,
-    String descripcion,
+    String name,
+    List<Double> position,
+    String description,
     List<String> tags,
-    Long duenoId,
+    Long ownerId,
     Integer mapBuildingIndex,
     Long organizationId,
     Long mapAssetId,
@@ -19,6 +19,6 @@ public record BuildingDto(
     Double mapGridCellSize,
     Double mapGridOffsetX,
     Double mapGridOffsetY,
-    LandmarkMapDto mapa
+    LandmarkMapDto map
 ) {
 }

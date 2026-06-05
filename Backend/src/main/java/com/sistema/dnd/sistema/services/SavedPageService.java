@@ -1,7 +1,6 @@
 package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.SavedPageDto;
-import com.sistema.dnd.sistema.dto.domain.SavedPageUpsertRequest;
 import com.sistema.dnd.sistema.entity.SavedPageEntity;
 import com.sistema.dnd.sistema.repository.SavedPageRepository;
 import jakarta.transaction.Transactional;
@@ -26,14 +25,14 @@ public class SavedPageService {
     }
 
     @Transactional
-    public SavedPageDto create(SavedPageUpsertRequest request) {
+    public SavedPageDto create(SavedPageDto request) {
         SavedPageEntity entity = new SavedPageEntity();
         applyUpsert(entity, request);
         return toDto(savedPageRepository.save(entity));
     }
 
     @Transactional
-    public SavedPageDto update(Long id, SavedPageUpsertRequest request) {
+    public SavedPageDto update(Long id, SavedPageDto request) {
         SavedPageEntity entity = savedPageRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pagina no encontrada"));
 
@@ -49,8 +48,8 @@ public class SavedPageService {
         savedPageRepository.delete(entity);
     }
 
-    private void applyUpsert(SavedPageEntity entity, SavedPageUpsertRequest request) {
-        entity.setTitulo(requiredTrimmed(request.titulo(), "El titulo es obligatorio"));
+    private void applyUpsert(SavedPageEntity entity, SavedPageDto request) {
+        entity.setTitulo(requiredTrimmed(request.title(), "El titulo es obligatorio"));
         entity.setUrl(requiredUrl(request.url()));
         entity.setSelector(normalizedOrNull(request.selector()));
     }
@@ -60,9 +59,7 @@ public class SavedPageService {
             entity.getId(),
             entity.getTitulo(),
             entity.getUrl(),
-            entity.getSelector(),
-            entity.getCreatedAt(),
-            entity.getUpdatedAt()
+            entity.getSelector()
         );
     }
 

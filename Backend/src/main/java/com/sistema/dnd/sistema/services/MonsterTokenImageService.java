@@ -2,8 +2,8 @@ package com.sistema.dnd.sistema.services;
 
 import com.sistema.dnd.sistema.dto.domain.MonsterTokenImageResolveDto;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
-import com.sistema.dnd.sistema.entity.MediaAssetStorageMode;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetStorageMode;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import java.io.IOException;
 import java.net.URI;

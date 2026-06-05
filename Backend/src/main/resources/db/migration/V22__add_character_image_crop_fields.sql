@@ -1,7 +1,0 @@
-ALTER TABLE characters
-    ADD COLUMN IF NOT EXISTS token_image_focus_x DOUBLE PRECISION,
-    ADD COLUMN IF NOT EXISTS token_image_focus_y DOUBLE PRECISION,
-    ADD COLUMN IF NOT EXISTS token_image_zoom DOUBLE PRECISION,
-    ADD COLUMN IF NOT EXISTS initiative_image_focus_x DOUBLE PRECISION,
-    ADD COLUMN IF NOT EXISTS initiative_image_focus_y DOUBLE PRECISION,
-    ADD COLUMN IF NOT EXISTS initiative_image_zoom DOUBLE PRECISION;

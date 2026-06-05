@@ -1,7 +1,11 @@
 package com.sistema.dnd.sistema.entity;
 
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,7 +20,7 @@ import lombok.Setter;
 @Table(name = "buildings")
 @Getter
 @Setter
-public class BuildingEntity extends AuditableEntity {
+public class BuildingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,5 +71,25 @@ public class BuildingEntity extends AuditableEntity {
 
     @Column(name = "map_grid_offset_y", nullable = false)
     private Double mapGridOffsetY = 0.0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "map_kind", length = 20)
+    private LandmarkMapKind mapKind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "map_source", length = 20)
+    private LandmarkMapSource mapSource;
+
+    @Column(name = "map_filename")
+    private String mapFilename;
+
+    @Column(name = "map_url")
+    private String mapUrl;
+
+    @Column(name = "map_storage_key")
+    private String mapStorageKey;
+
+    @Column(name = "map_data_url", columnDefinition = "TEXT")
+    private String mapDataUrl;
 
 }

@@ -1,21 +1,44 @@
+import {
+  toCharacterEvent,
+  toNumberArray,
+  toOrganizationMember,
+  toPosition,
+  toStringArray,
+} from "@/lib/dto-mappers"
+import {
+  normalizeMapGridCellSize,
+  normalizeMapGridOffset,
+  normalizeMapRotationDegrees,
+} from "@/lib/map-grid"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { dedupeNumbers, dedupeStrings, toOptionalText } from "@/lib/normalize"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { backendRequest } from "@/lib/services/backend-api.service"
+import { backendRoutes } from "@/lib/services/backend-routes"
 import type {
+  BackendBuildingDto,
+  BackendCharacterDto,
+  BackendLandmarkDto,
+  BackendLandmarkEventDto,
+  BackendLandmarkEventUpsertPayload,
+  BackendLandmarkMapDto,
+  BackendLandmarkMapUpsertPayload,
+  BackendLandmarkReferenceDto,
+  BackendLandmarkUpsertPayload,
+  BackendOrganizationDto,
   Building,
   Character,
-  CharacterEvent,
   Landmark,
   LandmarkEvent,
   LandmarkMapReference,
   LandmarkType,
   MediaAssetKind,
   Organization,
-  OrganizationMember,
 } from "@/lib/types"
 import { DUNGEON_MAP_ERROR_MESSAGE } from "@/lib/types"
 
-const LANDMARK_INCLUDE_QUERY = "include=edificios,personajes,organizaciones"
-const LANDMARKS_COLLECTION_PATH = `/v1/landmarks?${LANDMARK_INCLUDE_QUERY}`
+const LANDMARK_INCLUDE_VALUE = "edificios,personajes,organizaciones"
+const LANDMARKS_COLLECTION_PATH = backendRoutes.landmarks.collection(LANDMARK_INCLUDE_VALUE)
 
 export interface LandmarkReference {
   id: number
@@ -32,152 +55,7 @@ function landmarkNameToSlug(nombre: string) {
     .replace(/^-+|-+$/g, "")
 }
 
-type LandmarkApiEventDto = {
-  nombre: string
-  descripcion?: string | null
-  fecha?: string | null
-  posicion?: number[] | null
-}
-
-type LandmarkApiMapDto = {
-  kind?: string | null
-  source?: string | null
-  filename?: string | null
-  url?: string | null
-  key?: string | null
-  dataUrl?: string | null
-}
-
-type BuildingApiDto = {
-  id: number
-  landmarkId?: number | null
-  nombre: string
-  posicion?: number[] | null
-  descripcion?: string | null
-  tags?: string[] | null
-  duenoId?: number | null
-  mapBuildingIndex?: number | null
-  organizationId?: number | null
-}
-
-type CharacterApiEventDto = {
-  sesion: string
-  descripcion: string
-  fecha?: string | null
-}
-
-type CharacterApiDto = {
-  id: number
-  nombre: string
-  clase: string
-  raza: string
-  descripcion: string
-  tags?: string[] | null
-  imagen?: string | null
-  imagenAssetId?: number | null
-  landmarkId?: number | null
-  buildingIds?: number[] | null
-  organizationIds?: number[] | null
-  eventos?: CharacterApiEventDto[] | null
-}
-
-type OrganizationApiMemberDto = {
-  personajeId: number
-  nombre?: string | null
-  profesion?: string | null
-  raza?: string | null
-  landmarkId?: number | null
-  categoria?: string | null
-}
-
-type OrganizationApiDto = {
-  id: number
-  nombre: string
-  descripcion?: string | null
-  tags?: string[] | null
-  imagen?: string | null
-  imagenAssetId?: number | null
-  categorias?: string[] | null
-  edificios?: number[] | null
-  miembros?: OrganizationApiMemberDto[] | null
-  landmarks?: number[] | null
-}
-
-type LandmarkApiDto = {
-  id: number
-  icono?: string | null
-  nombre: string
-  tipo?: string | null
-  estadoId?: number | null
-  subdivisionId?: number | null
-  escalaIcono?: number | null
-  escalaTexto?: number | null
-  mostrarLeyenda?: boolean | null
-  posicion?: number[] | null
-  tags?: string[] | null
-  poblacion?: number | null
-  descripcionCorta?: string | null
-  historia?: string | null
-  eventos?: LandmarkApiEventDto[] | null
-  mapAssetId?: number | null
-  mapAssetKind?: string | null
-  mapRotationDegrees?: number | null
-  mapGridEnabled?: boolean | null
-  mapGridCellSize?: number | null
-  mapGridOffsetX?: number | null
-  mapGridOffsetY?: number | null
-  organizationMapLinks?: string | null
-  hiddenMapBuildings?: string | null
-  dungeonGeneratorConfig?: string | null
-  mapa?: LandmarkApiMapDto | null
-  edificios?: BuildingApiDto[] | null
-  personajes?: CharacterApiDto[] | null
-  organizaciones?: OrganizationApiDto[] | null
-}
-
-type LandmarkMapUpsertPayload =
-  | { kind: "asset"; filename: string }
-  | { kind: "embedded"; dataUrl: string }
-  | { kind: "external"; url: string }
-  | { kind: "stored"; key: string }
-  | { kind: "buildings"; source: "asset"; filename: string }
-  | { kind: "buildings"; source: "external"; url: string }
-
 type OrganizationMapLinksPayload = Record<number, number[]>
-
-type LandmarkEventUpsertPayload = {
-  nombre: string
-  descripcion: string
-  fecha: string | null
-  posicion: [number, number] | null
-}
-
-type LandmarkUpsertPayload = {
-  icono: string
-  nombre: string
-  tipo: LandmarkType
-  estadoId: number | null
-  subdivisionId: number | null
-  escalaIcono: number
-  escalaTexto: number
-  mostrarLeyenda: boolean
-  posicion: [number, number]
-  tags: string[]
-  poblacion: number | null
-  descripcionCorta: string | null
-  historia: string | null
-  eventos: LandmarkEventUpsertPayload[]
-  mapRotationDegrees: number
-  mapGridEnabled: boolean
-  mapGridCellSize: number
-  mapGridOffsetX: number
-  mapGridOffsetY: number
-  organizationMapLinks: string | null
-  hiddenMapBuildings: string | null
-  dungeonGeneratorConfig: string | null
-  mapAssetId: number | null
-  mapa: LandmarkMapUpsertPayload | null
-}
 
 let landmarksCache: Landmark[] | null = null
 let landmarksPromise: Promise<Landmark[]> | null = null
@@ -199,104 +77,43 @@ function isLandmarkType(value: unknown): value is LandmarkType {
   return typeof value === "string" && LANDMARK_TYPES.includes(value as LandmarkType)
 }
 
-function toOptionalText(value: string | null | undefined): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function toStringArray(value: string[] | null | undefined): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is string => typeof item === "string")
-}
-
-function toNumberArray(value: number[] | null | undefined): number[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
-}
-
-function toPosition(value: number[] | null | undefined): [number, number] | undefined {
-  if (!Array.isArray(value) || value.length !== 2) return undefined
-  const x = Number(value[0])
-  const y = Number(value[1])
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
-  return [x, y]
-}
-
-function dedupeNumbers(values: number[]) {
-  return Array.from(new Set(values))
-}
-
-function dedupeStrings(values: string[]) {
-  return Array.from(new Set(values))
-}
-
-function normalizeMapRotationDegrees(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  const normalized = Math.round(value)
-  const snappedQuarterTurns = Math.round(normalized / 90)
-  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
-}
-
-function normalizeMapGridCellSize(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 48
-  return Math.round(clamp(value, 8, 512) * 100) / 100
-}
-
-function normalizeMapGridOffset(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  return Math.round(value * 100) / 100
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
 function isMediaAssetKind(value: unknown): value is MediaAssetKind {
   return value === "image" || value === "json" || value === "binary"
 }
 
-function toCharacterEvent(event: CharacterApiEventDto): CharacterEvent {
-  return {
-    sesion: event.sesion ?? "",
-    descripcion: event.descripcion ?? "",
-    fecha: toOptionalText(event.fecha),
-  }
-}
-
-function toCharacter(dto: CharacterApiDto): Character {
+function toCharacter(dto: BackendCharacterDto): Character {
   const imagenAssetId =
-    typeof dto.imagenAssetId === "number" && Number.isFinite(dto.imagenAssetId) && dto.imagenAssetId > 0
-      ? dto.imagenAssetId
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? dto.imageAssetId
       : undefined
 
   return {
     id: dto.id,
-    nombre: dto.nombre ?? "",
-    clase: dto.clase ?? "",
-    raza: dto.raza ?? "",
-    descripcion: dto.descripcion ?? "",
-    isPlayer: false,
+    nombre: dto.name ?? "",
+    clase: dto.characterClass ?? "",
+    raza: dto.race ?? "",
+    descripcion: dto.description ?? "",
+    isPlayer: dto.isPlayer === true,
     characterSheet: null,
     tags: toStringArray(dto.tags),
-    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
+    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.image),
     imagenAssetId,
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : 0,
     buildingIds: toNumberArray(dto.buildingIds),
     organizationIds: toNumberArray(dto.organizationIds),
-    eventos: Array.isArray(dto.eventos) ? dto.eventos.map(toCharacterEvent) : [],
+    eventos: Array.isArray(dto.events) ? dto.events.map(toCharacterEvent) : [],
   }
 }
 
-function toBuilding(dto: BuildingApiDto): Building {
+function toBuilding(dto: BackendBuildingDto): Building {
   return {
     id: dto.id,
     landmarkId: typeof dto.landmarkId === "number" && dto.landmarkId > 0 ? dto.landmarkId : null,
-    nombre: dto.nombre ?? "",
-    posicion: toPosition(dto.posicion),
-    descripcion: dto.descripcion ?? "",
+    nombre: dto.name ?? "",
+    posicion: toPosition(dto.position),
+    descripcion: dto.description ?? "",
     tags: toStringArray(dto.tags),
-    duenoId: typeof dto.duenoId === "number" && dto.duenoId > 0 ? dto.duenoId : undefined,
+    duenoId: typeof dto.ownerId === "number" && dto.ownerId > 0 ? dto.ownerId : undefined,
     mapBuildingIndex:
       typeof dto.mapBuildingIndex === "number" && Number.isFinite(dto.mapBuildingIndex)
         ? dto.mapBuildingIndex
@@ -306,53 +123,39 @@ function toBuilding(dto: BuildingApiDto): Building {
   }
 }
 
-function toOrganizationMember(dto: OrganizationApiMemberDto): OrganizationMember {
-  const characterId =
-    typeof dto.personajeId === "number" && Number.isFinite(dto.personajeId) ? dto.personajeId : 0
-
-  return {
-    personajeId: characterId,
-    nombre: toOptionalText(dto.nombre) ?? `Miembro ${characterId}`,
-    profesion: toOptionalText(dto.profesion) ?? "",
-    raza: toOptionalText(dto.raza) ?? "",
-    landmarkId:
-      typeof dto.landmarkId === "number" && Number.isFinite(dto.landmarkId) ? dto.landmarkId : 0,
-    categoria: toOptionalText(dto.categoria) ?? "",
-  }
-}
-
-function toOrganization(dto: OrganizationApiDto): Organization {
+function toOrganization(dto: BackendOrganizationDto): Organization {
   const imagenAssetId =
-    typeof dto.imagenAssetId === "number" && Number.isFinite(dto.imagenAssetId) && dto.imagenAssetId > 0
-      ? dto.imagenAssetId
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? dto.imageAssetId
       : undefined
 
   return {
     id: dto.id,
-    nombre: dto.nombre ?? "",
-    descripcion: dto.descripcion ?? "",
+    nombre: dto.name ?? "",
+    descripcion: dto.description ?? "",
     tags: dedupeStrings(toStringArray(dto.tags).map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
-    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.imagen),
+    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : toOptionalText(dto.image),
     imagenAssetId,
     categorias: dedupeStrings(
-      toStringArray(dto.categorias).map((category) => category.trim()).filter((category) => category.length > 0),
+      toStringArray(dto.categories)
+        .map((category) => category.trim())
+        .filter((category) => category.length > 0),
     ),
-    edificios: dedupeNumbers(toNumberArray(dto.edificios)),
-    miembros: Array.isArray(dto.miembros) ? dto.miembros.map(toOrganizationMember) : [],
+    edificios: dedupeNumbers(toNumberArray(dto.buildingIds)),
+    miembros: Array.isArray(dto.members) ? dto.members.map(toOrganizationMember) : [],
     landmarks: dedupeNumbers(toNumberArray(dto.landmarks).filter((landmarkId) => landmarkId > 0)),
   }
 }
 
-function toLandmarkEvent(dto: LandmarkApiEventDto): LandmarkEvent {
+function toLandmarkEvent(dto: BackendLandmarkEventDto): LandmarkEvent {
   return {
-    nombre: dto.nombre ?? "",
-    descripcion: dto.descripcion ?? "",
-    fecha: toOptionalText(dto.fecha),
-    posicion: toPosition(dto.posicion),
+    nombre: dto.title ?? "",
+    descripcion: dto.description ?? "",
+    fecha: toOptionalText(dto.date),
   }
 }
 
-function toLandmarkMapReference(dto: LandmarkApiMapDto | null | undefined): LandmarkMapReference | undefined {
+function toLandmarkMapReference(dto: BackendLandmarkMapDto | null | undefined): LandmarkMapReference | undefined {
   if (!dto || typeof dto.kind !== "string") return undefined
 
   if (dto.kind === "asset" && typeof dto.filename === "string" && dto.filename.trim().length > 0) {
@@ -388,15 +191,16 @@ function toLandmarkMapReference(dto: LandmarkApiMapDto | null | undefined): Land
   return undefined
 }
 
-function toLandmark(dto: LandmarkApiDto): Landmark {
-  const position = toPosition(dto.posicion) ?? [0.5, 0.5]
+function toLandmark(dto: BackendLandmarkDto): Landmark {
   const mapAssetId =
     typeof dto.mapAssetId === "number" && Number.isFinite(dto.mapAssetId) && dto.mapAssetId > 0
       ? dto.mapAssetId
       : undefined
 
   const estadoId =
-    typeof dto.estadoId === "number" && Number.isFinite(dto.estadoId) && dto.estadoId > 0 ? dto.estadoId : undefined
+    typeof dto.stateId === "number" && Number.isFinite(dto.stateId) && dto.stateId > 0
+      ? dto.stateId
+      : undefined
   const subdivisionId =
     typeof dto.subdivisionId === "number" && Number.isFinite(dto.subdivisionId) && dto.subdivisionId > 0
       ? dto.subdivisionId
@@ -430,23 +234,29 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
 
   return {
     id: dto.id,
-    icono: dto.icono ?? "",
-    nombre: dto.nombre ?? "",
-    tipo: isLandmarkType(dto.tipo) ? dto.tipo : "ciudad",
+    icono: dto.icon ?? "",
+    nombre: dto.name ?? "",
+    tipo: isLandmarkType(dto.type) ? dto.type : "ciudad",
     estadoId,
     subdivisionId,
     escalaIcono:
-      typeof dto.escalaIcono === "number" && Number.isFinite(dto.escalaIcono) ? dto.escalaIcono : 1,
+      typeof dto.iconScale === "number" && Number.isFinite(dto.iconScale)
+        ? dto.iconScale
+        : 1,
     escalaTexto:
-      typeof dto.escalaTexto === "number" && Number.isFinite(dto.escalaTexto) ? dto.escalaTexto : 1,
-    mostrarLeyenda: typeof dto.mostrarLeyenda === "boolean" ? dto.mostrarLeyenda : true,
-    posicion: position,
+      typeof dto.textScale === "number" && Number.isFinite(dto.textScale)
+        ? dto.textScale
+        : 1,
+    mostrarLeyenda: typeof dto.showLegend === "boolean" ? dto.showLegend : true,
+    posicion: toPosition(dto.position) ?? [0.5, 0.5],
     tags: dedupeStrings(toStringArray(dto.tags).map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
     poblacion:
-      typeof dto.poblacion === "number" && Number.isFinite(dto.poblacion) ? Math.max(0, Math.round(dto.poblacion)) : undefined,
-    descripcionCorta: toOptionalText(dto.descripcionCorta),
-    historia: toOptionalText(dto.historia),
-    eventos: Array.isArray(dto.eventos) ? dto.eventos.map(toLandmarkEvent) : [],
+      typeof dto.population === "number" && Number.isFinite(dto.population)
+        ? Math.max(0, Math.round(dto.population))
+        : undefined,
+    descripcionCorta: toOptionalText(dto.shortDescription),
+    historia: toOptionalText(dto.history),
+    eventos: Array.isArray(dto.events) ? dto.events.map(toLandmarkEvent) : [],
     mapAssetId,
     mapAssetKind: isMediaAssetKind(dto.mapAssetKind) ? dto.mapAssetKind : undefined,
     mapRotationDegrees:
@@ -469,16 +279,18 @@ function toLandmark(dto: LandmarkApiDto): Landmark {
     organizationMapLinks,
     hiddenMapBuildings,
     dungeonGeneratorConfig: toOptionalText(dto.dungeonGeneratorConfig),
-    mapa: toLandmarkMapReference(dto.mapa),
-    edificios: Array.isArray(dto.edificios) ? dto.edificios.map(toBuilding) : [],
-    personajes: Array.isArray(dto.personajes) ? dto.personajes.map(toCharacter) : [],
-    organizaciones: Array.isArray(dto.organizaciones) ? dto.organizaciones.map(toOrganization) : [],
+    mapa: toLandmarkMapReference(dto.map),
+    edificios: Array.isArray(dto.buildings) ? dto.buildings.map(toBuilding) : [],
+    personajes: Array.isArray(dto.characters) ? dto.characters.map(toCharacter) : [],
+    organizaciones: Array.isArray(dto.organizations)
+      ? dto.organizations.map(toOrganization)
+      : [],
   }
 }
 
 function toLandmarkMapPayload(
   map: LandmarkMapReference | undefined,
-): LandmarkMapUpsertPayload | null {
+): BackendLandmarkMapUpsertPayload | null {
   if (!map) return null
 
   if (map.kind === "asset") {
@@ -518,7 +330,7 @@ function assertDungeonLandmarkMapContract(input: Omit<Landmark, "id">) {
   }
 }
 
-function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPayload {
+function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): BackendLandmarkUpsertPayload {
   assertDungeonLandmarkMapContract(input)
 
   const mapAssetId =
@@ -534,29 +346,29 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
       : null
 
   return {
-    icono: input.icono.trim(),
-    nombre: input.nombre.trim(),
-    tipo: input.tipo,
-    estadoId,
+    icon: input.icono.trim(),
+    name: input.nombre.trim(),
+    type: input.tipo,
+    stateId: estadoId,
     subdivisionId,
-    escalaIcono:
+    iconScale:
       typeof input.escalaIcono === "number" && Number.isFinite(input.escalaIcono) ? input.escalaIcono : 1,
-    escalaTexto:
+    textScale:
       typeof input.escalaTexto === "number" && Number.isFinite(input.escalaTexto) ? input.escalaTexto : 1,
-    mostrarLeyenda: Boolean(input.mostrarLeyenda),
-    posicion: input.posicion,
+    showLegend: Boolean(input.mostrarLeyenda),
+    position: input.posicion,
     tags: dedupeStrings(input.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
-    poblacion:
+    population:
       typeof input.poblacion === "number" && Number.isFinite(input.poblacion)
         ? Math.max(0, Math.round(input.poblacion))
         : null,
-    descripcionCorta: toOptionalText(input.descripcionCorta) ?? null,
-    historia: toOptionalText(input.historia) ?? null,
-    eventos: input.eventos.map((event) => ({
-      nombre: event.nombre.trim(),
-      descripcion: event.descripcion.trim(),
-      fecha: toOptionalText(event.fecha) ?? null,
-      posicion: event.posicion ?? null,
+    shortDescription: toOptionalText(input.descripcionCorta) ?? null,
+    history: toOptionalText(input.historia) ?? null,
+    events: input.eventos.map((event) => ({
+      title: event.nombre.trim(),
+      description: event.descripcion.trim(),
+      date: toOptionalText(event.fecha) ?? null,
+      session: null,
     })),
     mapRotationDegrees: normalizeMapRotationDegrees(input.mapRotationDegrees),
     mapGridEnabled: Boolean(input.mapGridEnabled),
@@ -573,7 +385,7 @@ function toLandmarkUpsertPayload(input: Omit<Landmark, "id">): LandmarkUpsertPay
         : null,
     dungeonGeneratorConfig: toOptionalText(input.dungeonGeneratorConfig) ?? null,
     mapAssetId,
-    mapa: mapAssetId ? null : toLandmarkMapPayload(input.mapa),
+    map: mapAssetId ? null : toLandmarkMapPayload(input.mapa),
   }
 }
 
@@ -625,7 +437,7 @@ export async function fetchLandmarks(forceRefresh = false): Promise<Landmark[]> 
     return landmarksPromise
   }
 
-  const pendingRequest = backendRequest<LandmarkApiDto[]>(LANDMARKS_COLLECTION_PATH)
+  const pendingRequest = backendRequest<BackendLandmarkDto[]>(LANDMARKS_COLLECTION_PATH)
     .then((response) => {
       const landmarks = response.map(toLandmark)
       writeLandmarksCache(landmarks)
@@ -653,7 +465,7 @@ export async function fetchLandmarkById(landmarkId: number, forceRefresh = false
     }
   }
 
-  const response = await backendRequest<LandmarkApiDto>(`/v1/landmarks/${landmarkId}?${LANDMARK_INCLUDE_QUERY}`)
+  const response = await backendRequest<BackendLandmarkDto>(backendRoutes.landmarks.byId(landmarkId, LANDMARK_INCLUDE_VALUE))
   const landmark = toLandmark(response)
   writeLandmarkToCaches(landmark)
   return landmark
@@ -704,19 +516,20 @@ export async function fetchLandmarkReferences(forceRefresh = false): Promise<Lan
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
   }
 
-  const response = await backendRequest<LandmarkReference[]>("/v1/landmarks")
+  const response = await backendRequest<BackendLandmarkReferenceDto[]>(backendRoutes.landmarks.collection())
   const references = response
     .map((item) => ({
       id: item.id,
-      nombre: item.nombre,
+      nombre: item.name ?? "",
     }))
+    .filter((item) => item.nombre.trim().length > 0)
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
   writeLandmarkReferencesCache(references)
   return references
 }
 
 export async function createLandmark(input: Omit<Landmark, "id">): Promise<Landmark> {
-  const response = await backendRequest<LandmarkApiDto>("/v1/landmarks", {
+  const response = await backendRequest<BackendLandmarkDto>(backendRoutes.landmarks.collection(), {
     method: "POST",
     body: toLandmarkUpsertPayload(input),
   })
@@ -731,7 +544,7 @@ export async function updateLandmark(
   landmarkId: number,
   input: Omit<Landmark, "id">,
 ): Promise<Landmark> {
-  await backendRequest<LandmarkApiDto>(`/v1/landmarks/${landmarkId}`, {
+  await backendRequest<BackendLandmarkDto>(backendRoutes.landmarks.byId(landmarkId), {
     method: "PUT",
     body: toLandmarkUpsertPayload(input),
   })
@@ -743,7 +556,7 @@ export async function updateLandmark(
 }
 
 export async function deleteLandmark(landmarkId: number): Promise<void> {
-  await backendRequest<void>(`/v1/landmarks/${landmarkId}`, {
+  await backendRequest<void>(backendRoutes.landmarks.byId(landmarkId), {
     method: "DELETE",
   })
 
@@ -764,6 +577,6 @@ export function getCachedLandmarkName(landmarkId: number) {
   return (
     landmarkByIdCache.get(landmarkId)?.nombre ??
     referencesCache?.find((landmark) => landmark.id === landmarkId)?.nombre ??
-    "Desconocido"
+    UNKNOWN_LABEL
   )
 }

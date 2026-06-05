@@ -1,85 +1,59 @@
 import { backendRequest } from "@/lib/services/backend-api.service"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
-import type { Estado } from "@/lib/types"
-
-type EstadoApiDto = {
-  id: number
-  nombre: string
-  tipo: string
-  descripcion?: string | null
-  historia?: string | null
-  gobiernoTipo?: string | null
-  imagen?: string | null
-  imagenAssetId?: number | null
-  territorioImagen?: string | null
-  territorioImagenAssetId?: number | null
-  estadoPadreId?: number | null
-  miembros?: Array<{ personajeId: number; rol?: string | null }> | null
-  landmarks?: Array<{ landmarkId: number; rol?: string | null }> | null
-  subdivisiones?: string[] | null
-}
-
-type EstadoUpsertPayload = {
-  nombre: string
-  tipo: string
-  descripcion: string
-  historia: string
-  gobiernoTipo: string
-  imagen: string | null
-  imagenAssetId: number | null
-  territorioImagen: string | null
-  territorioImagenAssetId: number | null
-  estadoPadreId: number | null
-  miembros: Array<{ personajeId: number; rol: string }>
-  landmarks: Array<{ landmarkId: number; rol: string }>
-  subdivisiones: string[]
-}
+import { backendRoutes } from "@/lib/services/backend-routes"
+import type {
+  BackendEstadoDto as EstadoApiDto,
+  BackendEstadoLandmarkDto,
+  BackendEstadoMemberDto,
+  BackendEstadoUpsertPayload as EstadoUpsertPayload,
+  Estado,
+} from "@/lib/types"
 
 function toEstado(dto: EstadoApiDto): Estado {
   const imagenAssetId =
-    typeof dto.imagenAssetId === "number" && Number.isFinite(dto.imagenAssetId) && dto.imagenAssetId > 0
-      ? dto.imagenAssetId
+    typeof dto.imageAssetId === "number" && Number.isFinite(dto.imageAssetId) && dto.imageAssetId > 0
+      ? dto.imageAssetId
       : undefined
 
   const territorioImagenAssetId =
-    typeof dto.territorioImagenAssetId === "number" &&
-    Number.isFinite(dto.territorioImagenAssetId) &&
-    dto.territorioImagenAssetId > 0
-      ? dto.territorioImagenAssetId
+    typeof dto.territoryImageAssetId === "number" &&
+    Number.isFinite(dto.territoryImageAssetId) &&
+    dto.territoryImageAssetId > 0
+      ? dto.territoryImageAssetId
       : undefined
 
   return {
     id: dto.id,
-    nombre: dto.nombre ?? "",
-    tipo: dto.tipo ?? "",
-    descripcion: dto.descripcion ?? "",
-    historia: dto.historia ?? "",
-    gobiernoTipo: dto.gobiernoTipo ?? "",
-    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : dto.imagen ?? undefined,
+    nombre: dto.name ?? "",
+    tipo: dto.type ?? "",
+    descripcion: dto.description ?? "",
+    historia: dto.history ?? "",
+    gobiernoTipo: dto.governmentType ?? "",
+    imagen: imagenAssetId ? buildAssetUrl(imagenAssetId) : dto.image ?? undefined,
     imagenAssetId,
     territorioImagen: territorioImagenAssetId
       ? buildAssetUrl(territorioImagenAssetId)
-      : dto.territorioImagen ?? undefined,
+      : dto.territoryImage ?? undefined,
     territorioImagenAssetId,
     estadoPadreId:
-      typeof dto.estadoPadreId === "number" && Number.isFinite(dto.estadoPadreId) && dto.estadoPadreId > 0
-        ? dto.estadoPadreId
+      typeof dto.parentStateId === "number" && Number.isFinite(dto.parentStateId) && dto.parentStateId > 0
+        ? dto.parentStateId
         : undefined,
-    miembros: Array.isArray(dto.miembros)
-      ? dto.miembros
-          .filter((m): m is { personajeId: number; rol?: string | null } =>
-            typeof m?.personajeId === "number" && Number.isFinite(m.personajeId) && m.personajeId > 0,
+    miembros: Array.isArray(dto.members)
+      ? dto.members
+          .filter((m): m is BackendEstadoMemberDto =>
+            typeof m?.characterId === "number" && Number.isFinite(m.characterId) && m.characterId > 0,
           )
-          .map((m) => ({ personajeId: m.personajeId, rol: m.rol ?? "" }))
+          .map((m) => ({ personajeId: m.characterId, rol: m.role ?? "" }))
       : [],
     landmarks: Array.isArray(dto.landmarks)
       ? dto.landmarks
-          .filter((l): l is { landmarkId: number; rol?: string | null } =>
+          .filter((l): l is BackendEstadoLandmarkDto =>
             typeof l?.landmarkId === "number" && Number.isFinite(l.landmarkId) && l.landmarkId > 0,
           )
-          .map((l) => ({ landmarkId: l.landmarkId, rol: l.rol ?? "" }))
+          .map((l) => ({ landmarkId: l.landmarkId, rol: l.role ?? "" }))
       : [],
-    subdivisiones: Array.isArray(dto.subdivisiones) ? dto.subdivisiones.filter((s): s is string => typeof s === "string") : [],
+    subdivisiones: [],
   }
 }
 
@@ -97,28 +71,25 @@ function toUpsertPayload(input: Omit<Estado, "id">): EstadoUpsertPayload {
       : null
 
   return {
-    nombre: input.nombre.trim(),
-    tipo: input.tipo.trim(),
-    descripcion: input.descripcion.trim(),
-    historia: input.historia.trim(),
-    gobiernoTipo: input.gobiernoTipo.trim(),
-    imagen: imagenAssetId ? null : (input.imagen?.trim() || null),
-    imagenAssetId,
-    territorioImagen: territorioImagenAssetId ? null : (input.territorioImagen?.trim() || null),
-    territorioImagenAssetId,
-    estadoPadreId:
+    name: input.nombre.trim(),
+    type: input.tipo.trim(),
+    description: input.descripcion.trim(),
+    history: input.historia.trim(),
+    governmentType: input.gobiernoTipo.trim(),
+    image: imagenAssetId ? null : (input.imagen?.trim() || null),
+    imageAssetId: imagenAssetId,
+    territoryImage: territorioImagenAssetId ? null : (input.territorioImagen?.trim() || null),
+    territoryImageAssetId: territorioImagenAssetId,
+    parentStateId:
       typeof input.estadoPadreId === "number" && Number.isFinite(input.estadoPadreId) && input.estadoPadreId > 0
         ? input.estadoPadreId
         : null,
-    miembros: (Array.isArray(input.miembros) ? input.miembros : [])
+    members: (Array.isArray(input.miembros) ? input.miembros : [])
       .filter((m) => typeof m?.personajeId === "number" && Number.isFinite(m.personajeId) && m.personajeId > 0)
-      .map((m) => ({ personajeId: m.personajeId, rol: (m.rol ?? "").trim() })),
+      .map((m) => ({ characterId: m.personajeId, role: (m.rol ?? "").trim() })),
     landmarks: (Array.isArray(input.landmarks) ? input.landmarks : [])
       .filter((l) => typeof l?.landmarkId === "number" && Number.isFinite(l.landmarkId) && l.landmarkId > 0)
-      .map((l) => ({ landmarkId: l.landmarkId, rol: (l.rol ?? "").trim() })),
-    subdivisiones: (Array.isArray(input.subdivisiones) ? input.subdivisiones : [])
-      .map((s) => (typeof s === "string" ? s.trim() : ""))
-      .filter((s) => s.length > 0),
+      .map((l) => ({ landmarkId: l.landmarkId, role: (l.rol ?? "").trim() })),
   }
 }
 
@@ -129,7 +100,7 @@ export async function fetchEstados(forceRefresh = false): Promise<Estado[]> {
   if (!forceRefresh && estadosCache) return estadosCache
   if (!forceRefresh && estadosPromise) return estadosPromise
 
-  const pending = backendRequest<EstadoApiDto[]>("/v1/estados")
+  const pending = backendRequest<EstadoApiDto[]>(backendRoutes.estados.collection())
     .then((response) => {
       const estados = response.map(toEstado)
       estadosCache = estados
@@ -144,12 +115,12 @@ export async function fetchEstados(forceRefresh = false): Promise<Estado[]> {
 }
 
 export async function fetchEstadoById(estadoId: number): Promise<Estado> {
-  const response = await backendRequest<EstadoApiDto>(`/v1/estados/${estadoId}`)
+  const response = await backendRequest<EstadoApiDto>(backendRoutes.estados.byId(estadoId))
   return toEstado(response)
 }
 
 export async function createEstado(input: Omit<Estado, "id">): Promise<Estado> {
-  const response = await backendRequest<EstadoApiDto>("/v1/estados", {
+  const response = await backendRequest<EstadoApiDto>(backendRoutes.estados.collection(), {
     method: "POST",
     body: toUpsertPayload(input),
   })
@@ -160,7 +131,7 @@ export async function createEstado(input: Omit<Estado, "id">): Promise<Estado> {
 }
 
 export async function updateEstado(estadoId: number, input: Omit<Estado, "id">): Promise<Estado> {
-  const response = await backendRequest<EstadoApiDto>(`/v1/estados/${estadoId}`, {
+  const response = await backendRequest<EstadoApiDto>(backendRoutes.estados.byId(estadoId), {
     method: "PUT",
     body: toUpsertPayload(input),
   })
@@ -171,7 +142,7 @@ export async function updateEstado(estadoId: number, input: Omit<Estado, "id">):
 }
 
 export async function deleteEstado(estadoId: number): Promise<void> {
-  await backendRequest<void>(`/v1/estados/${estadoId}`, {
+  await backendRequest<void>(backendRoutes.estados.byId(estadoId), {
     method: "DELETE",
   })
 

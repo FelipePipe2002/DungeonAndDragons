@@ -6,21 +6,33 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserListRow } from "@/components/browser/BrowserListRow"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useBooksSection } from "@/app/informacion/hooks/useBooksSection"
-import { BOOK_FILE_ACCEPT, formatByteSize, InformationSidebar } from "./shared"
+import { BOOK_FILE_ACCEPT, formatByteSize } from "./shared"
+
+function getUploadPhaseLabel(uploadProgress: ReturnType<typeof useBooksSection>["uploadProgress"]) {
+  if (uploadProgress?.backendStatus === "completed") {
+    return "Completado"
+  }
+
+  if (uploadProgress?.backendStatus === "failed") {
+    return "Error"
+  }
+
+  if (uploadProgress?.frontendPercent === 100) {
+    return "Procesando en backend"
+  }
+
+  return "Subiendo al backend"
+}
 
 export default function BooksSection() {
   const books = useBooksSection({ isActive: true })
-  const uploadPhaseLabel =
-    books.uploadProgress?.backendStatus === "completed"
-      ? "Completado"
-      : books.uploadProgress?.backendStatus === "failed"
-        ? "Error"
-        : books.uploadProgress?.frontendPercent === 100
-          ? "Procesando en backend"
-          : "Subiendo al backend"
+  const uploadPhaseLabel = getUploadPhaseLabel(books.uploadProgress)
 
   return (
     <>
@@ -38,7 +50,7 @@ export default function BooksSection() {
       />
       <BrowserLayout
         sidebar={
-          <InformationSidebar
+          <BrowserSidebar
             query={books.bookQuery}
             onQueryChange={books.setBookQuery}
             placeholder="Buscar libro..."
@@ -51,18 +63,21 @@ export default function BooksSection() {
           >
             <BrowserList>
               {books.isLoading ? (
-                <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">Cargando libros...</p>
+                <BrowserListMessage>Cargando libros...</BrowserListMessage>
               ) : (
                 books.filteredBooks.map((book) => {
                   const isActive = books.selectedBookId === book.id
                   const isDeletingTarget = books.deleteTargetBook?.id === book.id && books.isDeleting
 
                   return (
-                    <div
+                    <BrowserListRow
                       key={book.id}
-                      className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition-colors ${
-                        isActive ? "border-primary/60 bg-primary/5" : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
-                      }`}
+                      isActive={isActive}
+                      actions={
+                        <Button size="icon" variant="ghost" className="size-7" aria-label="Eliminar" disabled={books.isDeleting} onClick={() => books.handleDeleteRequest(book.id)}>
+                          {isDeletingTarget ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4 text-destructive" />}
+                        </Button>
+                      }
                     >
                       <Button
                         variant="ghost"
@@ -77,18 +92,15 @@ export default function BooksSection() {
                         <BookMarked className="size-4 text-primary" />
                         <span className="truncate text-sm font-medium">{book.filename}</span>
                       </Button>
-                      <Button size="icon" variant="ghost" className="size-7" aria-label="Eliminar" disabled={books.isDeleting} onClick={() => books.handleDeleteRequest(book.id)}>
-                        {isDeletingTarget ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4 text-destructive" />}
-                      </Button>
-                    </div>
+                    </BrowserListRow>
                   )
                 })
               )}
               {!books.isLoading && books.filteredBooks.length === 0 ? (
-                <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">No hay libros que coincidan con esa busqueda.</p>
+                <BrowserListMessage>No hay libros que coincidan con esa busqueda.</BrowserListMessage>
               ) : null}
             </BrowserList>
-          </InformationSidebar>
+          </BrowserSidebar>
         }
         detail={
           <BrowserDetailPanel>

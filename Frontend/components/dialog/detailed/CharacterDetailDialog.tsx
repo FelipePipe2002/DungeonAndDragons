@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react"
 import { CharacterSheetDialog } from "@/components/dialog/detailed/CharacterSheetDialog"
 import { CreateCharacterEventDialog } from "@/components/dialog/detailed/CreateCharacterEventDialog"
+import { DetailDialogShell } from "@/components/dialog/shared/detail-dialog-shell"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +13,9 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
 import { MentionField } from "@/components/mentionField/MentionField"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { toOptionalText } from "@/lib/normalize"
 import { normalizeCharacterSheet } from "@/lib/character-sheet"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
 import { parseTagList } from "@/lib/tags"
@@ -119,11 +122,6 @@ function toCharacterFormState(character: Character): CharacterFormState {
     buildingIds: [...character.buildingIds],
     organizationIds: [...character.organizationIds],
   }
-}
-
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
 }
 
 function getDefaultLandmarkInfo(landmarks: CharacterLandmarkReference[], initialLandmarkId?: number) {
@@ -297,13 +295,13 @@ export function CharacterDetailDialog({
     [character.buildingIds, ownedBuildingIds],
   )
   const buildingNames = useMemo(
-    () => displayBuildingIds.map((buildingId) => buildingNameById.get(buildingId) ?? "Desconocido"),
+    () => displayBuildingIds.map((buildingId) => buildingNameById.get(buildingId) ?? UNKNOWN_LABEL),
     [buildingNameById, displayBuildingIds],
   )
   const organizationNames = useMemo(
     () =>
       character.organizationIds.map(
-        (organizationId) => organizationNameById.get(organizationId) ?? "Desconocido",
+        (organizationId) => organizationNameById.get(organizationId) ?? UNKNOWN_LABEL,
       ),
     [character.organizationIds, organizationNameById],
   )
@@ -689,8 +687,7 @@ export function CharacterDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="parchment max-h-[90vh] max-w-7xl overflow-hidden p-0">
+      <DetailDialogShell open={open} onOpenChange={handleDialogOpenChange} contentClassName="parchment max-h-[90vh] max-w-7xl overflow-hidden p-0">
         <div className="flex h-[85vh] min-h-0">
           <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className="flex flex-col">
@@ -955,7 +952,7 @@ export function CharacterDetailDialog({
                               const isChecked = isOwnerBuilding || formState.buildingIds.includes(building.id)
                               const buildingLandmarkName =
                                 typeof building.landmarkId === "number"
-                                  ? (landmarkNameById.get(building.landmarkId) ?? "Desconocido")
+                                  ? (landmarkNameById.get(building.landmarkId) ?? UNKNOWN_LABEL)
                                   : "Sin ubicacion"
 
                               return (
@@ -1169,8 +1166,7 @@ export function CharacterDetailDialog({
             </div>
           </ScrollArea>
         </div>
-        </DialogContent>
-      </Dialog>
+      </DetailDialogShell>
 
       <ConfirmDialog
         open={isDeleteDialogOpen}

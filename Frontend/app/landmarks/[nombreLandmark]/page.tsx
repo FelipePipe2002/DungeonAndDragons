@@ -34,18 +34,14 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
-import { CharacterDetailDialog, type CharacterDetailData } from "@/components/dialog/detailed/CharacterDetailDialog"
 import { CreateLandmarkEventDialog } from "@/components/dialog/detailed/CreateLandmarkEventDialog"
-import { EstadoDetailDialog } from "@/components/dialog/detailed/EstadoDetailDialog"
-import { LandmarkDetailDialog } from "@/components/dialog/detailed/LandmarkDetailDialog"
-import { OrganizationDetailDialog } from "@/components/dialog/detailed/OrganizationDetailDialog"
 import { BuildingResumeDialog } from "@/components/dialog/resumed/BuildingResumeDialog"
 import { CharacterResumeDialog } from "@/components/dialog/resumed/CharacterResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
 import { BattlePropLibraryPicker } from "@/components/battle/BattlePropLibraryPicker"
 import { BattleTokenOverlay } from "@/components/battle/BattleTokenOverlay"
 import BuildingsMap from "@/components/buildings/BuildingsMap"
+import { LandmarkMentionDetailDialogs } from "@/components/landmarks/LandmarkMentionDetailDialogs"
 import DungeonMap, { DEFAULT_DUNGEON_DISPLAY_STYLE, type DungeonDisplayStyle } from "@/components/dungeons/DungeonMap"
 import { normalizedDungeonToDocument } from "@/components/dungeons/dungeon-map-editor"
 import { ImageEmbeddingPicker } from "@/components/media/ImageEmbeddingPicker"
@@ -57,8 +53,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { generateDungeonMapDocument, stringifyDungeonMapDocument } from "@/lib/dungeons/generator"
 import type { BattlePropLibraryItem } from "@/lib/battle/props"
 import type { DungeonMapDocument, NormalizedDungeonMap, NormalizedDungeonProp } from "@/lib/dungeons/types"
+import { formatEsArDateTime, NO_DATE_LABEL, UNKNOWN_LABEL } from "@/lib/display"
+import {
+  fallbackLandmarkIconForType,
+  getLandmarkMapUrlFromReference,
+  isLandmarkImageIcon,
+  LANDMARK_TYPE_LABELS,
+} from "@/lib/landmarks/utils"
 import { isDungeonJsonDocument, resolveLandmarkMapMode } from "@/lib/landmarks/map-policy"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
+import {
+  formatMapGridNumber,
+  normalizeMapGridCellSize,
+  normalizeMapGridOffset,
+  normalizeMapRotationDegrees,
+  parseMapGridNumber,
+} from "@/lib/map-grid"
+import { toOptionalText } from "@/lib/normalize"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { buildAssetUrl, deleteAsset, getBackendAssetIdFromUrl, uploadAsset, uploadJsonAsset } from "@/lib/services/asset-api.service"
@@ -72,14 +83,14 @@ import {
   DUNGEON_MAP_JSON_TYPE,
   type BattleObstacle,
   type BattleSummary,
-   type Building,
-   type Character,
-   type Estado,
-   type Landmark,
+  type Building,
+  type Character,
+  type Landmark,
   type LandmarkEvent,
   type LandmarkType,
   type Organization,
 } from "@/lib/types"
+import { useLandmarkMentionDetails } from "@/hooks/useLandmarkMentionDetails"
 import styles from "./LandmarkDetailPage.module.css"
 
 const MIN_SCALE = 0.5
@@ -131,17 +142,6 @@ function getNextDungeonPropId(props: BattleObstacle[]) {
 }
 
 const DUNGEON_PROP_SAVE_DEBOUNCE_MS = 650
-
-const LANDMARK_TYPE_LABELS: Record<LandmarkType, string> = {
-  ciudad: "Ciudad",
-  pueblo: "Pueblo",
-  aldea: "Aldea",
-  fuerte: "Fuerte",
-  puente: "Puente",
-  bandera: "Bandera",
-  campamento: "Campamento",
-  mazmorra: "Mazmorra",
-}
 
 const BATTLE_GRID_SUPPORTED_TYPES = new Set<LandmarkType>(["puente", "bandera", "campamento", "mazmorra"])
 
@@ -230,16 +230,6 @@ type DungeonGeneratorDisplayStyle = DungeonDisplayStyle & {
   corridorTextureAssetIds?: Array<number | null>
 }
 
-type ReferenceIndexes = {
-  landmarksById: Map<number, Landmark>
-  buildingsById: Map<number, Building>
-  charactersById: Map<number, Character>
-  organizationsById: Map<number, Organization>
-  landmarkNameById: Map<number, string>
-  buildingNameById: Map<number, string>
-  organizationNameById: Map<number, string>
-}
-
 type LandmarkScopedData = {
   buildings: Building[]
   characters: Character[]
@@ -257,81 +247,6 @@ interface LandmarkDetailPageProps {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
-}
-
-function isImageIcon(value: string | undefined) {
-  if (!value) return false
-
-  return (
-    value.startsWith("http://") ||
-    value.startsWith("https://") ||
-    value.startsWith("data:") ||
-    value.includes("/")
-  )
-}
-
-function fallbackIconForType(tipo: LandmarkType) {
-  if (tipo === "ciudad") return "🏰"
-  if (tipo === "pueblo") return "🏘️"
-  if (tipo === "aldea") return "🏡"
-  if (tipo === "fuerte") return "🏯"
-  if (tipo === "puente") return "🌉"
-  if (tipo === "bandera") return "🚩"
-  if (tipo === "campamento") return "⛺"
-  if (tipo === "mazmorra") return "🗿"
-  return "📍"
-}
-
-function assetFileToPublicUrl(filename: string) {
-  if (
-    filename.startsWith("/") ||
-    filename.startsWith("http://") ||
-    filename.startsWith("https://") ||
-    filename.startsWith("data:")
-  ) {
-    return filename
-  }
-
-  return `/maps/${filename}`
-}
-
-function mapUrlFromReference(landmark: Landmark): string | null {
-  if (typeof landmark.mapAssetId === "number" && landmark.mapAssetId > 0) {
-    return buildAssetUrl(landmark.mapAssetId)
-  }
-
-  const ref = landmark.mapa
-  if (!ref) return null
-
-  if (ref.kind === "embedded") {
-    return ref.dataUrl
-  }
-
-  if (ref.kind === "external") {
-    return ref.url
-  }
-
-  if (ref.kind === "asset") {
-    return assetFileToPublicUrl(ref.filename)
-  }
-
-  if (ref.kind === "stored") {
-    const assetId = Number.parseInt(ref.key, 10)
-    if (Number.isFinite(assetId) && assetId > 0) {
-      return buildAssetUrl(assetId)
-    }
-    return null
-  }
-
-  if (ref.kind === "buildings") {
-    if (ref.source === "external") {
-      return ref.url
-    }
-
-    return assetFileToPublicUrl(ref.filename)
-  }
-
-  return null
 }
 
 function normalizePreloadedMapValue(value: string) {
@@ -709,57 +624,10 @@ function formatBattleSummaryTimestamp(summary: BattleSummary) {
       ? summary.updatedAt ?? summary.createdAt
       : summary.endedAt ?? summary.updatedAt ?? summary.createdAt
 
-  if (!source) {
-    return "Sin fecha"
-  }
-
-  const parsed = new Date(source)
-  if (Number.isNaN(parsed.getTime())) {
-    return "Sin fecha"
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
+  return formatEsArDateTime(source, {
     dateStyle: "short",
     timeStyle: "short",
-  }).format(parsed)
-}
-
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
-}
-
-function normalizeMapRotationDegrees(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  const normalized = Math.round(value)
-  const snappedQuarterTurns = Math.round(normalized / 90)
-  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
-}
-
-function normalizeMapGridCellSize(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 48
-  return Math.round(clamp(value, 8, 512) * 100) / 100
-}
-
-function normalizeMapGridOffset(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  return Math.round(value * 100) / 100
-}
-
-function formatMapGridNumber(value: number | null | undefined) {
-  const normalized = typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) / 100 : 0
-  const asText = Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(2).replace(/\.?0+$/, "")
-  return asText.replace(".", ",")
-}
-
-function parseMapGridNumber(value: string) {
-  const normalized = value.trim().replace(",", ".")
-  if (!normalized || normalized === "-" || normalized === "+" || normalized === "." || normalized === "-.") {
-    return null
-  }
-
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : null
+  }, { invalidFallback: NO_DATE_LABEL })
 }
 
 function toMapGridDraft(landmark: Landmark | null): MapGridDraft {
@@ -773,71 +641,6 @@ function toMapGridDraft(landmark: Landmark | null): MapGridDraft {
 
 function findLandmarkBySlug(landmarks: Landmark[], slug: string) {
   return landmarks.find((item) => landmarkNameToSlug(item.nombre) === slug) ?? null
-}
-
-function buildReferenceIndexes(
-  allLandmarks: Landmark[],
-  currentLandmark: Landmark | null,
-  storedBuildings: Building[],
-  storedCharacters: Character[],
-  storedOrganizations: Organization[],
-): ReferenceIndexes {
-  const landmarksById = new Map<number, Landmark>()
-  const buildingsById = new Map<number, Building>()
-  const charactersById = new Map<number, Character>()
-  const organizationsById = new Map<number, Organization>()
-
-  for (const storedLandmark of allLandmarks) {
-    landmarksById.set(storedLandmark.id, storedLandmark)
-  }
-  if (currentLandmark) {
-    landmarksById.set(currentLandmark.id, currentLandmark)
-  }
-
-  // Include nested character/org entities from landmarks so relation ids can still resolve.
-  for (const landmark of landmarksById.values()) {
-    for (const character of landmark.personajes ?? []) {
-      charactersById.set(character.id, {
-        ...character,
-        landmarkId: character.landmarkId ?? landmark.id,
-      })
-    }
-  }
-
-  for (const building of storedBuildings) {
-    buildingsById.set(building.id, building)
-  }
-  for (const character of storedCharacters) {
-    charactersById.set(character.id, character)
-  }
-  for (const organization of storedOrganizations) {
-    organizationsById.set(organization.id, organization)
-  }
-
-  const landmarkNameById = new Map<number, string>()
-  for (const [id, item] of landmarksById) {
-    landmarkNameById.set(id, item.nombre)
-  }
-
-  const buildingNameById = new Map<number, string>()
-  for (const [id, item] of buildingsById) {
-    buildingNameById.set(id, item.nombre)
-  }
-
-  const organizationNameById = new Map<number, string>()
-  for (const [id, item] of organizationsById) {
-    organizationNameById.set(id, item.nombre)
-  }
-
-  return {
-    landmarksById,
-    buildingsById,
-    charactersById,
-    organizationsById,
-    landmarkNameById,
-    buildingNameById,
-    organizationNameById,
-  }
 }
 
 function compareByName(a: { nombre: string }, b: { nombre: string }) {
@@ -926,8 +729,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [mapImageNaturalSize, setMapImageNaturalSize] = useState<Size | null>(null)
   const [preloadedMapValue, setPreloadedMapValue] = useState("")
   const [dungeonEditorError, setDungeonEditorError] = useState<string | null>(null)
-  const [selectedLandmarkDetail, setSelectedLandmarkDetail] = useState<Landmark | null>(null)
-  const [selectedEstadoDetailId, setSelectedEstadoDetailId] = useState<number | null>(null)
 
   useEffect(() => {
     loadedDungeonMapRef.current = loadedDungeonMap
@@ -943,29 +744,25 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false)
   const [editingEventIndex, setEditingEventIndex] = useState<number | null>(null)
   const [eventSaveError, setEventSaveError] = useState<string | null>(null)
-  const [selectedBuildingDetailId, setSelectedBuildingDetailId] = useState<number | null>(null)
-  const [isBuildingDialogOpen, setIsBuildingDialogOpen] = useState(false)
   const [activeMapLinkBuildingId, setActiveMapLinkBuildingId] = useState<number | null>(null)
   const [activeMapLinkOrganizationId, setActiveMapLinkOrganizationId] = useState<number | null>(null)
   const [focusedMapBuildingIndex, setFocusedMapBuildingIndex] = useState<number | null>(null)
   const [focusedMapOrganizationIndices, setFocusedMapOrganizationIndices] = useState<number[] | null>(null)
   const [focusedMapRequestId, setFocusedMapRequestId] = useState(0)
-  const [selectedCharacterDetail, setSelectedCharacterDetail] = useState<CharacterDetailData | null>(null)
-  const [isCharacterDialogOpen, setIsCharacterDialogOpen] = useState(false)
-  const [selectedOrganizationDetail, setSelectedOrganizationDetail] = useState<Organization | null>(null)
-  const [isOrganizationDialogOpen, setIsOrganizationDialogOpen] = useState(false)
   const [storedBuildings, setStoredBuildings] = useState<Building[]>([])
   const [storedCharacters, setStoredCharacters] = useState<Character[]>([])
   const [storedOrganizations, setStoredOrganizations] = useState<Organization[]>([])
+  const mentionDetails = useLandmarkMentionDetails({
+    allLandmarks,
+    currentLandmark: landmark,
+    storedBuildings,
+    storedCharacters,
+    storedOrganizations,
+  })
   const [activeTab, setActiveTab] = useState("general")
   const [charactersSearchQuery, setCharactersSearchQuery] = useState("")
   const [buildingsSearchQuery, setBuildingsSearchQuery] = useState("")
   const [organizationsSearchQuery, setOrganizationsSearchQuery] = useState("")
-  const [detailLandmarkNameById, setDetailLandmarkNameById] = useState<Map<number, string>>(() => new Map())
-  const [detailBuildingNameById, setDetailBuildingNameById] = useState<Map<number, string>>(() => new Map())
-  const [detailOrganizationNameById, setDetailOrganizationNameById] = useState<Map<number, string>>(
-    () => new Map()
-  )
   const [landmarkBattleHistory, setLandmarkBattleHistory] = useState<BattleSummary[]>([])
   const [isBattleHistoryLoading, setIsBattleHistoryLoading] = useState(false)
   const [isCreatingBattle, setIsCreatingBattle] = useState(false)
@@ -1016,19 +813,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     }
   }, [slug])
 
-  useEffect(() => {
-    const referenceIndexes = buildReferenceIndexes(
-      allLandmarks,
-      landmark,
-      storedBuildings,
-      storedCharacters,
-      storedOrganizations,
-    )
-    setDetailLandmarkNameById(referenceIndexes.landmarkNameById)
-    setDetailBuildingNameById(referenceIndexes.buildingNameById)
-    setDetailOrganizationNameById(referenceIndexes.organizationNameById)
-  }, [allLandmarks, landmark, storedBuildings, storedCharacters, storedOrganizations])
-
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -1077,7 +861,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
   const mapUrlByReference = useMemo(() => {
     if (!landmark) return null
-    return mapUrlFromReference(landmark)
+    return getLandmarkMapUrlFromReference(landmark)
   }, [landmark])
 
   const persistedMapMode = resolveLandmarkMapMode(landmark, mapUrlByReference)
@@ -1248,17 +1032,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
   }, [landmark?.id])
 
   useEffect(() => {
-    setSelectedBuildingDetailId(null)
-    setIsBuildingDialogOpen(false)
     setActiveMapLinkBuildingId(null)
     setActiveMapLinkOrganizationId(null)
     setFocusedMapBuildingIndex(null)
     setFocusedMapOrganizationIndices(null)
     setFocusedMapRequestId(0)
-    setSelectedCharacterDetail(null)
-    setIsCharacterDialogOpen(false)
-    setSelectedOrganizationDetail(null)
-    setIsOrganizationDialogOpen(false)
     setCharactersSearchQuery("")
     setBuildingsSearchQuery("")
     setOrganizationsSearchQuery("")
@@ -2325,93 +2103,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     return landmark.eventos[editingEventIndex] ?? null
   }, [editingEventIndex, landmark])
 
-  const handleOpenMention = useCallback(
-    (mention: MentionRef) => {
-      if (!mention.type || typeof mention.id !== "number") return
-
-      const referenceIndexes = buildReferenceIndexes(
-        allLandmarks,
-        landmark,
-        storedBuildings,
-        storedCharacters,
-        storedOrganizations,
-      )
-      setDetailLandmarkNameById(referenceIndexes.landmarkNameById)
-      setDetailBuildingNameById(referenceIndexes.buildingNameById)
-      setDetailOrganizationNameById(referenceIndexes.organizationNameById)
-
-      setSelectedLandmarkDetail(null)
-      setSelectedEstadoDetailId(null)
-      setSelectedBuildingDetailId(null)
-      setIsBuildingDialogOpen(false)
-      setSelectedCharacterDetail(null)
-      setIsCharacterDialogOpen(false)
-      setSelectedOrganizationDetail(null)
-      setIsOrganizationDialogOpen(false)
-
-      if (mention.type === "landmark") {
-        const selected = referenceIndexes.landmarksById.get(mention.id)
-        if (selected) setSelectedLandmarkDetail(selected)
-        return
-      }
-
-      if (mention.type === "building") {
-        const selected = referenceIndexes.buildingsById.get(mention.id)
-        if (selected) {
-          setSelectedBuildingDetailId(selected.id)
-          setIsBuildingDialogOpen(true)
-        }
-        return
-      }
-
-      if (mention.type === "estado") {
-        setSelectedEstadoDetailId(mention.id)
-        return
-      }
-
-      if (mention.type === "character") {
-        const selected = referenceIndexes.charactersById.get(mention.id)
-        if (!selected) return
-
-        setSelectedCharacterDetail({
-          character: selected,
-          landmarkName: referenceIndexes.landmarkNameById.get(selected.landmarkId) ?? "Desconocido",
-          buildingNames: selected.buildingIds.map(
-            (buildingId) => referenceIndexes.buildingNameById.get(buildingId) ?? "Desconocido"
-          ),
-          organizationNames: selected.organizationIds.map(
-            (organizationId) => referenceIndexes.organizationNameById.get(organizationId) ?? "Desconocido"
-          ),
-        })
-        setIsCharacterDialogOpen(true)
-        return
-      }
-
-      if (mention.type === "organization") {
-        const selected = referenceIndexes.organizationsById.get(mention.id)
-        if (selected) {
-          setSelectedOrganizationDetail(selected)
-          setIsOrganizationDialogOpen(true)
-        }
-      }
-    },
-    [allLandmarks, landmark, storedBuildings, storedCharacters, storedOrganizations],
-  )
-
-  const resolveLandmarkName = useCallback(
-    (landmarkId: number) => detailLandmarkNameById.get(landmarkId) ?? "Desconocido",
-    [detailLandmarkNameById],
-  )
-
-  const resolveBuildingName = useCallback(
-    (buildingId: number) => detailBuildingNameById.get(buildingId) ?? "Desconocido",
-    [detailBuildingNameById],
-  )
-
-  const resolveOrganizationName = useCallback(
-    (organizationId: number) => detailOrganizationNameById.get(organizationId) ?? "Desconocido",
-    [detailOrganizationNameById],
-  )
   const scopedData = useMemo(
     () =>
       landmark
@@ -2748,7 +2439,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               edificios: prev.edificios.map((building) => updatedById.get(building.id) ?? building),
             }
           })
-          setSelectedBuildingDetailId((prev) => (prev !== null && !updatedById.has(prev) ? null : prev))
+          mentionDetails.setSelectedBuildingDetailId((prev) => (prev !== null && !updatedById.has(prev) ? null : prev))
           highlightMapBuilding(mapBuildingIndex)
           setActiveMapLinkBuildingId(null)
           setBuildingsMapError(null)
@@ -2795,7 +2486,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               edificios: prev.edificios.map((building) => updatedById.get(building.id) ?? building),
             }
           })
-          setSelectedBuildingDetailId((prev) => (prev !== null && !updatedById.has(prev) ? null : prev))
+          mentionDetails.setSelectedBuildingDetailId((prev) => (prev !== null && !updatedById.has(prev) ? null : prev))
           setActiveMapLinkBuildingId((current) => (current === buildingId ? null : current))
           if (focusedMapBuildingIndex === currentMapBuildingIndex) {
             setFocusedMapBuildingIndex(null)
@@ -2820,8 +2511,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
 
       if (!selectedExists) return
       setActiveTab("edificios")
-      setSelectedBuildingDetailId(buildingId)
-      setIsBuildingDialogOpen(true)
+      mentionDetails.setSelectedBuildingDetailId(buildingId)
+      mentionDetails.setIsBuildingDialogOpen(true)
     },
     [activeMapLinkBuildingId, scopedData, storedBuildings],
   )
@@ -2915,7 +2606,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
     )
   }
 
-  const iconIsImage = isImageIcon(landmark.icono)
+  const iconIsImage = isLandmarkImageIcon(landmark.icono)
 
   return (
     <section className={styles.root}>
@@ -3278,7 +2969,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               {iconIsImage ? (
                 <img src={landmark.icono} alt={landmark.nombre} className="size-7 object-contain" />
               ) : (
-                <span className="text-lg">{fallbackIconForType(landmark.tipo)}</span>
+                <span className="text-lg">{fallbackLandmarkIconForType(landmark.tipo)}</span>
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -3413,7 +3104,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       editable={false}
                       className="text-xs leading-relaxed text-foreground/85"
                       emptyText="Sin descripcion"
-                      onOpenMention={handleOpenMention}
+                      onOpenMention={mentionDetails.handleOpenMention}
                     />
                   )}
                 </div>
@@ -3436,7 +3127,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       editable={false}
                       className="text-xs italic leading-relaxed text-foreground/80"
                       emptyText="Sin historia"
-                      onOpenMention={handleOpenMention}
+                      onOpenMention={mentionDetails.handleOpenMention}
                     />
                   )}
                 </div>
@@ -3595,8 +3286,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                   variant="outline"
                   className="w-full text-xs"
                   onClick={() => {
-                    setSelectedCharacterDetail(null)
-                    setIsCharacterDialogOpen(true)
+                    mentionDetails.setSelectedCharacterDetail(null)
+                    mentionDetails.setIsCharacterDialogOpen(true)
                   }}
                 >
                   <Plus className="mr-1.5 size-3" />
@@ -3622,19 +3313,20 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                       key={personaje.id}
                       characterId={personaje.id}
                       className="w-full border-border/70 bg-card/70 p-3 shadow-none"
+                      openOnClick={false}
                       onClick={() => {
-                        setSelectedCharacterDetail({
+                        mentionDetails.setSelectedCharacterDetail({
                           character: personaje,
-                          landmarkName: scopedData?.landmarkNameById.get(personaje.landmarkId) ?? "Desconocido",
+                          landmarkName: scopedData?.landmarkNameById.get(personaje.landmarkId) ?? UNKNOWN_LABEL,
                           buildingNames: personaje.buildingIds.map(
-                            (buildingId) => scopedData?.buildingNameById.get(buildingId) ?? "Desconocido",
+                            (buildingId) => scopedData?.buildingNameById.get(buildingId) ?? UNKNOWN_LABEL,
                           ),
                           organizationNames: personaje.organizationIds.map(
                             (organizationId) =>
-                              scopedData?.organizationNameById.get(organizationId) ?? "Desconocido",
+                              scopedData?.organizationNameById.get(organizationId) ?? UNKNOWN_LABEL,
                           ),
                         })
-                        setIsCharacterDialogOpen(true)
+                        mentionDetails.setIsCharacterDialogOpen(true)
                       }}
                     />
                   ))
@@ -3652,8 +3344,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                     variant="outline"
                     className="h-8 flex-1 text-xs"
                     onClick={() => {
-                      setSelectedBuildingDetailId(null)
-                      setIsBuildingDialogOpen(true)
+                      mentionDetails.setSelectedBuildingDetailId(null)
+                      mentionDetails.setIsBuildingDialogOpen(true)
                     }}
                   >
                     <Plus className="mr-1.5 size-3" />
@@ -3740,9 +3432,10 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                             isFocusedThis
                               ? "w-full border-primary bg-primary/12 p-3 shadow-none"
                               : isLinkingThis
-                                ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
+                              ? "w-full border-primary/45 bg-primary/6 p-3 shadow-none"
                                 : "w-full border-border/70 bg-card/70 p-3 shadow-none"
                           }
+                          openOnClick={false}
                           onClick={() => {
                             if (shouldUseBuildingsMap && activeMapLinkBuildingId !== null) {
                               if (
@@ -3755,8 +3448,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                               setActiveMapLinkBuildingId(edificio.id)
                               return
                             }
-                            setSelectedBuildingDetailId(edificio.id)
-                            setIsBuildingDialogOpen(true)
+                            mentionDetails.setSelectedBuildingDetailId(edificio.id)
+                            mentionDetails.setIsBuildingDialogOpen(true)
                           }}
                         />
                       </div>
@@ -3776,8 +3469,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                     variant="outline"
                     className="h-8 flex-1 text-xs"
                     onClick={() => {
-                      setSelectedOrganizationDetail(null)
-                      setIsOrganizationDialogOpen(true)
+                      mentionDetails.setSelectedOrganizationDetail(null)
+                      mentionDetails.setIsOrganizationDialogOpen(true)
                     }}
                   >
                     <Plus className="mr-1.5 size-3" />
@@ -3833,6 +3526,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                         <OrganizationResumeDialog
                           organizationId={organizacion.id}
                           className="w-full border-border/70 bg-card/70 p-3 shadow-none"
+                          openOnClick={false}
                           onClick={() => {
                             if (activeMapLinkOrganizationId !== null) {
                               setActiveMapLinkOrganizationId(organizacion.id)
@@ -3841,8 +3535,8 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
                               setFocusedMapRequestId((current) => current + 1)
                               return
                             }
-                            setSelectedOrganizationDetail(organizacion)
-                            setIsOrganizationDialogOpen(true)
+                            mentionDetails.setSelectedOrganizationDetail(organizacion)
+                            mentionDetails.setIsOrganizationDialogOpen(true)
                           }}
                         />
                         {shouldUseBuildingsMap && linkCount > 0 ? (
@@ -4340,46 +4034,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         </Tabs>
       </aside>
 
-      <LandmarkDetailDialog
-        landmarkId={selectedLandmarkDetail?.id}
-        open={Boolean(selectedLandmarkDetail)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedLandmarkDetail(null)
-        }}
-        onLandmarkUpdated={(updatedLandmark) => {
-          setSelectedLandmarkDetail(updatedLandmark)
-          setAllLandmarks((current) =>
-            current.some((item) => item.id === updatedLandmark.id)
-              ? current.map((item) => (item.id === updatedLandmark.id ? updatedLandmark : item))
-              : [...current, updatedLandmark],
-          )
-          setDetailLandmarkNameById((prev) => {
-            const next = new Map(prev)
-            next.set(updatedLandmark.id, updatedLandmark.nombre)
-            return next
-          })
-          setLandmark((prev) => (prev && prev.id === updatedLandmark.id ? updatedLandmark : prev))
-        }}
-      />
-      <EstadoDetailDialog
-        estadoId={selectedEstadoDetailId}
-        open={selectedEstadoDetailId !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEstadoDetailId(null)
-        }}
-        onEstadoUpdated={(updatedEstado: Estado) => {
-          setSelectedEstadoDetailId(updatedEstado.id)
-        }}
-        onOpenEstado={(nextEstadoId) => {
-          setSelectedEstadoDetailId(nextEstadoId)
-        }}
-        onOpenCharacter={(characterId) => {
-          handleOpenMention({ type: "character", id: characterId, label: "" })
-        }}
-        onOpenLandmark={(landmarkId) => {
-          handleOpenMention({ type: "landmark", id: landmarkId, label: "" })
-        }}
-      />
       <CreateLandmarkEventDialog
         open={isCreateEventDialogOpen}
         initialEvent={editingEvent}
@@ -4391,18 +4045,19 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
         }}
         onSaveEvent={handleSaveEvent}
       />
-      <BuildingDetailDialog
-        buildingId={selectedBuildingDetailId}
-        open={isBuildingDialogOpen}
-        onOpenChange={(open) => {
-          setIsBuildingDialogOpen(open)
-          if (!open) setSelectedBuildingDetailId(null)
+      <LandmarkMentionDetailDialogs
+        landmarkId={landmark.id}
+        mentionDetails={mentionDetails}
+        onOpenMention={mentionDetails.handleOpenMention}
+        onLandmarkUpdated={(updatedLandmark) => {
+          setAllLandmarks((current) =>
+            current.some((item) => item.id === updatedLandmark.id)
+              ? current.map((item) => (item.id === updatedLandmark.id ? updatedLandmark : item))
+              : [...current, updatedLandmark],
+          )
+          setLandmark((prev) => (prev && prev.id === updatedLandmark.id ? updatedLandmark : prev))
         }}
-        initialLandmarkId={landmark.id}
-        resolveLandmarkName={resolveLandmarkName}
-        resolveOrganizationName={resolveOrganizationName}
         onBuildingUpdated={(updatedBuilding) => {
-          setSelectedBuildingDetailId(updatedBuilding.id)
           setStoredBuildings((prev) => {
             const existingIndex = prev.findIndex((building) => building.id === updatedBuilding.id)
             if (existingIndex < 0) {
@@ -4411,11 +4066,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             return prev.map((building) =>
               building.id === updatedBuilding.id ? updatedBuilding : building,
             )
-          })
-          setDetailBuildingNameById((prev) => {
-            const next = new Map(prev)
-            next.set(updatedBuilding.id, updatedBuilding.nombre)
-            return next
           })
           setLandmark((prev) => {
             if (!prev) return prev
@@ -4441,20 +4091,11 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             return {
               ...prev,
               edificios: prev.edificios.map((building) =>
-                building.id === updatedBuilding.id ? updatedBuilding : building
+                building.id === updatedBuilding.id ? updatedBuilding : building,
               ),
             }
           })
         }}
-      />
-      <CharacterDetailDialog
-        characterId={selectedCharacterDetail?.character.id}
-        open={isCharacterDialogOpen}
-        onOpenChange={(open) => {
-          setIsCharacterDialogOpen(open)
-          if (!open) setSelectedCharacterDetail(null)
-        }}
-        initialLandmarkId={landmark.id}
         onCharacterUpdated={(updatedCharacter) => {
           setStoredCharacters((prev) => {
             const existingIndex = prev.findIndex((character) => character.id === updatedCharacter.id)
@@ -4465,7 +4106,6 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               character.id === updatedCharacter.id ? updatedCharacter : character,
             )
           })
-          setSelectedCharacterDetail((prev) => (prev ? { ...prev, character: updatedCharacter } : prev))
           setLandmark((prev) => {
             if (!prev) return prev
 
@@ -4490,24 +4130,12 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             return {
               ...prev,
               personajes: prev.personajes.map((character) =>
-                character.id === updatedCharacter.id ? updatedCharacter : character
+                character.id === updatedCharacter.id ? updatedCharacter : character,
               ),
             }
           })
         }}
-      />
-      <OrganizationDetailDialog
-        organizationId={selectedOrganizationDetail?.id}
-        open={isOrganizationDialogOpen}
-        onOpenChange={(open) => {
-          setIsOrganizationDialogOpen(open)
-          if (!open) setSelectedOrganizationDetail(null)
-        }}
-        initialLandmarkId={landmark.id}
-        resolveBuildingName={resolveBuildingName}
-        resolveLandmarkName={resolveLandmarkName}
         onOrganizationUpdated={(updatedOrganization) => {
-          setSelectedOrganizationDetail(updatedOrganization)
           setStoredOrganizations((prev) => {
             const existingIndex = prev.findIndex((organization) => organization.id === updatedOrganization.id)
             if (existingIndex < 0) {
@@ -4517,17 +4145,12 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               organization.id === updatedOrganization.id ? updatedOrganization : organization,
             )
           })
-          setDetailOrganizationNameById((prev) => {
-            const next = new Map(prev)
-            next.set(updatedOrganization.id, updatedOrganization.nombre)
-            return next
-          })
           setLandmark((prev) => {
             if (!prev) return prev
 
             const belongsToCurrentLandmark = updatedOrganization.landmarks.includes(prev.id)
             const existingIndex = prev.organizaciones.findIndex(
-              (organization) => organization.id === updatedOrganization.id
+              (organization) => organization.id === updatedOrganization.id,
             )
 
             if (existingIndex < 0) {
@@ -4542,7 +4165,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
               return {
                 ...prev,
                 organizaciones: prev.organizaciones.filter(
-                  (organization) => organization.id !== updatedOrganization.id
+                  (organization) => organization.id !== updatedOrganization.id,
                 ),
               }
             }
@@ -4550,7 +4173,7 @@ export default function LandmarkDetailPage({ params }: LandmarkDetailPageProps) 
             return {
               ...prev,
               organizaciones: prev.organizaciones.map((organization) =>
-                organization.id === updatedOrganization.id ? updatedOrganization : organization
+                organization.id === updatedOrganization.id ? updatedOrganization : organization,
               ),
             }
           })

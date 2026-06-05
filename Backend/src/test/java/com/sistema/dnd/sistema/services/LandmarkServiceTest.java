@@ -11,18 +11,18 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sistema.dnd.sistema.dto.domain.EventDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapRequest;
 import com.sistema.dnd.sistema.dto.domain.LandmarkUpsertRequest;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapKind;
-import com.sistema.dnd.sistema.entity.LandmarkMapSource;
-import com.sistema.dnd.sistema.entity.LandmarkType;
 import com.sistema.dnd.sistema.entity.MediaAssetEntity;
-import com.sistema.dnd.sistema.entity.MediaAssetKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapKind;
+import com.sistema.dnd.sistema.entity.enums.LandmarkMapSource;
+import com.sistema.dnd.sistema.entity.enums.LandmarkType;
+import com.sistema.dnd.sistema.entity.enums.MediaAssetKind;
 import com.sistema.dnd.sistema.repository.EstadoRepository;
-import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
-import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
+import com.sistema.dnd.sistema.repository.EventRepository;
 import com.sistema.dnd.sistema.repository.LandmarkRepository;
 import com.sistema.dnd.sistema.repository.MediaAssetRepository;
 import java.util.List;
@@ -46,10 +46,7 @@ class LandmarkServiceTest {
     private LandmarkRepository landmarkRepository;
 
     @Mock
-    private LandmarkEventRepository landmarkEventRepository;
-
-    @Mock
-    private LandmarkMapRefRepository landmarkMapRefRepository;
+    private EventRepository eventRepository;
 
     @Mock
     private EstadoRepository estadoRepository;
@@ -70,8 +67,7 @@ class LandmarkServiceTest {
         LandmarkMapValidator landmarkMapValidator = new LandmarkMapValidator(mediaAssetRepository, new ObjectMapper());
         landmarkService = new LandmarkService(
             landmarkRepository,
-            landmarkEventRepository,
-            landmarkMapRefRepository,
+            eventRepository,
             estadoRepository,
             taggingService,
             domainMapper,
@@ -130,7 +126,7 @@ class LandmarkServiceTest {
         LandmarkDto result = assertDoesNotThrow(() -> landmarkService.create(baseRequest(LandmarkType.mazmorra, null, 10L)));
 
         assertEquals(10L, result.mapAssetId());
-        verify(landmarkMapRefRepository, never()).save(any());
+        assertEquals("image", result.mapAssetKind());
     }
 
     @Test
@@ -216,7 +212,9 @@ class LandmarkServiceTest {
         LandmarkDto result = assertDoesNotThrow(() -> landmarkService.update(99L, baseRequest(LandmarkType.ciudad, buildingsMap, null)));
 
         assertEquals(99L, result.id());
-        verify(landmarkMapRefRepository).save(any());
+        assertEquals(LandmarkMapKind.buildings.name(), existing.getMapKind().name());
+        assertEquals(LandmarkMapSource.external.name(), existing.getMapSource().name());
+        assertEquals("https://example.com/buildings.json", existing.getMapUrl());
     }
 
     private static Stream<Arguments> dungeonMapReferences() {
@@ -229,8 +227,8 @@ class LandmarkServiceTest {
 
     private static LandmarkUpsertRequest baseRequest(LandmarkType type, LandmarkMapRequest mapRequest, Long mapAssetId) {
         return new LandmarkUpsertRequest(
-            "icono",
-            "Landmark de prueba",
+            "icon",
+            "Test landmark",
             type,
             null,
             null,
@@ -240,9 +238,9 @@ class LandmarkServiceTest {
             List.of(0.5, 0.5),
             List.of("tag"),
             100,
-            "descripcion",
-            "historia",
-            List.of(),
+            "description",
+            "history",
+            List.<EventDto>of(),
             0,
             false,
             48.0,

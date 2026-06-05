@@ -17,7 +17,15 @@ import { ArrowLeft, Building2, LoaderCircle, Monitor, Pencil, RotateCw, Save, X 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { formatEsArDateTime } from "@/lib/display"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
+import {
+  formatMapGridNumber,
+  normalizeMapGridCellSize,
+  normalizeMapGridOffset,
+  normalizeMapRotationDegrees,
+  parseMapGridNumber,
+} from "@/lib/map-grid"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 import { buildAssetUrl } from "@/lib/services/asset-api.service"
 import { getBackendErrorMessage } from "@/lib/services/backend-api.service"
@@ -132,55 +140,13 @@ function decodeSlug(raw: string | undefined) {
   }
 }
 
-function normalizeMapRotationDegrees(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  const normalized = Math.round(value)
-  const snappedQuarterTurns = Math.round(normalized / 90)
-  return ((snappedQuarterTurns % 4) + 4) % 4 * 90
-}
-
-function normalizeMapGridCellSize(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 48
-  return Math.round(clamp(value, 8, 512) * 100) / 100
-}
-
-function normalizeMapGridOffset(value: number | null | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0
-  return Math.round(value * 100) / 100
-}
-
-function formatMapGridNumber(value: number | null | undefined) {
-  const normalized = typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) / 100 : 0
-  const asText = Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(2).replace(/\.?0+$/, "")
-  return asText.replace(".", ",")
-}
-
-function parseMapGridNumber(value: string) {
-  const normalized = value.trim().replace(",", ".")
-  if (!normalized || normalized === "-" || normalized === "+" || normalized === "." || normalized === "-.") {
-    return null
-  }
-
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
 function formatBattleSummaryTimestamp(rawValue: string | undefined) {
-  if (!rawValue) {
-    return "Sin fecha"
-  }
-
-  const parsed = new Date(rawValue)
-  if (Number.isNaN(parsed.getTime())) {
-    return rawValue
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
+  return formatEsArDateTime(rawValue, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(parsed)
+  })
 }
 
 function toMapGridDraft(building: Building | null): MapGridDraft {

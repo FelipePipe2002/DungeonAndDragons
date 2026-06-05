@@ -6,10 +6,12 @@ Entity dialogs for full detail editing and compact resume/preview cards. This fo
 ## Subfolders
 - `detailed/`: Full CRUD dialogs and sheets.
 - `resumed/`: Compact resume cards used in hover and mention previews.
+- `shared/`: Structural wrappers and reusable dialog UI pieces shared by both systems.
 
 ## Usage Notes
 - The detailed dialogs typically handle create/edit flows, validation, and save/delete actions.
 - The resumed cards are read-only previews meant for hover cards or mention popovers.
+- Shared wrappers like dialog shells and resume-card chrome live in `shared/` so entity files can focus on data and layout.
 - Most dialogs are client components and depend on backend services from `lib/services/*`.
 - Shared UI pieces live in `Frontend/components/ui` (e.g., `dialog`, `sheet`, `button`, `field`).
 

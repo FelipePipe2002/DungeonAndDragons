@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { PartyInventory, PartyInventoryItem } from "@/lib/types"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 
@@ -45,7 +46,7 @@ function itemToLine(item: PartyInventoryItem, characterNameById: Map<number, str
   }
 
   if (typeof item.carrierCharacterId === "number" && item.carrierCharacterId > 0) {
-    const fallback = toOptionalTrimmedText(item.carriedBy) ?? "Desconocido"
+    const fallback = toOptionalTrimmedText(item.carriedBy) ?? UNKNOWN_LABEL
     const carrierName = characterNameById.get(item.carrierCharacterId) ?? fallback
     parts.push(`Portador: ${carrierName} (id: ${item.carrierCharacterId})`)
   } else {

@@ -142,6 +142,82 @@ function extractErrorMessage(payload: unknown, fallback: string) {
   return fallback
 }
 
+function createBackendRequestInit(options: BackendRequestOptions = {}) {
+  const headers = new Headers(options.headers)
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json")
+  }
+
+  const xsrfToken = readStoredXsrfToken()
+  if (xsrfToken && !headers.has(XSRF_HEADER_NAME)) {
+    headers.set(XSRF_HEADER_NAME, xsrfToken)
+  }
+
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData
+  const isBlob = typeof Blob !== "undefined" && options.body instanceof Blob
+  const hasBody = options.body !== undefined
+
+  if (hasBody && !headers.has("Content-Type") && !isFormData && !isBlob) {
+    headers.set("Content-Type", "application/json")
+  }
+
+  const body =
+    !hasBody
+      ? undefined
+      : isFormData || isBlob || typeof options.body === "string"
+        ? (options.body as BodyInit)
+        : JSON.stringify(options.body)
+
+  return {
+    method: options.method ?? "GET",
+    headers,
+    body,
+    credentials: "include" as const,
+    cache: "no-store" as const,
+    signal: options.signal,
+  }
+}
+
+async function throwBackendResponseError(response: Response, options: BackendRequestOptions) {
+  const payload = await parseResponsePayload(response)
+  const isUnauthorizedStatus = response.status === 401 || response.status === 403
+  const fallback =
+    isUnauthorizedStatus
+      ? "No autorizado. Inicia sesion nuevamente."
+      : response.status === 404
+        ? "Endpoint no encontrado. Verifica la URL del backend y que este levantado."
+        : `Error HTTP ${response.status}`
+  const errorMessage = extractErrorMessage(payload, fallback)
+  const shouldRedirectToLogin =
+    (isUnauthorizedStatus || looksLikeAuthFailureMessage(errorMessage)) && !options.skipAuthRedirect
+
+  if (shouldRedirectToLogin) {
+    clearBackendXsrfToken()
+    redirectToLogin()
+  }
+
+  throw new BackendApiError(errorMessage, response.status, payload)
+}
+
+async function performBackendRequest(path: string, options: BackendRequestOptions = {}) {
+  if (!path.startsWith("/")) {
+    throw new Error(`La ruta de backend debe comenzar con '/'. Recibido: ${path}`)
+  }
+
+  const response = await fetch(`${resolveApiBasePath()}${path}`, createBackendRequestInit(options))
+
+  const responseXsrfToken = response.headers.get(XSRF_HEADER_NAME)
+  if (responseXsrfToken) {
+    writeStoredXsrfToken(responseXsrfToken)
+  }
+
+  if (!response.ok) {
+    await throwBackendResponseError(response, options)
+  }
+
+  return response
+}
+
 async function parseResponsePayload(response: Response) {
   const contentType = response.headers.get("content-type") ?? ""
   if (contentType.includes("application/json")) {
@@ -172,49 +248,7 @@ export function getBackendErrorMessage(error: unknown, fallback = "No se pudo co
 }
 
 export async function backendRequest<T>(path: string, options: BackendRequestOptions = {}): Promise<T> {
-  if (!path.startsWith("/")) {
-    throw new Error(`La ruta de backend debe comenzar con '/'. Recibido: ${path}`)
-  }
-
-  const apiBasePath = resolveApiBasePath()
-  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData
-  const isBlob = typeof Blob !== "undefined" && options.body instanceof Blob
-
-  const headers = new Headers(options.headers)
-  if (!headers.has("Accept")) {
-    headers.set("Accept", "application/json")
-  }
-
-  const xsrfToken = readStoredXsrfToken()
-  if (xsrfToken && !headers.has(XSRF_HEADER_NAME)) {
-    headers.set(XSRF_HEADER_NAME, xsrfToken)
-  }
-
-  const hasBody = options.body !== undefined
-  if (hasBody && !headers.has("Content-Type") && !isFormData && !isBlob) {
-    headers.set("Content-Type", "application/json")
-  }
-
-  const requestBody =
-    !hasBody
-      ? undefined
-      : isFormData || isBlob || typeof options.body === "string"
-        ? (options.body as BodyInit)
-        : JSON.stringify(options.body)
-
-  const response = await fetch(`${apiBasePath}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: requestBody,
-    credentials: "include",
-    cache: "no-store",
-    signal: options.signal,
-  })
-
-  const responseXsrfToken = response.headers.get(XSRF_HEADER_NAME)
-  if (responseXsrfToken) {
-    writeStoredXsrfToken(responseXsrfToken)
-  }
+  const response = await performBackendRequest(path, options)
 
   if (response.status === 204) {
     return undefined as T
@@ -222,27 +256,12 @@ export async function backendRequest<T>(path: string, options: BackendRequestOpt
 
   const payload = await parseResponsePayload(response)
 
-  if (!response.ok) {
-    const isUnauthorizedStatus = response.status === 401 || response.status === 403
-    const fallback =
-      isUnauthorizedStatus
-        ? "No autorizado. Inicia sesion nuevamente."
-        : response.status === 404
-          ? "Endpoint no encontrado. Verifica la URL del backend y que este levantado."
-          : `Error HTTP ${response.status}`
-    const errorMessage = extractErrorMessage(payload, fallback)
-    const shouldRedirectToLogin =
-      (isUnauthorizedStatus || looksLikeAuthFailureMessage(errorMessage)) && !options.skipAuthRedirect
-
-    if (shouldRedirectToLogin) {
-      clearBackendXsrfToken()
-      redirectToLogin()
-    }
-
-    throw new BackendApiError(errorMessage, response.status, payload)
-  }
-
   return payload as T
+}
+
+export async function backendRequestBlob(path: string, options: BackendRequestOptions = {}): Promise<Blob> {
+  const response = await performBackendRequest(path, options)
+  return response.blob()
 }
 
 export function clearBackendXsrfToken() {

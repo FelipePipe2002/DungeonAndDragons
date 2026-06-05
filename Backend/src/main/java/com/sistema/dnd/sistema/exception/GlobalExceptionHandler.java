@@ -1,6 +1,6 @@
 package com.sistema.dnd.sistema.exception;
 
-import com.sistema.dnd.sistema.services.BookUploadProgressService;
+import com.sistema.dnd.sistema.services.BookService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,10 +26,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    private final BookUploadProgressService bookUploadProgressService;
+    private final BookService bookService;
 
-    public GlobalExceptionHandler(BookUploadProgressService bookUploadProgressService) {
-        this.bookUploadProgressService = bookUploadProgressService;
+    public GlobalExceptionHandler(BookService bookService) {
+        this.bookService = bookService;
     }
 
     private Map<String, Object> baseBody(HttpStatus status, String message, HttpServletRequest request) {
@@ -108,7 +108,7 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.PAYLOAD_TOO_LARGE;
         String uploadSessionId = request.getParameter("uploadSessionId");
         if (uploadSessionId != null && !uploadSessionId.isBlank()) {
-            bookUploadProgressService.markFailed(uploadSessionId, "El archivo supera el tamano maximo permitido de 500 MB");
+            bookService.markUploadSessionFailed(uploadSessionId, "El archivo supera el tamano maximo permitido de 500 MB");
         }
 
         Map<String, Object> body = baseBody(status, "El archivo supera el tamano maximo permitido de 500 MB", request);

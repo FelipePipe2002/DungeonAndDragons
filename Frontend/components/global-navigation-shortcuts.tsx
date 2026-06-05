@@ -9,9 +9,9 @@ import {
   openCreateDmEventDialog,
   openCreateDmRelationshipDialog,
   openCreateOrganizationDialog,
-} from "@/lib/navigation/global-create-events"
+} from "@/lib/navigation/events"
 import { getMainNavItemByShortcut, normalizeMainNavPath } from "@/lib/navigation/main-nav"
-import { toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
+import { toggleNavSettingsPanel } from "@/lib/navigation/events"
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {

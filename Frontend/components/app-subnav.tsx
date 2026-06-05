@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/subnav"
+import { getSubnavActiveValue, getSubnavConfig } from "@/lib/navigation/main-nav"
 
 export function AppSubnav() {
   const pathname = usePathname()

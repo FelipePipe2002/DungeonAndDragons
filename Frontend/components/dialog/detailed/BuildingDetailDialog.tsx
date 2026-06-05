@@ -1,15 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { DetailDialogShell } from "@/components/dialog/shared/detail-dialog-shell"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { toOptionalText } from "@/lib/normalize"
 import {
   fetchCharacterReferences,
   fetchCharacters,
@@ -64,11 +67,6 @@ function toBuildingFormState(building: Building, characters: Character[]): Build
   }
 }
 
-function toOptionalText(value: string): string | undefined {
-  const normalized = value.trim()
-  return normalized.length > 0 ? normalized : undefined
-}
-
 function getEmptyBuildingFormState(defaultLandmarkId: number): BuildingFormState {
   return {
     ...EMPTY_BUILDING_FORM_STATE,
@@ -80,8 +78,6 @@ interface BuildingDetailDialogProps {
   buildingId?: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  resolveLandmarkName?: (landmarkId: number) => string
-  resolveOrganizationName?: (organizationId: number) => string
   onBuildingUpdated?: (building: Building) => void
   onBuildingDeleted?: (buildingId: number) => void
   initialLandmarkId?: number
@@ -91,8 +87,6 @@ export function BuildingDetailDialog({
   buildingId,
   open,
   onOpenChange,
-  resolveLandmarkName,
-  resolveOrganizationName,
   onBuildingUpdated,
   onBuildingDeleted,
   initialLandmarkId,
@@ -232,14 +226,10 @@ export function BuildingDetailDialog({
       : defaultLandmarkId
   const landmarkName =
     activeLandmarkId > 0
-      ? landmarkNameById.get(activeLandmarkId) ??
-        resolveLandmarkName?.(activeLandmarkId) ??
-        "Desconocido"
+      ? landmarkNameById.get(activeLandmarkId) ?? UNKNOWN_LABEL
       : "Sin ubicacion"
   const organizationName = currentBuilding?.organizationId
-    ? organizationNameById.get(currentBuilding.organizationId) ??
-      resolveOrganizationName?.(currentBuilding.organizationId) ??
-      "Desconocido"
+    ? organizationNameById.get(currentBuilding.organizationId) ?? UNKNOWN_LABEL
     : null
   const titleText = isEditing
     ? formState.nombre.trim() || (isCreateMode ? "Nuevo edificio" : currentBuilding?.nombre ?? "Nuevo edificio")
@@ -422,8 +412,7 @@ export function BuildingDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="parchment max-h-[90vh] max-w-3xl overflow-hidden p-0">
+      <DetailDialogShell open={open} onOpenChange={handleDialogOpenChange} contentClassName="parchment max-h-[90vh] max-w-3xl overflow-hidden p-0">
         <ScrollArea className="max-h-[90vh]">
           <div className="flex flex-col">
             <div className="scroll-banner">
@@ -639,8 +628,7 @@ export function BuildingDetailDialog({
             </div>
           </div>
         </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      </DetailDialogShell>
       <ConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

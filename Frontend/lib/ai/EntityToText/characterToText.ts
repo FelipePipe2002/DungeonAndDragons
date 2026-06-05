@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { Character, CharacterEvent } from "@/lib/types"
 import { fetchBuildingById, getCachedBuildingName } from "@/lib/services/building-api.service"
 import { fetchCharacterReferences } from "@/lib/services/character-api.service"
@@ -60,7 +61,7 @@ export async function characterToText(character: Character): Promise<string> {
     const landmarkId = character.landmarkId
     let landmarkName = landmarkNameById.get(landmarkId) ?? getCachedLandmarkName(landmarkId)
 
-    if (!toOptionalTrimmedText(landmarkName) || landmarkName === "Desconocido") {
+    if (!toOptionalTrimmedText(landmarkName) || landmarkName === UNKNOWN_LABEL) {
       try {
         const landmark = await fetchLandmarkById(landmarkId)
         if (landmark?.nombre?.trim()) {
@@ -101,7 +102,7 @@ export async function characterToText(character: Character): Promise<string> {
     for (const buildingId of buildingIds) {
       let buildingName = buildingNameById.get(buildingId) ?? getCachedBuildingName(buildingId)
 
-      if (!toOptionalTrimmedText(buildingName) || buildingName === "Desconocido") {
+      if (!toOptionalTrimmedText(buildingName) || buildingName === UNKNOWN_LABEL) {
         try {
           const building = await fetchBuildingById(buildingId)
           if (building?.nombre?.trim()) {
@@ -130,7 +131,7 @@ export async function characterToText(character: Character): Promise<string> {
       let organizationName =
         organizationNameById.get(organizationId) ?? getCachedOrganizationName(organizationId)
 
-      if (!toOptionalTrimmedText(organizationName) || organizationName === "Desconocido") {
+      if (!toOptionalTrimmedText(organizationName) || organizationName === UNKNOWN_LABEL) {
         try {
           const organization = await fetchOrganizationById(organizationId)
           if (organization?.nombre?.trim()) {

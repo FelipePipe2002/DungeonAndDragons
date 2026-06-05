@@ -4,11 +4,13 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { BuildingDetailDialog } from "@/components/dialog/detailed/BuildingDetailDialog"
+import { EntitiesPageHeader } from "@/components/entities/EntitiesPageHeader"
 import { MentionField } from "@/components/mentionField/MentionField"
 import { SearchInput } from "@/components/search/SearchInput"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { BUILDINGS_CHANGED_EVENT } from "@/lib/navigation/global-create-events"
+import { UNKNOWN_LABEL } from "@/lib/display"
+import { BUILDINGS_CHANGED_EVENT } from "@/lib/navigation/events"
 import { landmarkNameToSlug } from "@/lib/landmarks/slug"
 import { matchesSearchQuery } from "@/lib/search/utils"
 import { fetchBuildings } from "@/lib/services/building-api.service"
@@ -62,9 +64,9 @@ export function BuildingsPageContent({ showHeader = true, loadRelatedData = true
 
   const resolveLandmarkName = (landmarkId: number | null) =>
     typeof landmarkId === "number" && landmarkId > 0
-      ? (landmarkNamesById[landmarkId] ?? (loadRelatedData ? "Desconocido" : `Ubicacion #${landmarkId}`))
+      ? (landmarkNamesById[landmarkId] ?? (loadRelatedData ? UNKNOWN_LABEL : `Ubicacion #${landmarkId}`))
       : "Sin ubicacion"
-  const resolveOrganizationName = (organizationId: number) => organizationNamesById[organizationId] ?? (loadRelatedData ? "Desconocido" : "")
+  const resolveOrganizationName = (organizationId: number) => organizationNamesById[organizationId] ?? (loadRelatedData ? UNKNOWN_LABEL : "")
   const filteredBuildings = useMemo(
     () =>
       buildingsData.filter((building) =>
@@ -81,49 +83,28 @@ export function BuildingsPageContent({ showHeader = true, loadRelatedData = true
     [buildingsData, landmarkNamesById, loadRelatedData, organizationNamesById, searchQuery],
   )
 
+  const createBuildingAction = (
+    <Button
+      onClick={() => {
+        setSelectedBuildingId(null)
+        setDialogOpen(true)
+      }}
+      className="gap-2"
+    >
+      <Plus className="size-4" />
+      Crear Edificio
+    </Button>
+  )
+
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-8">
-      {showHeader ? (
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex size-10 items-center justify-center rounded-sm border-2 border-primary/30 bg-primary/10">
-                <Building2 className="size-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-serif text-primary">Edificios</h1>
-                <p className="text-sm text-muted-foreground">
-                  {filteredBuildings.length} de {buildingsData.length} estructuras registradas en el codex
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => {
-                setSelectedBuildingId(null)
-                setDialogOpen(true)
-              }}
-              className="gap-2"
-            >
-              <Plus className="size-4" />
-              Crear Edificio
-            </Button>
-          </div>
-          <div className="ornament-divider mt-4">~</div>
-        </div>
-      ) : (
-        <div className="mb-4 flex justify-end">
-          <Button
-            onClick={() => {
-              setSelectedBuildingId(null)
-              setDialogOpen(true)
-            }}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            Crear Edificio
-          </Button>
-        </div>
-      )}
+      <EntitiesPageHeader
+        showHeader={showHeader}
+        title="Edificios"
+        summary={`${filteredBuildings.length} de ${buildingsData.length} estructuras registradas en el codex`}
+        icon={<Building2 className="size-5 text-primary" />}
+        action={createBuildingAction}
+      />
 
       <SearchInput
         value={searchQuery}
@@ -212,8 +193,6 @@ export function BuildingsPageContent({ showHeader = true, loadRelatedData = true
           setDialogOpen(open)
           if (!open) setSelectedBuildingId(null)
         }}
-        resolveLandmarkName={resolveLandmarkName}
-        resolveOrganizationName={resolveOrganizationName}
         onBuildingUpdated={(updatedBuilding) => {
           setSelectedBuildingId(updatedBuilding.id)
           void loadPageData()

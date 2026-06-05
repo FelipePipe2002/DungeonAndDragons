@@ -17,11 +17,11 @@ spring:
       validation-timeout: 5000      # 5s para validar
       # leak-detection-threshold: 20000 # opcional para detectar fugas
   flyway:
-    enabled: true
+    enabled: false
     baseline-on-migrate: true
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

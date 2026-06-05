@@ -5,16 +5,16 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 public record CharacterUpsertRequest(
-    @NotBlank(message = "El nombre del personaje es obligatorio")
-    String nombre,
-    String clase,
-    String raza,
-    String descripcion,
+    @NotBlank(message = "name es obligatorio")
+    String name,
+    String characterClass,
+    String race,
+    String description,
     boolean isPlayer,
     CharacterSheetData characterSheet,
     List<String> tags,
-    String imagen,
-    Long imagenAssetId,
+    String image,
+    Long imageAssetId,
     Double tokenImageFocusX,
     Double tokenImageFocusY,
     Double tokenImageZoom,
@@ -24,6 +24,6 @@ public record CharacterUpsertRequest(
     Long landmarkId,
     List<Long> buildingIds,
     List<Long> organizationIds,
-    List<@Valid CharacterEventRequest> eventos
+    List<@Valid EventDto> events
 ) {
 }

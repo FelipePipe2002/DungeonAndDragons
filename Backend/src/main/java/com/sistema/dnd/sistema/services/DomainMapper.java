@@ -1,30 +1,26 @@
 package com.sistema.dnd.sistema.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema.dnd.sistema.dto.domain.BuildingDto;
 import com.sistema.dnd.sistema.dto.domain.CharacterDto;
-import com.sistema.dnd.sistema.dto.domain.CharacterEventDto;
 import com.sistema.dnd.sistema.dto.domain.CharacterSheetData;
+import com.sistema.dnd.sistema.dto.domain.EventDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkDto;
-import com.sistema.dnd.sistema.dto.domain.LandmarkEventDto;
 import com.sistema.dnd.sistema.dto.domain.LandmarkMapDto;
 import com.sistema.dnd.sistema.dto.domain.OrganizationDto;
 import com.sistema.dnd.sistema.dto.domain.OrganizationMemberDto;
 import com.sistema.dnd.sistema.entity.BuildingEntity;
-import com.sistema.dnd.sistema.entity.BuildingMapRefEntity;
 import com.sistema.dnd.sistema.entity.CharacterEntity;
+import com.sistema.dnd.sistema.entity.EventEntity;
 import com.sistema.dnd.sistema.entity.LandmarkEntity;
-import com.sistema.dnd.sistema.entity.LandmarkMapRefEntity;
 import com.sistema.dnd.sistema.entity.OrganizationEntity;
 import com.sistema.dnd.sistema.entity.OrganizationMembershipEntity;
-import com.sistema.dnd.sistema.entity.TaggableEntityType;
+import com.sistema.dnd.sistema.entity.enums.EventOwnerType;
+import com.sistema.dnd.sistema.entity.enums.TaggableEntityType;
 import com.sistema.dnd.sistema.repository.BuildingRepository;
-import com.sistema.dnd.sistema.repository.BuildingMapRefRepository;
-import com.sistema.dnd.sistema.repository.CharacterBuildingRepository;
-import com.sistema.dnd.sistema.repository.CharacterEventRepository;
 import com.sistema.dnd.sistema.repository.CharacterRepository;
-import com.sistema.dnd.sistema.repository.LandmarkEventRepository;
-import com.sistema.dnd.sistema.repository.LandmarkMapRefRepository;
-import com.sistema.dnd.sistema.repository.OrganizationCategoryRepository;
+import com.sistema.dnd.sistema.repository.EventRepository;
 import com.sistema.dnd.sistema.repository.OrganizationLandmarkRepository;
 import com.sistema.dnd.sistema.repository.OrganizationMembershipRepository;
 import com.sistema.dnd.sistema.repository.OrganizationRepository;
@@ -39,48 +35,33 @@ import org.springframework.stereotype.Component;
 @Component
 public class DomainMapper {
 
-    private final LandmarkEventRepository landmarkEventRepository;
-    private final LandmarkMapRefRepository landmarkMapRefRepository;
+    private final EventRepository eventRepository;
     private final BuildingRepository buildingRepository;
-    private final BuildingMapRefRepository buildingMapRefRepository;
     private final CharacterRepository characterRepository;
-    private final CharacterEventRepository characterEventRepository;
-    private final CharacterBuildingRepository characterBuildingRepository;
     private final OrganizationRepository organizationRepository;
-    private final OrganizationCategoryRepository organizationCategoryRepository;
     private final OrganizationLandmarkRepository organizationLandmarkRepository;
     private final OrganizationMembershipRepository organizationMembershipRepository;
     private final TaggingService taggingService;
-    private final CharacterSheetJsonCodec characterSheetJsonCodec;
+    private final ObjectMapper objectMapper;
 
     public DomainMapper(
-        LandmarkEventRepository landmarkEventRepository,
-        LandmarkMapRefRepository landmarkMapRefRepository,
+        EventRepository eventRepository,
         BuildingRepository buildingRepository,
-        BuildingMapRefRepository buildingMapRefRepository,
         CharacterRepository characterRepository,
-        CharacterEventRepository characterEventRepository,
-        CharacterBuildingRepository characterBuildingRepository,
         OrganizationRepository organizationRepository,
-        OrganizationCategoryRepository organizationCategoryRepository,
         OrganizationLandmarkRepository organizationLandmarkRepository,
         OrganizationMembershipRepository organizationMembershipRepository,
         TaggingService taggingService,
-        CharacterSheetJsonCodec characterSheetJsonCodec
+        ObjectMapper objectMapper
     ) {
-        this.landmarkEventRepository = landmarkEventRepository;
-        this.landmarkMapRefRepository = landmarkMapRefRepository;
+        this.eventRepository = eventRepository;
         this.buildingRepository = buildingRepository;
-        this.buildingMapRefRepository = buildingMapRefRepository;
         this.characterRepository = characterRepository;
-        this.characterEventRepository = characterEventRepository;
-        this.characterBuildingRepository = characterBuildingRepository;
         this.organizationRepository = organizationRepository;
-        this.organizationCategoryRepository = organizationCategoryRepository;
         this.organizationLandmarkRepository = organizationLandmarkRepository;
         this.organizationMembershipRepository = organizationMembershipRepository;
         this.taggingService = taggingService;
-        this.characterSheetJsonCodec = characterSheetJsonCodec;
+        this.objectMapper = objectMapper;
     }
 
     public LandmarkDto toLandmarkDto(
@@ -91,19 +72,12 @@ public class DomainMapper {
     ) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.landmark, landmark.getId());
 
-        List<LandmarkEventDto> eventos = landmarkEventRepository.findByLandmarkIdOrderByIdDesc(landmark.getId())
+        List<EventDto> eventos = eventRepository.findByOwnerTypeAndOwnerIdOrderByIdDesc(EventOwnerType.landmark, landmark.getId())
             .stream()
-            .map(event -> new LandmarkEventDto(
-                event.getNombre(),
-                event.getDescripcion(),
-                event.getFecha(),
-                toPosition(event.getPosicionX(), event.getPosicionY())
-            ))
+            .map(this::toEventDto)
             .toList();
 
-        LandmarkMapDto mapa = landmarkMapRefRepository.findByLandmarkId(landmark.getId())
-            .map(this::toLandmarkMapDto)
-            .orElse(null);
+        LandmarkMapDto mapa = toLandmarkMapDto(landmark);
 
         List<BuildingDto> edificios = includeBuildings
             ? buildingRepository.findByLandmarkIdOrderByNombreAsc(landmark.getId()).stream().map(this::toBuildingDto).toList()
@@ -169,9 +143,7 @@ public class DomainMapper {
 
     public BuildingDto toBuildingDto(BuildingEntity building) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.building, building.getId());
-        LandmarkMapDto mapa = buildingMapRefRepository.findByBuildingId(building.getId())
-            .map(this::toLandmarkMapDto)
-            .orElse(null);
+        LandmarkMapDto mapa = toLandmarkMapDto(building);
 
         return new BuildingDto(
             building.getId(),
@@ -196,19 +168,15 @@ public class DomainMapper {
 
     public CharacterDto toCharacterDto(CharacterEntity character) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.character, character.getId());
-        CharacterSheetData characterSheet = characterSheetJsonCodec.read(character.getCharacterSheet());
+        CharacterSheetData characterSheet = readCharacterSheet(character.getCharacterSheet());
 
-        List<CharacterEventDto> eventos = characterEventRepository.findByCharacterIdOrderByIdDesc(character.getId())
+        List<EventDto> eventos = eventRepository.findByOwnerTypeAndOwnerIdOrderByIdDesc(EventOwnerType.character, character.getId())
             .stream()
-            .map(event -> new CharacterEventDto(
-                event.getSesion(),
-                event.getDescripcion(),
-                event.getFecha()
-            ))
+            .map(this::toEventDto)
             .toList();
 
-        List<Long> buildingIds = characterBuildingRepository.findByCharacterId(character.getId()).stream()
-            .map(item -> item.getBuilding().getId())
+        List<Long> buildingIds = buildingRepository.findByDuenoIdOrderByNombreAsc(character.getId()).stream()
+            .map(BuildingEntity::getId)
             .distinct()
             .toList();
 
@@ -244,11 +212,6 @@ public class DomainMapper {
     public OrganizationDto toOrganizationDto(OrganizationEntity organization) {
         List<String> tags = taggingService.findTagNames(TaggableEntityType.organization, organization.getId());
 
-        List<String> categorias = organizationCategoryRepository.findByOrganizationIdOrderByCategoriaAsc(organization.getId())
-            .stream()
-            .map(item -> item.getCategoria())
-            .toList();
-
         Set<Long> landmarks = new LinkedHashSet<>();
         organizationLandmarkRepository.findByOrganizationId(organization.getId()).stream()
             .map(item -> item.getLandmarkId())
@@ -269,10 +232,19 @@ public class DomainMapper {
             .map(BuildingEntity::getId)
             .toList();
 
-        List<OrganizationMemberDto> miembros = organizationMembershipRepository.findByOrganizationId(organization.getId())
+        List<OrganizationMembershipEntity> memberships = organizationMembershipRepository.findByOrganizationId(organization.getId());
+
+        List<OrganizationMemberDto> miembros = memberships
             .stream()
             .sorted(Comparator.comparing(item -> item.getCharacter().getNombre(), String.CASE_INSENSITIVE_ORDER))
             .map(this::toOrganizationMemberDto)
+            .toList();
+
+        List<String> categorias = memberships.stream()
+            .map(OrganizationMembershipEntity::getCategoria)
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
 
         return new OrganizationDto(
@@ -301,25 +273,33 @@ public class DomainMapper {
         );
     }
 
-    private LandmarkMapDto toLandmarkMapDto(LandmarkMapRefEntity mapRef) {
+    private LandmarkMapDto toLandmarkMapDto(LandmarkEntity landmark) {
+        if (landmark.getMapKind() == null) {
+            return null;
+        }
+
         return new LandmarkMapDto(
-            mapRef.getKind().name(),
-            mapRef.getSource() != null ? mapRef.getSource().name() : null,
-            mapRef.getFilename(),
-            mapRef.getUrl(),
-            mapRef.getStorageKey(),
-            mapRef.getDataUrl()
+            landmark.getMapKind().name(),
+            landmark.getMapSource() != null ? landmark.getMapSource().name() : null,
+            landmark.getMapFilename(),
+            landmark.getMapUrl(),
+            landmark.getMapStorageKey(),
+            landmark.getMapDataUrl()
         );
     }
 
-    private LandmarkMapDto toLandmarkMapDto(BuildingMapRefEntity mapRef) {
+    private LandmarkMapDto toLandmarkMapDto(BuildingEntity building) {
+        if (building.getMapKind() == null) {
+            return null;
+        }
+
         return new LandmarkMapDto(
-            mapRef.getKind().name(),
-            mapRef.getSource() != null ? mapRef.getSource().name() : null,
-            mapRef.getFilename(),
-            mapRef.getUrl(),
-            mapRef.getStorageKey(),
-            mapRef.getDataUrl()
+            building.getMapKind().name(),
+            building.getMapSource() != null ? building.getMapSource().name() : null,
+            building.getMapFilename(),
+            building.getMapUrl(),
+            building.getMapStorageKey(),
+            building.getMapDataUrl()
         );
     }
 
@@ -332,5 +312,27 @@ public class DomainMapper {
         position.add(x);
         position.add(y);
         return position;
+    }
+
+    private EventDto toEventDto(EventEntity event) {
+        return new EventDto(
+            event.getId(),
+            event.getTitulo(),
+            event.getDescripcion(),
+            event.getFecha(),
+            event.getSesion()
+        );
+    }
+
+    private CharacterSheetData readCharacterSheet(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readValue(value, CharacterSheetData.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("No se pudo deserializar el characterSheet", exception);
+        }
     }
 }

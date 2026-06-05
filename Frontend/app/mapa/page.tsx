@@ -1,5 +1,5 @@
 import { StandaloneMapViewer } from "@/components/map/StandaloneMapViewer"
-import { getLandmarkAssetsByFolder } from "@/lib/server/landmark-assets"
+import { getLandmarkAssetsByFolder } from "@/lib/landmarks/assets.server"
 
 const WORLD_MAP_URL = "/maps/world/chult-map.jpg"
 

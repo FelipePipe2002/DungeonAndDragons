@@ -18,7 +18,7 @@ import { ItemDetailDialog } from "@/components/dialog/detailed/ItemDetailDialog"
 import { LandmarkResumeDialog } from "@/components/dialog/resumed/LandmarkResumeDialog"
 import { OrganizationResumeDialog } from "@/components/dialog/resumed/OrganizationResumeDialog"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
-import { loadItems, type Item as CatalogItem } from "@/lib/items/item-store"
+import { loadItems, type Item as CatalogItem } from "@/lib/informacion/items/store"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchBuildings } from "@/lib/services/building-api.service"
 import { fetchEstados } from "@/lib/services/estado-api.service"
@@ -707,23 +707,23 @@ function buildMentionPreviewContent(
   }
 
   if (mention.type === "landmark") {
-    return <LandmarkResumeDialog landmarkId={mention.id} onClick={handleOpenMention} />
+    return <LandmarkResumeDialog landmarkId={mention.id} onClick={handleOpenMention} openOnClick={false} />
   }
 
   if (mention.type === "estado") {
-    return <EstadoResumeDialog estadoId={mention.id} onClick={handleOpenMention} />
+    return <EstadoResumeDialog estadoId={mention.id} onClick={handleOpenMention} openOnClick={false} />
   }
 
   if (mention.type === "building") {
-    return <BuildingResumeDialog buildingId={mention.id} onClick={handleOpenMention} />
+    return <BuildingResumeDialog buildingId={mention.id} onClick={handleOpenMention} openOnClick={false} />
   }
 
   if (mention.type === "character") {
-    return <CharacterResumeDialog characterId={mention.id} onClick={handleOpenMention} />
+    return <CharacterResumeDialog characterId={mention.id} onClick={handleOpenMention} openOnClick={false} />
   }
 
   if (mention.type === "organization") {
-    return <OrganizationResumeDialog organizationId={mention.id} onClick={handleOpenMention} />
+    return <OrganizationResumeDialog organizationId={mention.id} onClick={handleOpenMention} openOnClick={false} />
   }
 
   if (mention.type === "item") {

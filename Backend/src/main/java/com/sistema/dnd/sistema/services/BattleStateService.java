@@ -1,18 +1,20 @@
 package com.sistema.dnd.sistema.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sistema.dnd.sistema.dto.domain.BattleObstacleData;
 import com.sistema.dnd.sistema.dto.domain.BattleCenterHistoryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleDungeonFogData;
 import com.sistema.dnd.sistema.dto.domain.BattleFogRevealData;
 import com.sistema.dnd.sistema.dto.domain.BattleStateDto;
-import com.sistema.dnd.sistema.dto.domain.BattleStateUpsertRequest;
 import com.sistema.dnd.sistema.dto.domain.BattleSummaryDto;
 import com.sistema.dnd.sistema.dto.domain.BattleTokenData;
 import com.sistema.dnd.sistema.dto.domain.CreateBattleRequest;
 import com.sistema.dnd.sistema.dto.domain.UpdateBattleStateRequest;
-import com.sistema.dnd.sistema.entity.BattleSceneType;
+import com.sistema.dnd.sistema.entity.enums.BattleSceneType;
 import com.sistema.dnd.sistema.entity.BattleStateEntity;
-import com.sistema.dnd.sistema.entity.BattleStatus;
+import com.sistema.dnd.sistema.entity.enums.BattleStatus;
 import com.sistema.dnd.sistema.repository.BattleStateRepository;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
@@ -33,24 +35,90 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class BattleStateService {
 
+    private static final TypeReference<List<BattleTokenData>> TOKEN_LIST_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<List<BattleObstacleData>> OBSTACLE_LIST_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<List<BattleFogRevealData>> FOG_REVEAL_LIST_TYPE = new TypeReference<>() {
+    };
+
     private final BattleStateRepository battleStateRepository;
-    private final BattleStateJsonCodec battleStateJsonCodec;
-    private final BattleObstacleJsonCodec battleObstacleJsonCodec;
-    private final BattleFogRevealJsonCodec battleFogRevealJsonCodec;
-    private final BattleDungeonFogJsonCodec battleDungeonFogJsonCodec;
+    private final ObjectMapper objectMapper;
+
+    private String writeTokens(List<BattleTokenData> value) {
+        return writeList(value, TOKEN_LIST_TYPE, "No se pudo serializar el estado de batalla");
+    }
+
+    private List<BattleTokenData> readTokens(String value) {
+        return readList(value, TOKEN_LIST_TYPE, "No se pudo deserializar el estado de batalla");
+    }
+
+    private String writeObstacles(List<BattleObstacleData> value) {
+        return writeList(value, OBSTACLE_LIST_TYPE, "No se pudieron serializar los obstaculos de batalla");
+    }
+
+    private List<BattleObstacleData> readObstacles(String value) {
+        return readList(value, OBSTACLE_LIST_TYPE, "No se pudieron deserializar los obstaculos de batalla");
+    }
+
+    private String writeFogReveals(List<BattleFogRevealData> value) {
+        return writeList(value, FOG_REVEAL_LIST_TYPE, "No se pudieron serializar las zonas de niebla");
+    }
+
+    private List<BattleFogRevealData> readFogReveals(String value) {
+        return readList(value, FOG_REVEAL_LIST_TYPE, "No se pudieron deserializar las zonas de niebla");
+    }
+
+    private String writeDungeonFog(BattleDungeonFogData value) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? defaultDungeonFog() : value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("No se pudo serializar la niebla de dungeon", exception);
+        }
+    }
+
+    private BattleDungeonFogData readDungeonFog(String value) {
+        if (value == null || value.isBlank()) {
+            return defaultDungeonFog();
+        }
+
+        try {
+            return objectMapper.readValue(value, BattleDungeonFogData.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("No se pudo deserializar la niebla de dungeon", exception);
+        }
+    }
+
+    private <T> String writeList(List<T> value, TypeReference<List<T>> typeRef, String errorMessage) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? List.of() : value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException(errorMessage, exception);
+        }
+    }
+
+    private <T> List<T> readList(String value, TypeReference<List<T>> typeRef, String errorMessage) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(value, typeRef);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException(errorMessage, exception);
+        }
+    }
+
+    private BattleDungeonFogData defaultDungeonFog() {
+        return new BattleDungeonFogData(false, List.of(), List.of(), 4, 8);
+    }
 
     public BattleStateService(
         BattleStateRepository battleStateRepository,
-        BattleStateJsonCodec battleStateJsonCodec,
-        BattleObstacleJsonCodec battleObstacleJsonCodec,
-        BattleFogRevealJsonCodec battleFogRevealJsonCodec,
-        BattleDungeonFogJsonCodec battleDungeonFogJsonCodec
+        ObjectMapper objectMapper
     ) {
         this.battleStateRepository = battleStateRepository;
-        this.battleStateJsonCodec = battleStateJsonCodec;
-        this.battleObstacleJsonCodec = battleObstacleJsonCodec;
-        this.battleFogRevealJsonCodec = battleFogRevealJsonCodec;
-        this.battleDungeonFogJsonCodec = battleDungeonFogJsonCodec;
+        this.objectMapper = objectMapper;
     }
 
     public BattleStateDto findCurrent() {
@@ -58,11 +126,6 @@ public class BattleStateService {
             .findFirstByStatusOrderByUpdatedAtDesc(BattleStatus.ACTIVE)
             .map(this::toDto)
             .orElse(null);
-    }
-
-    @Deprecated(since = "2026-03", forRemoval = false)
-    public BattleStateDto updateCurrent(BattleStateUpsertRequest request) {
-        throw new ResponseStatusException(HttpStatus.GONE, "Usa /v1/battles/{id}");
     }
 
     public BattleStateDto findById(Long id) {
@@ -175,7 +238,7 @@ public class BattleStateService {
         entity.setFogEnabled(false);
         entity.setNextFogRevealId(1);
         entity.setFogRevealsJson("[]");
-        entity.setDungeonFogJson(battleDungeonFogJsonCodec.write(normalizeDungeonFog(null)));
+        entity.setDungeonFogJson(writeDungeonFog(normalizeDungeonFog(null)));
 
         return toDto(battleStateRepository.save(entity));
     }
@@ -199,13 +262,13 @@ public class BattleStateService {
         entity.setDmNotes(normalizeBattleNotes(request == null ? null : request.dmNotes()));
         entity.setNextTokenNumber(resolveNextTokenNumber(request == null ? null : request.nextTokenNumber(), normalizedTokens));
         entity.setCurrentTurnTokenNumber(normalizedCurrentTurnTokenNumber);
-        entity.setTokensJson(battleStateJsonCodec.write(normalizedTokens));
+        entity.setTokensJson(writeTokens(normalizedTokens));
         entity.setNextObstacleId(resolveNextObstacleId(request == null ? null : request.nextObstacleId(), normalizedObstacles));
-        entity.setObstaclesJson(battleObstacleJsonCodec.write(normalizedObstacles));
+        entity.setObstaclesJson(writeObstacles(normalizedObstacles));
         entity.setFogEnabled(request != null && Boolean.TRUE.equals(request.fogEnabled()));
         entity.setNextFogRevealId(resolveNextFogRevealId(request == null ? null : request.nextFogRevealId(), normalizedFogReveals));
-        entity.setFogRevealsJson(battleFogRevealJsonCodec.write(normalizedFogReveals));
-        entity.setDungeonFogJson(battleDungeonFogJsonCodec.write(normalizedDungeonFog));
+        entity.setFogRevealsJson(writeFogReveals(normalizedFogReveals));
+        entity.setDungeonFogJson(writeDungeonFog(normalizedDungeonFog));
         entity.setEndedAt(null);
 
         return toDto(battleStateRepository.save(entity));
@@ -237,7 +300,7 @@ public class BattleStateService {
         entity.setCurrentTurnTokenNumber(
             normalizeCurrentTurnTokenNumber(
                 entity.getCurrentTurnTokenNumber(),
-                normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()))
+                normalizeTokens(readTokens(entity.getTokensJson()))
             )
         );
 
@@ -318,8 +381,8 @@ public class BattleStateService {
     }
 
     private BattleSummaryDto toSummaryDto(BattleStateEntity entity) {
-        List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
-        List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
+        List<BattleTokenData> tokens = normalizeTokens(readTokens(entity.getTokensJson()));
+        List<BattleObstacleData> obstacles = normalizeObstacles(readObstacles(entity.getObstaclesJson()));
 
         return new BattleSummaryDto(
             entity.getId(),
@@ -338,10 +401,10 @@ public class BattleStateService {
     }
 
     private BattleStateDto toDto(BattleStateEntity entity) {
-        List<BattleTokenData> tokens = normalizeTokens(battleStateJsonCodec.read(entity.getTokensJson()));
-        List<BattleObstacleData> obstacles = normalizeObstacles(battleObstacleJsonCodec.read(entity.getObstaclesJson()));
-        List<BattleFogRevealData> fogReveals = normalizeFogReveals(battleFogRevealJsonCodec.read(entity.getFogRevealsJson()));
-        BattleDungeonFogData dungeonFog = normalizeDungeonFog(battleDungeonFogJsonCodec.read(entity.getDungeonFogJson()));
+        List<BattleTokenData> tokens = normalizeTokens(readTokens(entity.getTokensJson()));
+        List<BattleObstacleData> obstacles = normalizeObstacles(readObstacles(entity.getObstaclesJson()));
+        List<BattleFogRevealData> fogReveals = normalizeFogReveals(readFogReveals(entity.getFogRevealsJson()));
+        BattleDungeonFogData dungeonFog = normalizeDungeonFog(readDungeonFog(entity.getDungeonFogJson()));
         Integer normalizedCurrentTurnTokenNumber = normalizeCurrentTurnTokenNumber(entity.getCurrentTurnTokenNumber(), tokens);
 
         return new BattleStateDto(
@@ -485,7 +548,7 @@ public class BattleStateService {
     private BattleTokenData normalizeToken(BattleTokenData token) {
         int number = positiveInt(token.number(), 1);
         String type = normalizeTokenType(token.type());
-        String nombre = normalizedOrNull(token.nombre());
+        String name = normalizedOrNull(token.name());
         Integer characterId = positiveOptionalInt(token.characterId());
         String sourceType = normalizeTokenSourceType(token.sourceType(), characterId);
         String sourceRef = normalizeTokenSourceRef(token.sourceRef(), sourceType, characterId);
@@ -494,8 +557,8 @@ public class BattleStateService {
         Double imageFocusX = clampPercent(token.imageFocusX(), 50);
         Double imageFocusY = clampPercent(token.imageFocusY(), 50);
         Double imageZoom = clampTokenImageZoom(token.imageZoom(), 1);
-        if (nombre == null) {
-            nombre = "%s %d".formatted(type.equals("player") ? "Jugador" : "Enemigo", number);
+        if (name == null) {
+            name = "%s %d".formatted(type.equals("player") ? "Jugador" : "Enemigo", number);
         }
 
         if (imageAssetId != null) {
@@ -509,7 +572,7 @@ public class BattleStateService {
 
         return new BattleTokenData(
             number,
-            trimToLength(nombre, 120),
+            trimToLength(name, 120),
             characterId,
             sourceType,
             sourceRef,

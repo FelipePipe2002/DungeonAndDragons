@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { type LucideIcon, Boxes, Scroll, BookOpen, Monitor, Swords, FileText, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getMainNavItemByPath, type MainNavItemId, MAIN_NAV_ITEMS } from "@/lib/navigation/main-nav"
-import { toggleNavSettingsPanel } from "@/lib/navigation/nav-settings-events"
+import { toggleNavSettingsPanel } from "@/lib/navigation/events"
 import { openPresentationScreen } from "@/lib/presentation/screen"
 
 const NAV_ITEM_ICONS: Record<MainNavItemId, LucideIcon> = {

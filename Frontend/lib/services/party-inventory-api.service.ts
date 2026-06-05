@@ -1,4 +1,8 @@
 import type {
+  BackendPartyInventoryBalanceDto,
+  BackendPartyInventoryDto,
+  BackendPartyInventoryItemDto,
+  BackendPartyInventoryItemUpsertPayload,
   PartyInventory,
   PartyInventoryBalance,
   PartyInventoryBalanceInput,
@@ -7,40 +11,13 @@ import type {
   PartyInventoryItemKind,
 } from "@/lib/types"
 import { backendRequest } from "@/lib/services/backend-api.service"
-
-type PartyInventoryBalanceDto = {
-  copper?: number | null
-  silver?: number | null
-  gold?: number | null
-  platinum?: number | null
-  updatedAt?: string | null
-}
-
-type PartyInventoryItemDto = {
-  id?: number | null
-  kind?: string | null
-  name?: string | null
-  quantity?: number | null
-  carrierCharacterId?: number | null
-  carriedBy?: string | null
-  important?: boolean | null
-  notes?: string | null
-  sourceItemName?: string | null
-  sourceItemTypeCode?: string | null
-  createdAt?: string | null
-  updatedAt?: string | null
-}
-
-type PartyInventoryDto = {
-  balance?: PartyInventoryBalanceDto | null
-  items?: PartyInventoryItemDto[] | null
-}
+import { backendRoutes } from "@/lib/services/backend-routes"
 
 function normalizeKind(value: string | null | undefined): PartyInventoryItemKind {
   return value === "catalog-item" ? "catalog-item" : "custom-item"
 }
 
-function normalizeBalance(dto: PartyInventoryBalanceDto | null | undefined): PartyInventoryBalance {
+function normalizeBalance(dto: BackendPartyInventoryBalanceDto | null | undefined): PartyInventoryBalance {
   return {
     copper: typeof dto?.copper === "number" && Number.isFinite(dto.copper) ? dto.copper : 0,
     silver: typeof dto?.silver === "number" && Number.isFinite(dto.silver) ? dto.silver : 0,
@@ -50,7 +27,7 @@ function normalizeBalance(dto: PartyInventoryBalanceDto | null | undefined): Par
   }
 }
 
-function normalizeItem(dto: PartyInventoryItemDto): PartyInventoryItem | null {
+function normalizeItem(dto: BackendPartyInventoryItemDto): PartyInventoryItem | null {
   const id = typeof dto.id === "number" && Number.isFinite(dto.id) ? dto.id : 0
   const name = typeof dto.name === "string" ? dto.name.trim() : ""
   if (id <= 0 || !name) {
@@ -73,14 +50,14 @@ function normalizeItem(dto: PartyInventoryItemDto): PartyInventoryItem | null {
   }
 }
 
-function normalizeInventory(dto: PartyInventoryDto | null | undefined): PartyInventory {
+function normalizeInventory(dto: BackendPartyInventoryDto | null | undefined): PartyInventory {
   return {
     balance: normalizeBalance(dto?.balance),
     items: Array.isArray(dto?.items) ? dto.items.map((item) => normalizeItem(item)).filter((item): item is PartyInventoryItem => item !== null) : [],
   }
 }
 
-function sanitizeItemInput(input: PartyInventoryItemInput) {
+function sanitizeItemInput(input: PartyInventoryItemInput): BackendPartyInventoryItemUpsertPayload {
   return {
     kind: input.kind,
     name: input.name,
@@ -95,12 +72,12 @@ function sanitizeItemInput(input: PartyInventoryItemInput) {
 }
 
 export async function fetchPartyInventory(): Promise<PartyInventory> {
-  const response = await backendRequest<PartyInventoryDto>("/v1/party-inventory")
+  const response = await backendRequest<BackendPartyInventoryDto>(backendRoutes.partyInventory.root)
   return normalizeInventory(response)
 }
 
 export async function updatePartyInventoryBalance(input: PartyInventoryBalanceInput): Promise<PartyInventoryBalance> {
-  const response = await backendRequest<PartyInventoryBalanceDto>("/v1/party-inventory/balance", {
+  const response = await backendRequest<BackendPartyInventoryBalanceDto>(backendRoutes.partyInventory.balance, {
     method: "PUT",
     body: input,
   })
@@ -108,7 +85,7 @@ export async function updatePartyInventoryBalance(input: PartyInventoryBalanceIn
 }
 
 export async function createPartyInventoryItem(input: PartyInventoryItemInput): Promise<PartyInventoryItem> {
-  const response = await backendRequest<PartyInventoryItemDto>("/v1/party-inventory/items", {
+  const response = await backendRequest<BackendPartyInventoryItemDto>(backendRoutes.partyInventory.items, {
     method: "POST",
     body: sanitizeItemInput(input),
   })
@@ -120,7 +97,7 @@ export async function createPartyInventoryItem(input: PartyInventoryItemInput): 
 }
 
 export async function updatePartyInventoryItem(itemId: number, input: PartyInventoryItemInput): Promise<PartyInventoryItem> {
-  const response = await backendRequest<PartyInventoryItemDto>(`/v1/party-inventory/items/${itemId}`, {
+  const response = await backendRequest<BackendPartyInventoryItemDto>(backendRoutes.partyInventory.itemById(itemId), {
     method: "PUT",
     body: sanitizeItemInput(input),
   })
@@ -132,7 +109,7 @@ export async function updatePartyInventoryItem(itemId: number, input: PartyInven
 }
 
 export async function deletePartyInventoryItem(itemId: number): Promise<void> {
-  await backendRequest<void>(`/v1/party-inventory/items/${itemId}`, {
+  await backendRequest<void>(backendRoutes.partyInventory.itemById(itemId), {
     method: "DELETE",
   })
 }

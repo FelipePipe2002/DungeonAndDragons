@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { DmRelationship, DmRelationshipDirection, DmRelationshipEntityType } from "@/lib/types"
 import { getCachedBuildingName } from "@/lib/services/building-api.service"
 import { fetchCharacterReferences, fetchCharacters } from "@/lib/services/character-api.service"
@@ -36,11 +37,11 @@ type RelationshipLookup = {
 
 function resolveEntityName(entityType: DmRelationshipEntityType, id: number, lookup: RelationshipLookup): string {
   if (!(typeof id === "number" && Number.isFinite(id) && id > 0)) {
-    return "Desconocido"
+    return UNKNOWN_LABEL
   }
 
   if (entityType === "character") {
-    return lookup.characterNameById.get(id) ?? "Desconocido"
+    return lookup.characterNameById.get(id) ?? UNKNOWN_LABEL
   }
 
   if (entityType === "landmark") {

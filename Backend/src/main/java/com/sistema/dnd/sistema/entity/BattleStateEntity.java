@@ -1,5 +1,7 @@
 package com.sistema.dnd.sistema.entity;
 
+import com.sistema.dnd.sistema.entity.enums.BattleSceneType;
+import com.sistema.dnd.sistema.entity.enums.BattleStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,12 +13,14 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "battle_states")
 @Getter
 @Setter
-public class BattleStateEntity extends AuditableEntity {
+public class BattleStateEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,9 +45,6 @@ public class BattleStateEntity extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private BattleStatus status = BattleStatus.ACTIVE;
-
-    @Column(name = "ended_at")
-    private OffsetDateTime endedAt;
 
     @Column(name = "round_number", nullable = false)
     private Integer roundNumber = 1;
@@ -77,4 +78,15 @@ public class BattleStateEntity extends AuditableEntity {
 
     @Column(name = "dungeon_fog_json", nullable = false, columnDefinition = "TEXT")
     private String dungeonFogJson = "{\"enabled\":false,\"exploredCellKeys\":[],\"openDoorIds\":[],\"playerVisionBrightRadiusCells\":4,\"playerVisionDimRadiusCells\":8}";
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
+    @Column(name = "ended_at")
+    private OffsetDateTime endedAt;
 }

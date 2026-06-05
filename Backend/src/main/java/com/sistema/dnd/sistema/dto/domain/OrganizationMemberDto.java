@@ -1,11 +1,11 @@
 package com.sistema.dnd.sistema.dto.domain;
 
 public record OrganizationMemberDto(
-    Long personajeId,
-    String nombre,
-    String profesion,
-    String raza,
+    Long characterId,
+    String name,
+    String profession,
+    String race,
     Long landmarkId,
-    String categoria
+    String category
 ) {
 }

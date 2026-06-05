@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { Organization, OrganizationMember } from "@/lib/types"
 import { fetchBuildings, getCachedBuildingName } from "@/lib/services/building-api.service"
 import { fetchLandmarkReferences, getCachedLandmarkName } from "@/lib/services/landmark-api.service"
@@ -33,7 +34,7 @@ function formatCappedSection(
 }
 
 function memberToLine(member: OrganizationMember, landmarkNameById: Map<number, string>) {
-  const name = toOptionalTrimmedText(member.nombre) ?? "Desconocido"
+  const name = toOptionalTrimmedText(member.nombre) ?? UNKNOWN_LABEL
   const parts: string[] = [`- ${name} (id: ${member.personajeId})`]
 
   const categoria = toOptionalTrimmedText(member.categoria)
@@ -105,7 +106,7 @@ export async function organizationToText(organization: Organization): Promise<st
     const name =
       toOptionalTrimmedText(buildingNameById.get(buildingId)) ??
       toOptionalTrimmedText(getCachedBuildingName(buildingId)) ??
-      "Desconocido"
+      UNKNOWN_LABEL
 
     const parts: string[] = [`- ${name} (id: ${buildingId})`]
     const buildingLandmarkId = buildingLandmarkIdById.get(buildingId)

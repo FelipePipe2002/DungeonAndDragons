@@ -1,13 +1,17 @@
 package com.sistema.dnd.sistema.dto.domain;
 
-import java.time.OffsetDateTime;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record SavedPageDto(
     Long id,
-    String titulo,
+
+    @NotBlank(message = "title es obligatorio")
+    @Size(max = 200, message = "title debe tener como maximo 200 caracteres")
+    String title,
+
+    @NotBlank(message = "La URL es obligatoria")
     String url,
-    String selector,
-    OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    String selector
 ) {
 }

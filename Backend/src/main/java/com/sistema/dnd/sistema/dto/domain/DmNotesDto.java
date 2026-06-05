@@ -1,6 +1,9 @@
 package com.sistema.dnd.sistema.dto.domain;
 
+import jakarta.validation.constraints.NotNull;
+
 public record DmNotesDto(
-    String texto
+    @NotNull(message = "text es obligatorio")
+    String text
 ) {
 }

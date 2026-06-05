@@ -6,10 +6,12 @@ import { BrowserDetailPanel } from "@/components/browser/BrowserDetailPanel"
 import { BrowserEmptyState } from "@/components/browser/BrowserEmptyState"
 import { BrowserLayout } from "@/components/browser/BrowserLayout"
 import { BrowserList } from "@/components/browser/BrowserList"
+import { BrowserListMessage } from "@/components/browser/BrowserListMessage"
+import { BrowserSelectableListItem } from "@/components/browser/BrowserSelectableListItem"
+import { BrowserSidebar } from "@/components/browser/BrowserSidebar"
 import MonsterCard from "@/components/monster/monster-card"
 import { useMonstersSection } from "@/app/informacion/hooks/useMonstersSection"
 import type { MonsterSortField } from "@/lib/informacion/types"
-import { getListItemClassName, InformationSidebar } from "./shared"
 
 export default function MonstersSection() {
   const monsters = useMonstersSection({ isActive: true })
@@ -44,9 +46,9 @@ export default function MonstersSection() {
   )
 
   return (
-    <BrowserLayout
-      sidebar={
-        <InformationSidebar
+      <BrowserLayout
+        sidebar={
+        <BrowserSidebar
           query={monsters.monsterQuery}
           onQueryChange={monsters.setMonsterQuery}
           placeholder="Buscar monstruo, tipo o CR..."
@@ -60,27 +62,24 @@ export default function MonstersSection() {
               const monsterHp = monster.summary.hpAverage ?? "-"
 
               return (
-                <button
+                <BrowserSelectableListItem
                   key={monster.id}
-                  type="button"
                   onClick={() => monsters.setSelectedMonsterId(monster.id)}
-                  className={getListItemClassName(isActive)}
-                  style={{ borderLeftWidth: 4, borderLeftColor: "#a77243" }}
+                  isActive={isActive}
+                  accentColor="#a77243"
                 >
                   <p className="font-semibold text-foreground">{monster.summary.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {monsterType} · CR {monsterCr} · HP {monsterHp}
                   </p>
-                </button>
+                </BrowserSelectableListItem>
               )
             })}
             {monsters.sortedMonsters.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No hay monstruos que coincidan con esa busqueda.
-              </p>
+              <BrowserListMessage>No hay monstruos que coincidan con esa busqueda.</BrowserListMessage>
             ) : null}
           </BrowserList>
-        </InformationSidebar>
+        </BrowserSidebar>
       }
       detail={
         <BrowserDetailPanel>

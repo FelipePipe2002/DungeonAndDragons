@@ -59,7 +59,7 @@ async function requestBatch(offset, limit, filters, signal) {
     }
   }
 
-  const response = await fetch(`/monster-api/monsters?${params.toString()}`, {
+  const response = await fetch(`/api/monsters?${params.toString()}`, {
     cache: "no-store",
     signal
   });

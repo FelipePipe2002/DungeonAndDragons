@@ -4,15 +4,15 @@ import java.util.List;
 
 public record CharacterDto(
     Long id,
-    String nombre,
-    String clase,
-    String raza,
-    String descripcion,
+    String name,
+    String characterClass,
+    String race,
+    String description,
     boolean isPlayer,
     CharacterSheetData characterSheet,
     List<String> tags,
-    String imagen,
-    Long imagenAssetId,
+    String image,
+    Long imageAssetId,
     Double tokenImageFocusX,
     Double tokenImageFocusY,
     Double tokenImageZoom,
@@ -22,6 +22,6 @@ public record CharacterDto(
     Long landmarkId,
     List<Long> buildingIds,
     List<Long> organizationIds,
-    List<CharacterEventDto> eventos
+    List<EventDto> events
 ) {
 }

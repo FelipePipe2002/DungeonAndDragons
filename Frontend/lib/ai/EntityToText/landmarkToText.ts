@@ -1,3 +1,4 @@
+import { UNKNOWN_LABEL } from "@/lib/display"
 import type { Building, Character, Landmark, LandmarkEvent, Organization } from "@/lib/types"
 import { fetchCharacters } from "@/lib/services/character-api.service"
 import { fetchOrganizations } from "@/lib/services/organization-api.service"
@@ -50,7 +51,7 @@ function buildOrganizationNameById(organizaciones: Organization[]) {
 }
 
 function buildCharacterLine(character: Character) {
-  const name = toOptionalTrimmedText(character.nombre) ?? "Desconocido"
+  const name = toOptionalTrimmedText(character.nombre) ?? UNKNOWN_LABEL
   const raza = toOptionalTrimmedText(character.raza)
   const clase = toOptionalTrimmedText(character.clase)
 
@@ -66,16 +67,16 @@ function buildBuildingLine(
   characterNameById: Map<number, string>,
   organizationNameById: Map<number, string>,
 ) {
-  const name = toOptionalTrimmedText(building.nombre) ?? "Desconocido"
+  const name = toOptionalTrimmedText(building.nombre) ?? UNKNOWN_LABEL
   const parts: string[] = [`- ${name} (id: ${building.id})`]
 
   if (typeof building.duenoId === "number" && building.duenoId > 0) {
-    const ownerName = characterNameById.get(building.duenoId) ?? "Desconocido"
+    const ownerName = characterNameById.get(building.duenoId) ?? UNKNOWN_LABEL
     parts.push(formatEntityRef("Dueno", ownerName, building.duenoId))
   }
 
   if (typeof building.organizationId === "number" && building.organizationId > 0) {
-    const orgName = organizationNameById.get(building.organizationId) ?? "Desconocido"
+    const orgName = organizationNameById.get(building.organizationId) ?? UNKNOWN_LABEL
     parts.push(formatEntityRef("Organizacion", orgName, building.organizationId))
   }
 
@@ -202,7 +203,7 @@ export async function landmarkToText(landmark: Landmark): Promise<string> {
   } else {
     lines.push("Organizaciones:")
     for (const org of organizaciones) {
-      const name = toOptionalTrimmedText(org.nombre) ?? "Desconocido"
+      const name = toOptionalTrimmedText(org.nombre) ?? UNKNOWN_LABEL
       lines.push(`- ${name} (id: ${org.id})`)
     }
   }

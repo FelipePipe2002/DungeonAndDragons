@@ -1,7 +1,5 @@
 package com.sistema.dnd.sistema.dto.domain;
 
-import java.time.OffsetDateTime;
-
 public record PartyInventoryItemDto(
     Long id,
     String kind,
@@ -12,8 +10,6 @@ public record PartyInventoryItemDto(
     boolean important,
     String notes,
     String sourceItemName,
-    String sourceItemTypeCode,
-    OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    String sourceItemTypeCode
 ) {
 }

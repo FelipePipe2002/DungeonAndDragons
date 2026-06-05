@@ -16,24 +16,23 @@ High-level React components used across the frontend. This folder contains app s
 - `nav-settings-sheet.tsx`
   - Right-side sheet listing global/local shortcuts for the current route.
   - Uses `Tabs` to switch between global/local lists.
-- `theme-provider.tsx`
-  - Next-themes wrapper used at the app root.
 
 ## Subfolders
 - `battle/`: Battle map overlays, tokens, initiative, fog, and crop dialog.
 - `buildings/`: City/building SVG map renderer with interactions and state persistence.
-- `browser/`: Reusable browser-style layout and controls for list/detail screens.
-- `card/`: Rule/feat/spell cards with parchment styling.
-- `characters/`: Characters list page content and dialogs wiring.
+- `browser/`: Reusable browser-style layout, list panels, search, and empty/detail states for information screens.
+- `card/`: Information-detail cards for rules, feats, spells, and items.
 - `dialog/`: Detailed CRUD dialogs and compact resume cards.
+- `entities/`: Entity index screens, including characters, buildings, organizations, landmarks, and estados.
 - `frameBypass/`: Generic iframe wrapper.
 - `map/`: Standalone map viewer (landmarks, upload, edit) and styles.
 - `media/`: Media pickers and upload helpers.
 - `mentionField/`: Mention input and read-only rendering.
 - `monster/`: Monster card renderer and search UI.
 - `search/`: Search input UI.
-- `ui/`: Shared UI primitives and hooks.
+- `ui/`: Shared UI primitives used by the app shell, dialogs, browsers, and domain components.
 
 ## Usage Notes
 - Most components are client components and depend on `lib/services/*` for data.
 - Keep presentation route logic in mind when adding global overlays or shortcuts.
+- `components/ui` should not carry duplicate hooks or alternate toast stacks when the app already uses `hooks/use-toast` plus `ui/toaster`.
